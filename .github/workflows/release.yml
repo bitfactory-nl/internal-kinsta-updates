@@ -45,22 +45,44 @@ jobs:
           zip -r --symlinks "RDM-Sites-Tool-${{ github.ref_name }}-macOS.zip" "$APP"
 
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: actions/github-script@v7
         with:
-          name: "RDM Sites Tool ${{ github.ref_name }}"
-          body: |
-            ## Installatie
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const tag = context.ref.replace('refs/tags/', '');
+            const zipName = `RDM-Sites-Tool-${tag}-macOS.zip`;
+            const zipPath = path.join('bin', zipName);
 
-            1. Download `RDM-Sites-Tool-${{ github.ref_name }}-macOS.zip`
+            const body = `## Installatie
+
+            1. Download \`${zipName}\`
             2. Pak uit en sleep naar je Applications map
             3. Eerste keer openen: rechtermuisknop → **Openen** → **Toch openen**
-               (of via Terminal: `xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"`)
+               (of via Terminal: \`xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"\`)
 
             ## Configuratie
 
             Stel in via het ⚙ icoon in de app:
             - **Projects folder(s)** — map met al je lokale projecten
-            - **Kinsta API key + Company ID** — voor de Kinsta tab
-          files: bin/RDM-Sites-Tool-${{ github.ref_name }}-macOS.zip
-          draft: false
-          prerelease: false
+            - **Kinsta API key + Company ID** — voor de Kinsta tab`;
+
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `RDM Sites Tool ${tag}`,
+              body,
+              draft: false,
+              prerelease: false,
+            });
+
+            const data = fs.readFileSync(zipPath);
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: zipName,
+              data,
+            });
