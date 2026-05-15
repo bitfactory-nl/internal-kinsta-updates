@@ -25,7 +25,6 @@ jobs:
           port: ${{ secrets.PORT }}
           capture_stdout: true
           envs: KINSTA_SITE_PATH
-          script_stop: true
           script: |
             cd "$KINSTA_SITE_PATH"
             wp transient delete update_plugins 2>/dev/null || true
@@ -43,10 +42,10 @@ jobs:
       - name: Controleer of er WordPress updates zijn
         id: check_updates
         shell: bash
+        env:
+          SSH_STDOUT: ${{ steps.get_updates.outputs.stdout }}
         run: |
-          cat <<'UPDATEEOF' > /tmp/update_output.txt
-          ${{ steps.get_updates.outputs.stdout }}
-          UPDATEEOF
+          printf '%s' "$SSH_STDOUT" > /tmp/update_output.txt
           if grep -qiE "(update_version|update available)" /tmp/update_output.txt; then
             echo "has_updates=true" >> $GITHUB_OUTPUT
             echo "WordPress updates gevonden!"
@@ -76,10 +75,11 @@ jobs:
           else
             echo "has_npm_updates=true" >> "$GITHUB_OUTPUT"
             git diff --stat -- package.json package-lock.json
+            NCU_CONTENT=$(cat "$NCU_LOG")
             {
-              echo 'ncu_output<<NCUEOF'
-              cat "$NCU_LOG"
-              echo 'NCUEOF'
+              echo 'ncu_output<<BF_NCU_DELIMITER'
+              echo "$NCU_CONTENT"
+              echo 'BF_NCU_DELIMITER'
             } >> "$GITHUB_OUTPUT"
           fi
 
