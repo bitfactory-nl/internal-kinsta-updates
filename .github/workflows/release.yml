@@ -1,0 +1,66 @@
+name: Release macOS App
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build app
+        run: wails3 build
+        env:
+          CGO_ENABLED: 1
+
+      - name: Zip app
+        run: |
+          cd bin
+          APP=$(find . -name "*.app" -maxdepth 1 | head -1)
+          zip -r --symlinks "RDM-Sites-Tool-${{ github.ref_name }}-macOS.zip" "$APP"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "RDM Sites Tool ${{ github.ref_name }}"
+          body: |
+            ## Installatie
+
+            1. Download `RDM-Sites-Tool-${{ github.ref_name }}-macOS.zip`
+            2. Pak uit en sleep naar je Applications map
+            3. Eerste keer openen: rechtermuisknop → **Openen** → **Toch openen**
+               (of via Terminal: `xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"`)
+
+            ## Configuratie
+
+            Stel in via het ⚙ icoon in de app:
+            - **Projects folder(s)** — map met al je lokale projecten
+            - **Kinsta API key + Company ID** — voor de Kinsta tab
+          files: bin/RDM-Sites-Tool-${{ github.ref_name }}-macOS.zip
+          draft: false
+          prerelease: false

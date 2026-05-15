@@ -1,44 +1,59 @@
-# internal-kinsta-updates
+# Welcome to Your New Wails3 Project!
 
-Centrale reusable GitHub Actions workflow voor het automatisch checken van WordPress- en NPM-updates op Kinsta-hosted projecten.
+Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
 
-## Wat doet het?
+## Getting Started
 
-Elke maandag om 08:00 (of handmatig via `workflow_dispatch`) wordt per project:
+1. Navigate to your project directory in the terminal.
 
-1. **WordPress-updates** opgehaald via WP-CLI over SSH (core, plugins, themes)
-2. **NPM-updates** (minor + patch) gecontroleerd via `npm-check-updates`
-3. Een `automated/updates-{datum}` branch + PR aangemaakt als er updates zijn
-4. De vorige update-branch en bijbehorende PR automatisch gesloten
+2. To run your application in development mode, use the following command:
 
-## Gebruik in een project
+   ```
+   wails3 dev
+   ```
 
-Voeg dit bestand toe als `.github/workflows/check-updates.yml` in het project:
+   This will start your application and enable hot-reloading for both frontend and backend changes.
 
-```yaml
-name: Check Updates
+3. To build your application for production, use:
 
-on:
-  schedule:
-    - cron: '0 8 * * 1'
-  workflow_dispatch:
+   ```
+   wails3 build
+   ```
 
-jobs:
-  check-updates:
-    uses: bitfactory-nl/internal-kinsta-updates/.github/workflows/check-updates.yml@main
-    secrets: inherit
-```
+   This will create a production-ready executable in the `build` directory.
 
-## Benodigde secrets (per project repo)
+## Exploring Wails3 Features
 
-| Secret              | Omschrijving                          |
-|---------------------|---------------------------------------|
-| `KINSTA_SERVER_IP`  | SSH host van de Kinsta-omgeving       |
-| `KINSTA_USERNAME`   | SSH gebruikersnaam                    |
-| `PASSWORD`          | SSH wachtwoord                        |
-| `PORT`              | SSH poort                             |
-| `KINSTA_SITE_PATH`  | Absoluut pad naar de WordPress-root   |
+Now that you have your project set up, it's time to explore the features that Wails3 offers:
 
-## Branch-naamgeving
+1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
 
-De gegenereerde branches volgen het patroon `automated/updates-YYYY-MM-DDTHH-MM-SS`. De RDM Sites Tool herkent deze automatisch in de Updates-tab.
+2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+
+   ```
+   go run .
+   ```
+
+   Note: Some examples may be under development during the alpha phase.
+
+3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
+
+4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
+
+## Project Structure
+
+Take a moment to familiarize yourself with your project structure:
+
+- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
+- `main.go`: The entry point of your Go backend
+- `app.go`: Define your application structure and methods here
+- `wails.json`: Configuration file for your Wails project
+
+## Next Steps
+
+1. Modify the frontend in the `frontend/` directory to create your desired UI.
+2. Add backend functionality in `main.go`.
+3. Use `wails3 dev` to see your changes in real-time.
+4. When ready, build your application with `wails3 build`.
+
+Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
