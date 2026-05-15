@@ -8,9 +8,13 @@ Overzicht van alle projecten in je lokale projecten-map — git-status, branches
 2. Download `RDM-Sites-Tool-vX.X.X-macOS.zip`
 3. Pak het zip-bestand uit (dubbelklik)
 4. Sleep `rdm-sites-tool.app` naar je **Applications** map
-5. **Eerste keer openen:** rechtsklik op de app → **Open** → **Toch openen**
+5. **Eerste keer openen:** open Terminal en voer dit commando uit:
+   ```bash
+   xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"
+   ```
+   Daarna opent de app gewoon met dubbelklik.
 
-> macOS blokkeert apps van buiten de App Store standaard. Na de eerste keer openen via rechtsklik werkt de app daarna normaal.
+> macOS Sequoia blokkeert apps van buiten de App Store. Het bovenstaande commando verwijdert de quarantaine-markering eenmalig.
 
 ## Configuratie
 
