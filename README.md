@@ -1,59 +1,64 @@
-# Welcome to Your New Wails3 Project!
+# RDM Sites Tool
 
-Congratulations on generating your Wails3 application! This README will guide you through the next steps to get your project up and running.
+Overzicht van alle projecten in je lokale projecten-map — git-status, branches, Kinsta-updates en meer, in één desktop-app.
 
-## Getting Started
+## Downloaden & installeren (macOS)
 
-1. Navigate to your project directory in the terminal.
+1. Ga naar de [nieuwste release](https://github.com/bitfactory-nl/internal-kinsta-updates/releases/latest)
+2. Download `RDM-Sites-Tool-vX.X.X-macOS.zip`
+3. Pak het zip-bestand uit (dubbelklik)
+4. Sleep `rdm-sites-tool.app` naar je **Applications** map
+5. **Eerste keer openen:** rechtsklik op de app → **Open** → **Toch openen**
 
-2. To run your application in development mode, use the following command:
+> macOS blokkeert apps van buiten de App Store standaard. Na de eerste keer openen via rechtsklik werkt de app daarna normaal.
 
-   ```
-   wails3 dev
-   ```
+## Configuratie
 
-   This will start your application and enable hot-reloading for both frontend and backend changes.
+Klik op het ⚙ icoon in de app om in te stellen:
 
-3. To build your application for production, use:
+- **Projects folder(s)** — één of meerdere mappen met je lokale projecten
+- **Kinsta API key** — te vinden in je [Kinsta-dashboard](https://my.kinsta.com/company/api-keys)
+- **Kinsta Company ID** — te vinden in je Kinsta-dashboard
+- **Editor** — welke code-editor opent bij "Open in editor" (bijv. Cursor, VS Code)
 
-   ```
-   wails3 build
-   ```
+## Wat kan de app?
 
-   This will create a production-ready executable in the `build` directory.
+| Tab | Wat je ziet / kunt doen |
+|-----|------------------------|
+| **Info** | Hosting-platform (Kinsta / AWS / VPS), framework, PHP-versie |
+| **Changes** | Uncommitted bestanden, diff bekijken, stagen en commiten |
+| **History** | Commit-log met visuele branch-graaf |
+| **Branches** | Lokale en remote branches, checkout, merge, delete |
+| **Updates** | Open update-PR's van de wekelijkse Kinsta-check |
+| **Kinsta** | Live omgevingen, deployments, cache-flush |
+| **Blame** | Bestandshistorie per regel |
+| **Stash / Tags** | Stashes beheren, tags bekijken |
 
-## Exploring Wails3 Features
+## Updates
 
-Now that you have your project set up, it's time to explore the features that Wails3 offers:
+Nieuwe versies verschijnen automatisch als [release](https://github.com/bitfactory-nl/internal-kinsta-updates/releases). Download de nieuwe zip en vervang de app in je Applications-map.
 
-1. **Check out the examples**: The best way to learn is by example. Visit the `examples` directory in the `v3/examples` directory to see various sample applications.
+---
 
-2. **Run an example**: To run any of the examples, navigate to the example's directory and use:
+## Voor ontwikkelaars
 
-   ```
-   go run .
-   ```
+### Vereisten
 
-   Note: Some examples may be under development during the alpha phase.
+- Go 1.25+
+- Node 24+
+- Wails v3: `go install github.com/wailsapp/wails/v3/cmd/wails3@latest`
 
-3. **Explore the documentation**: Visit the [Wails3 documentation](https://v3.wails.io/) for in-depth guides and API references.
+### Lokaal draaien
 
-4. **Join the community**: Have questions or want to share your progress? Join the [Wails Discord](https://discord.gg/JDdSxwjhGf) or visit the [Wails discussions on GitHub](https://github.com/wailsapp/wails/discussions).
+```bash
+cd frontend && npm ci && cd ..
+wails3 dev
+```
 
-## Project Structure
+### Bouwen
 
-Take a moment to familiarize yourself with your project structure:
+```bash
+wails3 build
+```
 
-- `frontend/`: Contains your frontend code (HTML, CSS, JavaScript/TypeScript)
-- `main.go`: The entry point of your Go backend
-- `app.go`: Define your application structure and methods here
-- `wails.json`: Configuration file for your Wails project
-
-## Next Steps
-
-1. Modify the frontend in the `frontend/` directory to create your desired UI.
-2. Add backend functionality in `main.go`.
-3. Use `wails3 dev` to see your changes in real-time.
-4. When ready, build your application with `wails3 build`.
-
-Happy coding with Wails3! If you encounter any issues or have questions, don't hesitate to consult the documentation or reach out to the Wails community.
+De app verschijnt in `bin/`.
