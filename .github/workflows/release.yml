@@ -62,8 +62,9 @@ jobs:
 
             1. Download \`${zipName}\`
             2. Pak uit en sleep naar je Applications map
-            3. Eerste keer openen: rechtermuisknop → **Openen** → **Toch openen**
-               (of via Terminal: \`xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"\`)
+            3. Eerste keer openen via Terminal:
+               \`xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"\`
+               Daarna opent de app gewoon met dubbelklik.
 
             ## Configuratie
 
