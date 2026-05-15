@@ -1,0 +1,234 @@
+name: Check WordPress & NPM Updates (reusable)
+
+on:
+  workflow_call:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-updates:
+    runs-on: arc-runners
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.6
+
+      - name: Haal update-informatie op via SSH
+        id: get_updates
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.KINSTA_SERVER_IP }}
+          username: ${{ secrets.KINSTA_USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          capture_stdout: true
+          envs: KINSTA_SITE_PATH
+          script_stop: true
+          script: |
+            cd "$KINSTA_SITE_PATH"
+            wp transient delete update_plugins 2>/dev/null || true
+            wp transient delete update_themes 2>/dev/null || true
+            wp transient delete update_core 2>/dev/null || true
+            echo "=== WORDPRESS CORE ==="
+            wp core check-update 2>/dev/null || true
+            echo "=== PLUGINS ==="
+            wp plugin list --update=available --fields=name,version,update_version 2>/dev/null || true
+            echo "=== THEMES ==="
+            wp theme list --update=available --fields=name,version,update_version 2>/dev/null || true
+        env:
+          KINSTA_SITE_PATH: ${{ secrets.KINSTA_SITE_PATH }}
+
+      - name: Controleer of er WordPress updates zijn
+        id: check_updates
+        shell: bash
+        run: |
+          cat <<'UPDATEEOF' > /tmp/update_output.txt
+          ${{ steps.get_updates.outputs.stdout }}
+          UPDATEEOF
+          if grep -qiE "(update_version|update available)" /tmp/update_output.txt; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "WordPress updates gevonden!"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "Geen WordPress updates."
+          fi
+
+      - name: Setup Node
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
+        with:
+          node-version: lts/*
+
+      - name: Controleer NPM updates (minor + patch)
+        id: check_npm
+        if: hashFiles('package.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          NCU_LOG=$(mktemp)
+          npx --yes npm-check-updates@latest -u --target minor --color false 2>&1 | tee "$NCU_LOG"
+          npm install --package-lock-only --ignore-scripts
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "has_npm_updates=false" >> "$GITHUB_OUTPUT"
+            echo "Geen NPM updates."
+          else
+            echo "has_npm_updates=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- package.json package-lock.json
+            {
+              echo 'ncu_output<<NCUEOF'
+              cat "$NCU_LOG"
+              echo 'NCUEOF'
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Maak update branch en PR aan
+        if: steps.check_updates.outputs.has_updates == 'true' || steps.check_npm.outputs.has_npm_updates == 'true'
+        uses: actions/github-script@v7
+        env:
+          UPDATE_OUTPUT: ${{ steps.get_updates.outputs.stdout }}
+          NCU_OUTPUT: ${{ steps.check_npm.outputs.ncu_output }}
+          HAS_WP: ${{ steps.check_updates.outputs.has_updates }}
+          HAS_NPM: ${{ steps.check_npm.outputs.has_npm_updates }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const date = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const branch = `automated/updates-${date}`;
+            const updateOutput = process.env.UPDATE_OUTPUT || 'Geen update informatie beschikbaar';
+            const ncuOutput = process.env.NCU_OUTPUT || '';
+            const hasWp = process.env.HAS_WP === 'true';
+            const hasNpm = process.env.HAS_NPM === 'true';
+            const defaultBranch = context.payload.repository.default_branch;
+
+            const { data: ref } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `heads/${defaultBranch}`
+            });
+            const sha = ref.object.sha;
+
+            const { data: commit } = await github.rest.git.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha
+            });
+
+            const tree = [];
+
+            if (hasWp) {
+              const { data: blob } = await github.rest.git.createBlob({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                content: `WordPress update check uitgevoerd op: ${date}\n\n${updateOutput}\n\nMerge deze PR om WP-CLI updates uit te voeren op de server.\n`,
+                encoding: 'utf-8'
+              });
+              tree.push({ path: '.wp-update-log', mode: '100644', type: 'blob', sha: blob.sha });
+            }
+
+            if (hasNpm) {
+              for (const file of ['package.json', 'package-lock.json']) {
+                const content = fs.readFileSync(file, 'utf8');
+                const { data: blob } = await github.rest.git.createBlob({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  content,
+                  encoding: 'utf-8'
+                });
+                tree.push({ path: file, mode: '100644', type: 'blob', sha: blob.sha });
+              }
+            }
+
+            const { data: newTree } = await github.rest.git.createTree({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base_tree: commit.tree.sha,
+              tree
+            });
+
+            const commitMessage = hasWp && hasNpm
+              ? `chore: WordPress + NPM updates ${date}`
+              : hasWp
+                ? `chore: WordPress update check ${date}`
+                : `chore: NPM minor/patch updates ${date}`;
+
+            const { data: newCommit } = await github.rest.git.createCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              message: commitMessage,
+              tree: newTree.sha,
+              parents: [sha]
+            });
+
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/heads/${branch}`,
+              sha: newCommit.sha
+            });
+
+            let body = `## Automatische update check\n\nGegenereerd op ${date}.\n\n`;
+            if (hasWp) {
+              body += `### WordPress updates\n\nMerge deze PR om de updates uit te voeren via de deploy workflow.\n\n\`\`\`\n${updateOutput}\n\`\`\`\n\n`;
+            }
+            if (hasNpm) {
+              body += `### NPM updates (minor + patch)\n\n\`package.json\` en \`package-lock.json\` zijn bijgewerkt — bekijk de diff in deze PR.\n\n\`\`\`\n${ncuOutput}\n\`\`\`\n\n`;
+            }
+
+            const title = hasWp && hasNpm
+              ? `Updates - ${date}`
+              : hasWp
+                ? `WordPress Updates - ${date}`
+                : `NPM Updates - ${date}`;
+
+            await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              head: branch,
+              base: defaultBranch,
+              body
+            });
+
+            // Ruim oude update branches op (behalve de zojuist aangemaakte)
+            const oldPrefixes = ['automated/updates-', 'automated/wp-updates-'];
+            const { data: allRefs } = await github.rest.git.listMatchingRefs({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'heads/automated/'
+            });
+
+            for (const ref of allRefs) {
+              const name = ref.ref.replace('refs/heads/', '');
+              if (name === branch) continue;
+              if (!oldPrefixes.some(p => name.startsWith(p))) continue;
+
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                head: `${context.repo.owner}:${name}`,
+                state: 'open'
+              });
+              for (const pr of prs) {
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: pr.number,
+                  state: 'closed'
+                });
+                console.log(`PR #${pr.number} gesloten voor branch ${name}`);
+              }
+
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${name}`
+                });
+                console.log(`Branch ${name} verwijderd`);
+              } catch (e) {
+                console.log(`Kon branch ${name} niet verwijderen: ${e.message}`);
+              }
+            }
