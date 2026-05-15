@@ -33,8 +33,11 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Build app
-        run: wails3 build
+      - name: Install Task
+        run: go install github.com/go-task/task/v3/cmd/task@latest
+
+      - name: Build and package app
+        run: task package
         env:
           CGO_ENABLED: 1
 
