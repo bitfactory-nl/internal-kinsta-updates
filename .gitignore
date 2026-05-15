@@ -1,5 +1,6 @@
 .task
 .omc
+**/.omc
 bin
 frontend/dist
 frontend/node_modules
