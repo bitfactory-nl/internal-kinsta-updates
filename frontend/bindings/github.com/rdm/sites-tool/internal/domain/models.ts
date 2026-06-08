@@ -352,6 +352,18 @@ export enum DiffLineKind {
     LineDel = "del",
 };
 
+export enum DiffStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    DiffUpToDate = "up_to_date",
+    DiffUpdate = "update_available",
+    DiffNotFound = "not_in_repo",
+    DiffVulnerable = "vulnerable",
+};
+
 export class FileChange {
     "path": string;
     "oldPath"?: string;
@@ -645,6 +657,47 @@ export class KinstaProjectCfg {
     }
 }
 
+export class PaidPlugin {
+    "slug": string;
+    "displayName": string;
+    "latestVersion": string;
+    "zipPath": string;
+    "updatedAt": time$0.Time;
+    "downloadUrl": string;
+
+    /** Creates a new PaidPlugin instance. */
+    constructor($$source: Partial<PaidPlugin> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("displayName" in $$source)) {
+            this["displayName"] = "";
+        }
+        if (!("latestVersion" in $$source)) {
+            this["latestVersion"] = "";
+        }
+        if (!("zipPath" in $$source)) {
+            this["zipPath"] = "";
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = null;
+        }
+        if (!("downloadUrl" in $$source)) {
+            this["downloadUrl"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PaidPlugin instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PaidPlugin {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PaidPlugin($$parsedSource as Partial<PaidPlugin>);
+    }
+}
+
 export class Person {
     "name": string;
     "email": string;
@@ -669,6 +722,58 @@ export class Person {
         return new Person($$parsedSource as Partial<Person>);
     }
 }
+
+export class PluginDiff {
+    "slug": string;
+    "installedVersion": string;
+    "availableVersion": string;
+    "status": DiffStatus;
+    "isVulnerable": boolean;
+    "source": PluginSource;
+
+    /** Creates a new PluginDiff instance. */
+    constructor($$source: Partial<PluginDiff> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("installedVersion" in $$source)) {
+            this["installedVersion"] = "";
+        }
+        if (!("availableVersion" in $$source)) {
+            this["availableVersion"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = DiffStatus.$zero;
+        }
+        if (!("isVulnerable" in $$source)) {
+            this["isVulnerable"] = false;
+        }
+        if (!("source" in $$source)) {
+            this["source"] = PluginSource.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginDiff instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PluginDiff {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PluginDiff($$parsedSource as Partial<PluginDiff>);
+    }
+}
+
+export enum PluginSource {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    SourcePrivateRepo = "private_repo",
+    SourceWPOrg = "wp_org",
+    SourceUnknown = "unknown",
+};
 
 export class Project {
     "id": string;

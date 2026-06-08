@@ -7,6 +7,7 @@ import * as GitService from "./gitservice.js";
 import * as KinstaService from "./kinstaservice.js";
 import * as MakeService from "./makeservice.js";
 import * as NotifyService from "./notifyservice.js";
+import * as PluginService from "./pluginservice.js";
 import * as ProjectService from "./projectservice.js";
 import * as SearchService from "./searchservice.js";
 import * as SettingsService from "./settingsservice.js";
@@ -17,6 +18,7 @@ export {
     KinstaService,
     MakeService,
     NotifyService,
+    PluginService,
     ProjectService,
     SearchService,
     SettingsService
