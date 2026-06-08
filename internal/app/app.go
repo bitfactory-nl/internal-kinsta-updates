@@ -28,20 +28,23 @@ type Services struct {
 	Search   *services.SearchService
 	Settings *services.SettingsService
 	Make     *services.MakeService
+	Plugin   *services.PluginService
 }
 
 func NewServices(cfg Config) *Services {
 	project := services.NewProjectService(cfg.Global.ProjectsRoots)
+	kinsta := services.NewKinstaService(&cfg.Global, project)
 	return &Services{
 		Project:  project,
 		Git:      services.NewGitService(project),
 		Editor:   services.NewEditorService(&cfg.Global),
-		Kinsta:   services.NewKinstaService(&cfg.Global, project),
+		Kinsta:   kinsta,
 		Batch:    services.NewBatchService(project),
 		Notify:   services.NewNotifyService(),
 		Search:   services.NewSearchService(project),
 		Settings: services.NewSettingsService(&cfg.Global),
 		Make:     services.NewMakeService(project),
+		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
 	}
 }
 
@@ -56,5 +59,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Search),
 		application.NewService(s.Settings),
 		application.NewService(s.Make),
+		application.NewService(s.Plugin),
 	}
 }
