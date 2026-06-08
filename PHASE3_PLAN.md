@@ -72,4 +72,4 @@ Existing building blocks (do NOT recreate):
 - [x] Step 4 — Embedded SSH terminal (`SSHService` + adapter `OpenShell`/`Session`, `SshTerminalTab.tsx` with xterm.js)
 - [ ] Step 5 — GitHub workflow generator
 - [~] Step 6 — AWS/VPS info panels — DROPPED (no AWS/VPS integration wanted)
-- [ ] Step 7 — Vulnerability notifications
+- [x] Step 7 — Vulnerability notifications (`internal/services/vuln_scan_service.go`, background loop + Scan())

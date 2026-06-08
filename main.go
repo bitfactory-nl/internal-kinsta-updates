@@ -35,6 +35,9 @@ func main() {
 	services.Project.SetApp(a)
 	services.SSH.SetApp(a)
 
+	// Start the background vulnerability scan loop (no-op if alerts disabled).
+	services.VulnScan.Start()
+
 	a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "RDM Sites Tool",
 		Width:  1280,

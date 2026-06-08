@@ -30,23 +30,26 @@ type Services struct {
 	Make     *services.MakeService
 	Plugin   *services.PluginService
 	SSH      *services.SSHService
+	VulnScan *services.VulnScanService
 }
 
 func NewServices(cfg Config) *Services {
 	project := services.NewProjectService(cfg.Global.ProjectsRoots)
 	kinsta := services.NewKinstaService(&cfg.Global, project)
+	notify := services.NewNotifyService()
 	return &Services{
 		Project:  project,
 		Git:      services.NewGitService(project),
 		Editor:   services.NewEditorService(&cfg.Global),
 		Kinsta:   kinsta,
 		Batch:    services.NewBatchService(project),
-		Notify:   services.NewNotifyService(),
+		Notify:   notify,
 		Search:   services.NewSearchService(project),
 		Settings: services.NewSettingsService(&cfg.Global),
 		Make:     services.NewMakeService(project),
 		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
 		SSH:      services.NewSSHService(),
+		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
 	}
 }
 
@@ -63,5 +66,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Make),
 		application.NewService(s.Plugin),
 		application.NewService(s.SSH),
+		application.NewService(s.VulnScan),
 	}
 }

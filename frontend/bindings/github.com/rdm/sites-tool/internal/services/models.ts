@@ -226,3 +226,51 @@ export class UpdateBranch {
         return new UpdateBranch($$parsedSource as Partial<UpdateBranch>);
     }
 }
+
+/**
+ * VulnFinding is a single vulnerable plugin discovered on a Kinsta environment.
+ */
+export class VulnFinding {
+    "projectId": string;
+    "projectName": string;
+    "siteId": string;
+    "envId": string;
+    "envName": string;
+    "slug": string;
+    "version": string;
+
+    /** Creates a new VulnFinding instance. */
+    constructor($$source: Partial<VulnFinding> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("siteId" in $$source)) {
+            this["siteId"] = "";
+        }
+        if (!("envId" in $$source)) {
+            this["envId"] = "";
+        }
+        if (!("envName" in $$source)) {
+            this["envName"] = "";
+        }
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VulnFinding instance from a string or object.
+     */
+    static createFrom($$source: any = {}): VulnFinding {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VulnFinding($$parsedSource as Partial<VulnFinding>);
+    }
+}
