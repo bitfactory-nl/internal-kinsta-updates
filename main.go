@@ -31,8 +31,9 @@ func main() {
 		},
 	})
 
-	// Inject app reference so services can open dialogs
+	// Inject app reference so services can open dialogs / emit events
 	services.Project.SetApp(a)
+	services.SSH.SetApp(a)
 
 	a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "RDM Sites Tool",

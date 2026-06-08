@@ -48,6 +48,15 @@ export function RefreshIndex(): $CancellablePromise<void> {
     return $Call.ByID(345095479);
 }
 
+/**
+ * UpdateViaSSH downloads the paid plugin's zip from the private repo, uploads it
+ * to the target host, and installs it via wp-cli (--force overwrites the current
+ * version). The uploaded temp file is removed afterwards. Returns wp-cli stdout.
+ */
+export function UpdateViaSSH(target: domain$0.SSHTarget, slug: string): $CancellablePromise<string> {
+    return $Call.ByID(4201661661, target, slug);
+}
+
 // Private type creation functions
 const $$createType0 = domain$0.PluginDiff.createFrom;
 const $$createType1 = $Create.Array($$createType0);

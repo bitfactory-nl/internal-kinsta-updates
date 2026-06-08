@@ -13,6 +13,7 @@ import BlameTab from './BlameTab'
 import FileHistoryTab from './FileHistoryTab'
 import KinstaTab from './KinstaTab'
 import PluginsTab from './PluginsTab'
+import SshTerminalTab from './SshTerminalTab'
 import UpdatesTab from './UpdatesTab'
 
 export interface ProjectDetailProps {
@@ -20,7 +21,7 @@ export interface ProjectDetailProps {
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'updates'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'terminal' | 'updates'
 
 export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('info')
@@ -88,6 +89,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
     { id: 'filehistory', label: 'File History' },
     ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
     ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
+    ...(isKinsta ? [{ id: 'terminal' as TabId, label: 'Terminal' }] : []),
     ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
   ]
 
@@ -174,6 +176,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
         {activeTab === 'filehistory' && <FileHistoryTab projectId={project.id} />}
         {activeTab === 'kinsta' && <KinstaTab projectId={project.id} />}
         {activeTab === 'plugins' && <PluginsTab projectId={project.id} />}
+        {activeTab === 'terminal' && <SshTerminalTab projectId={project.id} />}
         {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} />}
       </div>
     </div>

@@ -92,26 +92,38 @@ func (s *testServer) handleConn(conn net.Conn, cfg *ssh.ServerConfig, h execHand
 
 func (s *testServer) handleSession(ch ssh.Channel, reqs <-chan *ssh.Request, h execHandler) {
 	for req := range reqs {
-		if req.Type != "exec" {
-			_ = req.Reply(false, nil)
-			continue
+		switch req.Type {
+		case "exec":
+			var m struct{ Command string }
+			_ = ssh.Unmarshal(req.Payload, &m)
+			_ = req.Reply(true, nil)
+
+			body, _ := io.ReadAll(ch)
+			out, code := h(m.Command, body)
+
+			s.mu.Lock()
+			s.lastCmd = m.Command
+			s.lastBody = body
+			s.mu.Unlock()
+
+			_, _ = ch.Write([]byte(out))
+			_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(code)}))
+			_ = ch.Close()
+			return
+		case "pty-req", "window-change":
+			_ = req.Reply(true, nil)
+		case "shell":
+			_ = req.Reply(true, nil)
+			// Echo server: copy the channel's input back to its output.
+			go func() {
+				_, _ = io.Copy(ch, ch)
+				_ = ch.Close()
+			}()
+		default:
+			if req.WantReply {
+				_ = req.Reply(false, nil)
+			}
 		}
-		var m struct{ Command string }
-		_ = ssh.Unmarshal(req.Payload, &m)
-		_ = req.Reply(true, nil)
-
-		body, _ := io.ReadAll(ch)
-		out, code := h(m.Command, body)
-
-		s.mu.Lock()
-		s.lastCmd = m.Command
-		s.lastBody = body
-		s.mu.Unlock()
-
-		_, _ = ch.Write([]byte(out))
-		_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(code)}))
-		_ = ch.Close()
-		return
 	}
 }
 
@@ -349,5 +361,51 @@ func TestNoAuthAvailable(t *testing.T) {
 	_, err := c.RunCommand(context.Background(), tgt, "echo")
 	if err == nil || !strings.Contains(err.Error(), "geen SSH-authenticatie") {
 		t.Fatalf("expected no-auth error, got %v", err)
+	}
+}
+
+func TestOpenShell(t *testing.T) {
+	dir := t.TempDir()
+	idPath, pub := writeIdentity(t, dir)
+	srv := startTestServer(t, pub, func(_ string, _ []byte) (string, int) { return "", 0 })
+	host, port := splitHostPort(t, srv.addr)
+
+	c := NewClient(WithKnownHostsPath(filepath.Join(dir, "known_hosts")), WithAgentDialer(noAgent))
+	tgt := Target{Host: host, Port: port, User: "wp", IdentityFile: idPath}
+
+	out := make(chan []byte, 64)
+	sess, err := c.OpenShell(context.Background(), tgt, 80, 24, func(b []byte) {
+		out <- b
+	})
+	if err != nil {
+		t.Fatalf("OpenShell: %v", err)
+	}
+	defer sess.Close()
+
+	if err := sess.Write([]byte("hello\n")); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := sess.Resize(120, 40); err != nil {
+		t.Fatalf("Resize: %v", err)
+	}
+
+	// The echo server returns what we sent; collect until we see it or time out.
+	var got strings.Builder
+	deadline := time.After(3 * time.Second)
+	for !strings.Contains(got.String(), "hello") {
+		select {
+		case b := <-out:
+			got.Write(b)
+		case <-deadline:
+			t.Fatalf("timed out waiting for echo; got %q", got.String())
+		}
+	}
+
+	// Closing ends the session; Done must fire.
+	_ = sess.Close()
+	select {
+	case <-sess.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("session Done not signalled after Close")
 	}
 }

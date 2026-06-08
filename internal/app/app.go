@@ -29,6 +29,7 @@ type Services struct {
 	Settings *services.SettingsService
 	Make     *services.MakeService
 	Plugin   *services.PluginService
+	SSH      *services.SSHService
 }
 
 func NewServices(cfg Config) *Services {
@@ -45,6 +46,7 @@ func NewServices(cfg Config) *Services {
 		Settings: services.NewSettingsService(&cfg.Global),
 		Make:     services.NewMakeService(project),
 		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
+		SSH:      services.NewSSHService(),
 	}
 }
 
@@ -60,5 +62,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Settings),
 		application.NewService(s.Make),
 		application.NewService(s.Plugin),
+		application.NewService(s.SSH),
 	}
 }

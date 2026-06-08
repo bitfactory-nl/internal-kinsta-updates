@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -161,6 +162,126 @@ func (c *Client) Upload(ctx context.Context, t Target, remotePath string, data [
 		}
 		return nil
 	}
+}
+
+// Session is an interactive PTY shell session. Output is delivered to the
+// onOutput callback passed to OpenShell; input is sent via Write.
+type Session struct {
+	sess    *ssh.Session
+	stdin   io.WriteCloser
+	closeFn func()
+
+	once     sync.Once
+	done     chan struct{}
+	closeErr error
+}
+
+// OpenShell dials the host, allocates a PTY, and starts an interactive shell.
+// onOutput is called (from a background goroutine) with each chunk of terminal
+// output. The returned Session must be Closed by the caller.
+func (c *Client) OpenShell(ctx context.Context, t Target, cols, rows int, onOutput func([]byte)) (*Session, error) {
+	client, closeFn, err := c.dial(ctx, t)
+	if err != nil {
+		return nil, err
+	}
+
+	sess, err := client.NewSession()
+	if err != nil {
+		closeFn()
+		return nil, fmt.Errorf("ssh sessie: %w", err)
+	}
+
+	if cols <= 0 {
+		cols = 80
+	}
+	if rows <= 0 {
+		rows = 24
+	}
+	modes := ssh.TerminalModes{
+		ssh.ECHO:          1,
+		ssh.TTY_OP_ISPEED: 14400,
+		ssh.TTY_OP_OSPEED: 14400,
+	}
+	if err := sess.RequestPty("xterm-256color", rows, cols, modes); err != nil {
+		_ = sess.Close()
+		closeFn()
+		return nil, fmt.Errorf("pty aanvragen: %w", err)
+	}
+
+	stdin, err := sess.StdinPipe()
+	if err != nil {
+		_ = sess.Close()
+		closeFn()
+		return nil, fmt.Errorf("stdin pipe: %w", err)
+	}
+	stdout, err := sess.StdoutPipe()
+	if err != nil {
+		_ = sess.Close()
+		closeFn()
+		return nil, fmt.Errorf("stdout pipe: %w", err)
+	}
+
+	s := &Session{sess: sess, stdin: stdin, closeFn: closeFn, done: make(chan struct{})}
+
+	if err := sess.Shell(); err != nil {
+		_ = sess.Close()
+		closeFn()
+		return nil, fmt.Errorf("shell starten: %w", err)
+	}
+
+	go func() {
+		buf := make([]byte, 32*1024)
+		for {
+			n, rerr := stdout.Read(buf)
+			if n > 0 && onOutput != nil {
+				chunk := make([]byte, n)
+				copy(chunk, buf[:n])
+				onOutput(chunk)
+			}
+			if rerr != nil {
+				break
+			}
+		}
+		s.finish(sess.Wait())
+	}()
+
+	return s, nil
+}
+
+// Write sends input bytes to the shell's stdin.
+func (s *Session) Write(p []byte) error {
+	_, err := s.stdin.Write(p)
+	return err
+}
+
+// Resize changes the remote PTY window size.
+func (s *Session) Resize(cols, rows int) error {
+	return s.sess.WindowChange(rows, cols)
+}
+
+// Close terminates the session and releases the connection.
+func (s *Session) Close() error {
+	s.finish(nil)
+	return nil
+}
+
+// Done is closed when the session ends (remote exit or Close).
+func (s *Session) Done() <-chan struct{} { return s.done }
+
+// Err blocks until the session is done and returns the exit/close error, if any.
+func (s *Session) Err() error {
+	<-s.done
+	return s.closeErr
+}
+
+func (s *Session) finish(err error) {
+	s.once.Do(func() {
+		s.closeErr = err
+		_ = s.stdin.Close()
+		_ = s.sess.Close()
+		s.closeFn()
+		close(s.done)
+	})
 }
 
 func (c *Client) dial(ctx context.Context, t Target) (*ssh.Client, func(), error) {

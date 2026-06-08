@@ -46,9 +46,10 @@ Existing building blocks (do NOT recreate):
 - `KinstaService.GenerateGitHubWorkflow` (preview) + `WriteGitHubWorkflow` (writes file).
 - UI button in the existing Updates/Kinsta tab.
 
-## 6. AWS/VPS info panels (read-only)
-- Frontend-only: render `AWSProjectCfg`/`VPSProjectCfg` from project config in `InfoTab.tsx`.
-  No backend needed — types already exist.
+## 6. ~~AWS/VPS info panels~~ — DROPPED (2026-06-08)
+- Cancelled per user: no AWS/VPS integration wanted. The existing
+  `AWSProjectCfg`/`VPSProjectCfg` domain types are left in place but no panels
+  are built. The SSH adapter (step 3) remains, used for Kinsta plugin updates.
 
 ## 7. Vulnerability notifications
 - Background scan loop (interval from `Notifications.ScanIntervalMinutes`), checks each
@@ -57,9 +58,10 @@ Existing building blocks (do NOT recreate):
 
 ## Out of scope / separate decision
 - App auto-update channel (checklist item) — unrelated to plugin management; plan separately.
+- AWS/VPS info panels (was step 6) — dropped, see above.
 
 ## Recommended order
-1 → 2 (value without SSH: see what's outdated) → 3 (perform updates) → 6 (quick win) → 4/5/7.
+1 → 2 (value without SSH: see what's outdated) → 3 (perform updates) → 4/5/7.
 
 ---
 
@@ -67,7 +69,7 @@ Existing building blocks (do NOT recreate):
 - [x] Step 1 — GitHub paid-plugin repo client (`internal/adapters/github`)
 - [x] Step 2 — PluginService (`internal/services/plugin_service.go`, wired in app.go)
 - [x] Step 3 — SSH adapter (`internal/adapters/ssh`) + `PluginService.UpdateViaSSH`
-- [ ] Step 4 — Embedded SSH terminal
+- [x] Step 4 — Embedded SSH terminal (`SSHService` + adapter `OpenShell`/`Session`, `SshTerminalTab.tsx` with xterm.js)
 - [ ] Step 5 — GitHub workflow generator
-- [ ] Step 6 — AWS/VPS info panels
+- [~] Step 6 — AWS/VPS info panels — DROPPED (no AWS/VPS integration wanted)
 - [ ] Step 7 — Vulnerability notifications
