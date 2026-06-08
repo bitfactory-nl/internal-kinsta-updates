@@ -66,7 +66,7 @@ Existing building blocks (do NOT recreate):
 ## Status
 - [x] Step 1 — GitHub paid-plugin repo client (`internal/adapters/github`)
 - [x] Step 2 — PluginService (`internal/services/plugin_service.go`, wired in app.go)
-- [ ] Step 3 — SSH adapter
+- [x] Step 3 — SSH adapter (`internal/adapters/ssh`) + `PluginService.UpdateViaSSH`
 - [ ] Step 4 — Embedded SSH terminal
 - [ ] Step 5 — GitHub workflow generator
 - [ ] Step 6 — AWS/VPS info panels

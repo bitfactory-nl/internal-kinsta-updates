@@ -1,11 +1,94 @@
 package services
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"github.com/rdm/sites-tool/internal/adapters/kinsta"
+	sshadapter "github.com/rdm/sites-tool/internal/adapters/ssh"
 	"github.com/rdm/sites-tool/internal/domain"
 )
+
+type fakeSSH struct {
+	uploadPath string
+	uploadData []byte
+	cmds       []string
+}
+
+func (f *fakeSSH) Upload(_ context.Context, _ sshadapter.Target, remotePath string, data []byte) error {
+	f.uploadPath = remotePath
+	f.uploadData = append([]byte(nil), data...)
+	return nil
+}
+
+func (f *fakeSSH) RunCommand(_ context.Context, _ sshadapter.Target, cmd string) (string, error) {
+	f.cmds = append(f.cmds, cmd)
+	return "Plugin installed.", nil
+}
+
+func TestUpdateViaSSH(t *testing.T) {
+	f := &fakeSSH{}
+	s := &PluginService{
+		ssh:    f,
+		cache:  []domain.PaidPlugin{{Slug: "acme-pro", LatestVersion: "2.0.0", ZipPath: "plugins/acme-pro.zip"}},
+		cached: true,
+		downloadZip: func(_ context.Context, path string) ([]byte, error) {
+			if path != "plugins/acme-pro.zip" {
+				t.Fatalf("downloadZip path = %q, want plugins/acme-pro.zip", path)
+			}
+			return []byte("ZIPDATA"), nil
+		},
+	}
+
+	out, err := s.UpdateViaSSH(domain.SSHTarget{Host: "h", Port: 22, User: "u", Path: "/www/site"}, "acme-pro")
+	if err != nil {
+		t.Fatalf("UpdateViaSSH: %v", err)
+	}
+	if out != "Plugin installed." {
+		t.Errorf("out = %q, want %q", out, "Plugin installed.")
+	}
+	if string(f.uploadData) != "ZIPDATA" {
+		t.Errorf("uploaded %q, want ZIPDATA", f.uploadData)
+	}
+	if !strings.HasPrefix(f.uploadPath, "/tmp/rdm-acme-pro-") || !strings.HasSuffix(f.uploadPath, ".zip") {
+		t.Errorf("upload path = %q, want /tmp/rdm-acme-pro-*.zip", f.uploadPath)
+	}
+
+	var sawInstall, sawCleanup bool
+	for _, c := range f.cmds {
+		if strings.Contains(c, "wp plugin install") && strings.Contains(c, "--force") && strings.Contains(c, "--path='/www/site'") {
+			sawInstall = true
+		}
+		if strings.HasPrefix(c, "rm -f '/tmp/rdm-acme-pro-") {
+			sawCleanup = true
+		}
+	}
+	if !sawInstall {
+		t.Errorf("install command missing; cmds=%v", f.cmds)
+	}
+	if !sawCleanup {
+		t.Errorf("cleanup command missing; cmds=%v", f.cmds)
+	}
+}
+
+func TestUpdateViaSSHUnknownPlugin(t *testing.T) {
+	s := &PluginService{ssh: &fakeSSH{}, cache: []domain.PaidPlugin{}, cached: true}
+	if _, err := s.UpdateViaSSH(domain.SSHTarget{Host: "h"}, "nope"); err == nil {
+		t.Fatal("expected error for plugin not in manifest")
+	}
+}
+
+func TestUpdateViaSSHMissingZipPath(t *testing.T) {
+	s := &PluginService{
+		ssh:    &fakeSSH{},
+		cache:  []domain.PaidPlugin{{Slug: "acme-pro", LatestVersion: "2.0.0"}},
+		cached: true,
+	}
+	if _, err := s.UpdateViaSSH(domain.SSHTarget{Host: "h"}, "acme-pro"); err == nil {
+		t.Fatal("expected error for missing zip_path")
+	}
+}
 
 func TestDiffPlugins(t *testing.T) {
 	paid := []domain.PaidPlugin{
