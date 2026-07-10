@@ -31,6 +31,7 @@ type Services struct {
 	Plugin   *services.PluginService
 	SSH      *services.SSHService
 	VulnScan *services.VulnScanService
+	Security *services.SecurityService
 }
 
 func NewServices(cfg Config) *Services {
@@ -50,6 +51,7 @@ func NewServices(cfg Config) *Services {
 		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
 		SSH:      services.NewSSHService(),
 		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
+		Security: services.NewSecurityService(&cfg.Global, project),
 	}
 }
 
@@ -67,5 +69,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Plugin),
 		application.NewService(s.SSH),
 		application.NewService(s.VulnScan),
+		application.NewService(s.Security),
 	}
 }

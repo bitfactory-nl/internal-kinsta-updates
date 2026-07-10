@@ -12,6 +12,7 @@ export default function SettingsPage({ onClose }: Props) {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
+  const [showGithubToken, setShowGithubToken] = useState(false)
 
   useEffect(() => {
     Services.SettingsService.Get().then(s => setSettings(s)).catch(() => {})
@@ -103,6 +104,43 @@ export default function SettingsPage({ onClose }: Props) {
               <p className="text-[11px] text-gray-600">
                 De API key en Company ID zijn te vinden in het{' '}
                 <span className="text-gray-600">Kinsta dashboard → My Info → API Keys</span>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* GitHub */}
+        <section>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 mb-3">
+            GitHub
+          </h3>
+          <div className="bg-black/[0.03] rounded-xl divide-y divide-black/[0.07]">
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-xs text-gray-600 w-28 shrink-0">Access token</label>
+              <div className="flex-1 flex items-center gap-2">
+                <input
+                  type={showGithubToken ? 'text' : 'password'}
+                  value={settings.githubToken}
+                  onChange={e => update('githubToken', e.target.value)}
+                  placeholder="ghp_… of github_pat_…"
+                  className="flex-1 bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
+                             rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
+                             font-mono border border-transparent focus:border-indigo-400 min-w-0"
+                />
+                <button
+                  onClick={() => setShowGithubToken(v => !v)}
+                  className="text-gray-600 hover:text-gray-800 text-xs shrink-0 transition-colors px-1"
+                  title={showGithubToken ? 'Verbergen' : 'Tonen'}
+                >
+                  {showGithubToken ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-2">
+              <p className="text-[11px] text-gray-600">
+                Personal access token met leestoegang tot de bitfactory-nl repositories
+                (scopes: <span className="font-mono">repo</span> + Actions read).
+                Gebruikt voor de Security- en Plugins-tab.
               </p>
             </div>
           </div>

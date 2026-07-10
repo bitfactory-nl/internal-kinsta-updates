@@ -11,6 +11,7 @@ import * as PluginService from "./pluginservice.js";
 import * as ProjectService from "./projectservice.js";
 import * as SSHService from "./sshservice.js";
 import * as SearchService from "./searchservice.js";
+import * as SecurityService from "./securityservice.js";
 import * as SettingsService from "./settingsservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
 export {
@@ -24,6 +25,7 @@ export {
     ProjectService,
     SSHService,
     SearchService,
+    SecurityService,
     SettingsService,
     VulnScanService
 };
@@ -34,6 +36,8 @@ export {
     MakeResult,
     MakeTarget,
     SearchHit,
+    SecurityFinding,
+    SecurityScanResult,
     UpdateBranch,
     VulnFinding
 } from "./models.js";

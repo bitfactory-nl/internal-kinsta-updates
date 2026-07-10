@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../../../time/models.js";
+
 /**
  * AppSettings is the flat DTO exposed to the frontend.
  */
@@ -12,6 +16,7 @@ export class AppSettings {
     "editor": string;
     "kinstaApiKey": string;
     "kinstaCompanyId": string;
+    "githubToken": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
 
@@ -25,6 +30,9 @@ export class AppSettings {
         }
         if (!("kinstaCompanyId" in $$source)) {
             this["kinstaCompanyId"] = "";
+        }
+        if (!("githubToken" in $$source)) {
+            this["githubToken"] = "";
         }
         if (!("gitDefaultRemote" in $$source)) {
             this["gitDefaultRemote"] = "";
@@ -179,6 +187,105 @@ export class SearchHit {
 }
 
 /**
+ * SecurityFinding is één kwetsbaarheid uit een composer- of npm-audit.
+ */
+export class SecurityFinding {
+    /**
+     * "composer" | "npm"
+     */
+    "source": string;
+
+    /**
+     * pakketnaam
+     */
+    "package": string;
+
+    /**
+     * critical | high | moderate/medium | low | unknown
+     */
+    "severity": string;
+    "title": string;
+    "cve": string;
+    "link": string;
+
+    /** Creates a new SecurityFinding instance. */
+    constructor($$source: Partial<SecurityFinding> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("package" in $$source)) {
+            this["package"] = "";
+        }
+        if (!("severity" in $$source)) {
+            this["severity"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("cve" in $$source)) {
+            this["cve"] = "";
+        }
+        if (!("link" in $$source)) {
+            this["link"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SecurityFinding instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SecurityFinding {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SecurityFinding($$parsedSource as Partial<SecurityFinding>);
+    }
+}
+
+/**
+ * SecurityScanResult is de meest recente scan-uitkomst van een project-repo.
+ */
+export class SecurityScanResult {
+    "repo": string;
+    "scannedAt": time$0.Time;
+    "hasComposerReport": boolean;
+    "hasNpmReport": boolean;
+    "findings": SecurityFinding[];
+
+    /** Creates a new SecurityScanResult instance. */
+    constructor($$source: Partial<SecurityScanResult> = {}) {
+        if (!("repo" in $$source)) {
+            this["repo"] = "";
+        }
+        if (!("scannedAt" in $$source)) {
+            this["scannedAt"] = null;
+        }
+        if (!("hasComposerReport" in $$source)) {
+            this["hasComposerReport"] = false;
+        }
+        if (!("hasNpmReport" in $$source)) {
+            this["hasNpmReport"] = false;
+        }
+        if (!("findings" in $$source)) {
+            this["findings"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SecurityScanResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SecurityScanResult {
+        const $$createField4_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
+        }
+        return new SecurityScanResult($$parsedSource as Partial<SecurityScanResult>);
+    }
+}
+
+/**
  * GetFiles returns all tracked files in the repository via git ls-files.
  * UpdateBranch represents a detected automated WordPress update branch.
  */
@@ -274,3 +381,7 @@ export class VulnFinding {
         return new VulnFinding($$parsedSource as Partial<VulnFinding>);
     }
 }
+
+// Private type creation functions
+const $$createType0 = SecurityFinding.createFrom;
+const $$createType1 = $Create.Array($$createType0);

@@ -11,6 +11,7 @@ type AppSettings struct {
 	Editor           string `json:"editor"`
 	KinstaAPIKey     string `json:"kinstaApiKey"`
 	KinstaCompanyID  string `json:"kinstaCompanyId"`
+	GithubToken      string `json:"githubToken"`
 	GitDefaultRemote string `json:"gitDefaultRemote"`
 	GitPruneOnFetch  bool   `json:"gitPruneOnFetch"`
 }
@@ -29,6 +30,7 @@ func (s *SettingsService) Get() AppSettings {
 		Editor:           s.cfg.Editor,
 		KinstaAPIKey:     s.cfg.Kinsta.APIKey,
 		KinstaCompanyID:  s.cfg.Kinsta.CompanyID,
+		GithubToken:      s.cfg.PluginRepo.GithubToken,
 		GitDefaultRemote: s.cfg.Git.DefaultRemote,
 		GitPruneOnFetch:  s.cfg.Git.PruneOnFetch,
 	}
@@ -42,6 +44,7 @@ func (s *SettingsService) Save(settings AppSettings) error {
 	s.cfg.Editor = settings.Editor
 	s.cfg.Kinsta.APIKey = settings.KinstaAPIKey
 	s.cfg.Kinsta.CompanyID = settings.KinstaCompanyID
+	s.cfg.PluginRepo.GithubToken = settings.GithubToken
 	if settings.GitDefaultRemote != "" {
 		s.cfg.Git.DefaultRemote = settings.GitDefaultRemote
 	}
