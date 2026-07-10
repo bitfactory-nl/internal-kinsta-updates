@@ -232,3 +232,102 @@ jobs:
                 console.log(`Kon branch ${name} niet verwijderen: ${e.message}`);
               }
             }
+
+  security-scan:
+    runs-on: arc-runners
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.6
+
+      - name: PHP security audit (composer)
+        id: composer_audit
+        if: hashFiles('composer.lock') != ''
+        shell: bash
+        run: |
+          set +e
+          composer audit --format=json --no-interaction > composer-audit.json 2>&1
+          COMPOSER_EXIT=$?
+          set -e
+
+          TOTAL=0
+          if command -v jq &>/dev/null && [ -f composer-audit.json ]; then
+            TOTAL=$(jq '[.advisories | to_entries[].value | length] | add // 0' composer-audit.json 2>/dev/null || echo 0)
+          fi
+
+          echo "issues=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "Composer audit afgerond — $TOTAL kwetsbaarhed(en) gevonden"
+
+      - name: Setup Node
+        if: hashFiles('package-lock.json') != ''
+        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
+        with:
+          node-version: lts/*
+
+      - name: NPM security audit
+        id: npm_audit
+        if: hashFiles('package-lock.json') != ''
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > npm-audit.json 2>&1
+          set -e
+
+          TOTAL=0
+          if command -v jq &>/dev/null && [ -f npm-audit.json ]; then
+            TOTAL=$(jq '.metadata.vulnerabilities.total // 0' npm-audit.json 2>/dev/null || echo 0)
+          fi
+
+          echo "vulnerabilities=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "NPM audit afgerond — $TOTAL kwetsbaarhed(en) gevonden"
+
+      - name: Security samenvatting
+        if: always()
+        shell: bash
+        env:
+          COMPOSER_ISSUES: ${{ steps.composer_audit.outputs.issues || '0' }}
+          NPM_VULNS: ${{ steps.npm_audit.outputs.vulnerabilities || '0' }}
+        run: |
+          {
+            echo "## Security Scan (OWASP A06 — Vulnerable Components)"
+            echo ""
+
+            if [ -f composer-audit.json ]; then
+              if [ "$COMPOSER_ISSUES" = "0" ]; then
+                echo "### PHP (composer) ✅ Geen bekende kwetsbaarheden"
+              else
+                echo "### PHP (composer) ⚠️ ${COMPOSER_ISSUES} kwetsbaarhed(en) gevonden"
+                echo '```'
+                jq -r '.advisories | to_entries[] | .key + ": " + (.value[] | .title + " [" + .cve + "] — " + .link)' composer-audit.json 2>/dev/null || cat composer-audit.json
+                echo '```'
+              fi
+            else
+              echo "### PHP (composer) — geen composer.lock aanwezig"
+            fi
+
+            echo ""
+
+            if [ -f npm-audit.json ]; then
+              if [ "$NPM_VULNS" = "0" ]; then
+                echo "### NPM ✅ Geen bekende kwetsbaarheden"
+              else
+                echo "### NPM ⚠️ ${NPM_VULNS} kwetsbaarhed(en) gevonden"
+                echo '```'
+                jq -r '.vulnerabilities | to_entries[] | select(.value.severity == "high" or .value.severity == "critical") | .key + " (" + .value.severity + "): " + (.value.via[] | if type == "object" then .title else . end)' npm-audit.json 2>/dev/null || true
+                echo '```'
+              fi
+            else
+              echo "### NPM — geen package-lock.json aanwezig"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload audit rapporten
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-${{ github.run_id }}
+          path: |
+            composer-audit.json
+            npm-audit.json
+          if-no-files-found: ignore
+          retention-days: 30
