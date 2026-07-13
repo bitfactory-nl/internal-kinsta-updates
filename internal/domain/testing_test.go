@@ -39,3 +39,22 @@ func TestEnvKeyValid(t *testing.T) {
 		}
 	}
 }
+
+func TestProjectConfigHasTesting(t *testing.T) {
+	cfg := ProjectConfig{
+		Testing: &TestingCfg{
+			Environments: map[string]string{"local": "https://x.test"},
+			BasicAuth:    map[string]BasicAuth{"acc": {User: "u", Pass: "keychain:p"}},
+			TestAccount:  &TestAccount{User: "t", Pass: "keychain:q"},
+		},
+	}
+	if cfg.Testing.Environments["local"] != "https://x.test" {
+		t.Fatal("local env not stored")
+	}
+	if cfg.Testing.BasicAuth["acc"].User != "u" {
+		t.Fatal("basic auth not stored")
+	}
+	if cfg.Testing.TestAccount.User != "t" {
+		t.Fatal("test account not stored")
+	}
+}
