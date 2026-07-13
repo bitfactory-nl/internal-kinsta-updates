@@ -13,6 +13,7 @@ export default function SettingsPage({ onClose }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
   const [showGithubToken, setShowGithubToken] = useState(false)
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false)
 
   useEffect(() => {
     Services.SettingsService.Get().then(s => setSettings(s)).catch(() => {})
@@ -159,6 +160,43 @@ export default function SettingsPage({ onClose }: Props) {
                 Gebruikt voor de Security- en Plugins-tab. De plugin-repo
                 (bijv. <span className="font-mono text-fg">bitfactory-nl/paid-plugins</span>) bevat
                 het manifest met betaalde plugins voor de Plugins-tab.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* AI (Claude) */}
+        <section>
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+            AI (Claude)
+          </h3>
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Anthropic API Key</label>
+              <div className="flex-1 flex items-center gap-2">
+                <input
+                  type={showAnthropicKey ? 'text' : 'password'}
+                  value={settings.anthropicApiKey}
+                  onChange={e => update('anthropicApiKey', e.target.value)}
+                  placeholder="sk-ant-…"
+                  className={inputClass}
+                />
+                <button
+                  onClick={() => setShowAnthropicKey(v => !v)}
+                  className="text-fg-muted hover:text-fg text-xs shrink-0 transition-colors px-1"
+                  title={showAnthropicKey ? 'Verbergen' : 'Tonen'}
+                >
+                  {showAnthropicKey ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-2.5">
+              <p className="text-[11.5px] text-fg-muted">
+                Wordt gebruikt door de <span className="text-fg">Tests</span>-tab (AI visuele
+                vergelijking, flow-authoring en self-heal). Maak een key aan in de{' '}
+                <span className="text-fg">Anthropic Console → API Keys</span>. Opgeslagen in{' '}
+                <code className="text-fg font-mono">~/.config/rdm/config.yml</code> (alleen leesbaar
+                voor jouw gebruiker), net als de andere keys.
               </p>
             </div>
           </div>
