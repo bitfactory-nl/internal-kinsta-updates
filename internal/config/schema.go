@@ -12,7 +12,7 @@ type Global struct {
 }
 
 type KinstaGlobal struct {
-	APIKey    string `yaml:"api_key"`    // keychain:rdm.kinsta.apiKey or literal (dev only)
+	APIKey    string `yaml:"api_key"` // keychain:rdm.kinsta.apiKey or literal (dev only)
 	CompanyID string `yaml:"company_id"`
 }
 
