@@ -1,0 +1,31 @@
+name: Advance kinsta-latest tag
+
+# Verschuift de moving tag `kinsta-latest` automatisch naar de nieuwste commit
+# zodra de reusable workflow (check-updates.yml) wijzigt. De site-repos pinnen
+# op `...@kinsta-latest` en krijgen zo altijd de laatste versie zonder dat er
+# per project iets aangepast hoeft te worden.
+
+on:
+  push:
+    branches:
+      - 'release/**'
+    paths:
+      - '.github/workflows/check-updates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  move-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.1.6
+        with:
+          fetch-depth: 0
+
+      - name: Move kinsta-latest tag to current commit
+        run: |
+          git tag -f kinsta-latest "$GITHUB_SHA"
+          git push -f origin refs/tags/kinsta-latest
