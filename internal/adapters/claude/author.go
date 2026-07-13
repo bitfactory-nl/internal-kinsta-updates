@@ -31,7 +31,7 @@ var authorTool = tool{
 
 // Author converts a natural-language scenario into validated flow steps.
 func (c *Client) Author(ctx context.Context, description string) ([]domain.Step, error) {
-	tier := domain.ChooseModelTier(domain.RoutingInput{Task: domain.TaskAuthor})
+	tier := domain.ChooseModelTier(domain.RoutingInput{Task: domain.TaskAuthor, Override: c.Override})
 	in, err := c.toolCall(ctx, tier, authorSystem,
 		[]contentBlock{{Type: "text", Text: description}}, authorTool)
 	if err != nil {

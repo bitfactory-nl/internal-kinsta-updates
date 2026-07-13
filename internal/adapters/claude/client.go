@@ -28,6 +28,7 @@ type Client struct {
 	HTTP      HTTPDoer
 	ModelFor  func(domain.ModelTier) string
 	MaxTokens int
+	Override  domain.ModelTier // "" = auto; forces the tier when set
 }
 
 // NewClient returns a Client using the default HTTP client and tier mapping.

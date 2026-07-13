@@ -38,7 +38,7 @@ var compareTool = tool{
 // Compare returns categorised visual differences between two PNG screenshots.
 // stepDesc gives Claude context; highImpact escalates the model tier to opus.
 func (c *Client) Compare(ctx context.Context, baselinePNG, updatePNG []byte, stepDesc string, highImpact bool) ([]domain.Finding, error) {
-	tier := domain.ChooseModelTier(domain.RoutingInput{Task: domain.TaskCompare, HighImpact: highImpact})
+	tier := domain.ChooseModelTier(domain.RoutingInput{Task: domain.TaskCompare, HighImpact: highImpact, Override: c.Override})
 	content := []contentBlock{
 		{Type: "text", Text: "Context: " + stepDesc + "\nEerste afbeelding = release (baseline), tweede = update."},
 		{Type: "image", Source: &imageSource{Type: "base64", MediaType: "image/png", Data: base64.StdEncoding.EncodeToString(baselinePNG)}},

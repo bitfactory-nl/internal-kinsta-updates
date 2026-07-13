@@ -22,7 +22,7 @@ var healTool = tool{
 // Heal returns a CSS selector for target, derived from the page accessibility
 // snapshot (YAML from Playwright's ariaSnapshot).
 func (c *Client) Heal(ctx context.Context, ariaSnapshot, target string) (string, error) {
-	tier := domain.ChooseModelTier(domain.RoutingInput{Task: domain.TaskHeal})
+	tier := domain.ChooseModelTier(domain.RoutingInput{Task: domain.TaskHeal, Override: c.Override})
 	in, err := c.toolCall(ctx, tier, healSystem,
 		[]contentBlock{{Type: "text", Text: "Gezocht element: " + target + "\n\nAccessibility-tree:\n" + ariaSnapshot}},
 		healTool)

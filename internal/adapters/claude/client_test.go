@@ -87,6 +87,17 @@ func TestToolCallSuccess(t *testing.T) {
 	}
 }
 
+func TestClientOverrideForcesModel(t *testing.T) {
+	f := &fakeDoer{status: 200, body: `{"content":[{"type":"tool_use","name":"emit_steps","input":{"steps":[]}}]}`}
+	c := &Client{APIKey: "k", HTTP: f, ModelFor: tierToModel, MaxTokens: 1024, Override: domain.TierOpus}
+	if _, err := c.Author(context.Background(), "x"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(f.lastBody), ModelOpus) {
+		t.Errorf("override should force opus, body: %s", f.lastBody)
+	}
+}
+
 func TestToolCallHTTPError(t *testing.T) {
 	f := &fakeDoer{status: 400, body: `{"error":{"type":"invalid_request_error","message":"bad"}}`}
 	c := &Client{APIKey: "k", HTTP: f, ModelFor: tierToModel, MaxTokens: 512}
