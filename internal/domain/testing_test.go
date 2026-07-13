@@ -175,3 +175,26 @@ func TestDiffRegressionsEmpty(t *testing.T) {
 		t.Errorf("expected no regressions, got %+v", got)
 	}
 }
+
+func TestChooseModelTier(t *testing.T) {
+	cases := []struct {
+		name string
+		in   RoutingInput
+		want ModelTier
+	}{
+		{"override wins", RoutingInput{Override: TierOpus, Task: TaskTriage}, TierOpus},
+		{"triage is haiku", RoutingInput{Task: TaskTriage}, TierHaiku},
+		{"heal is sonnet", RoutingInput{Task: TaskHeal}, TierSonnet},
+		{"author is sonnet", RoutingInput{Task: TaskAuthor}, TierSonnet},
+		{"compare default sonnet", RoutingInput{Task: TaskCompare}, TierSonnet},
+		{"compare ambiguous opus", RoutingInput{Task: TaskCompare, Ambiguous: true}, TierOpus},
+		{"compare high impact opus", RoutingInput{Task: TaskCompare, HighImpact: true}, TierOpus},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := ChooseModelTier(c.in); got != c.want {
+				t.Errorf("ChooseModelTier(%+v) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}

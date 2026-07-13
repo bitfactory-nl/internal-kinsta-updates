@@ -201,3 +201,51 @@ func DiffRegressions(baseline, update PageObservation) []Regression {
 	}
 	return out
 }
+
+// ModelTier is a logical model choice; mapped to a concrete Anthropic model id
+// in the claude adapter (Plan 3).
+type ModelTier string
+
+const (
+	TierHaiku  ModelTier = "haiku"
+	TierSonnet ModelTier = "sonnet"
+	TierOpus   ModelTier = "opus"
+)
+
+// RoutingTask is the kind of AI work being routed.
+type RoutingTask string
+
+const (
+	TaskTriage  RoutingTask = "triage"
+	TaskCompare RoutingTask = "compare"
+	TaskHeal    RoutingTask = "heal"
+	TaskAuthor  RoutingTask = "author"
+)
+
+// RoutingInput drives ChooseModelTier.
+type RoutingInput struct {
+	Override   ModelTier // empty = auto
+	Task       RoutingTask
+	Ambiguous  bool // a cheap triage pass found the diff unclear
+	HighImpact bool // step already flagged as important
+}
+
+// ChooseModelTier picks the cheapest model that fits, escalating only when
+// needed. A manual override always wins.
+func ChooseModelTier(in RoutingInput) ModelTier {
+	if in.Override != "" {
+		return in.Override
+	}
+	switch in.Task {
+	case TaskTriage:
+		return TierHaiku
+	case TaskHeal, TaskAuthor:
+		return TierSonnet
+	case TaskCompare:
+		if in.HighImpact || in.Ambiguous {
+			return TierOpus
+		}
+		return TierSonnet
+	}
+	return TierSonnet
+}
