@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/browser"
+	"github.com/rdm/sites-tool/internal/adapters/claude"
 	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -40,10 +42,32 @@ func NewTestService(projects *ProjectService, cfg *config.Global, store *RunStor
 	return s
 }
 
-// defaultVision is a temporary stub replaced in Task 5 (Wails wiring). It will
-// build a claude.Client from the resolved key and set c.Override = override.
+// defaultVision builds a claude.Client from the resolved Anthropic key.
 func (s *TestService) defaultVision(override domain.ModelTier) (visionClient, error) {
-	return nil, fmt.Errorf("vision client not wired")
+	key, err := config.ResolveSecret(s.cfg.AI.APIKey)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic key: %w", err)
+	}
+	if key == "" {
+		return nil, fmt.Errorf("geen Anthropic API-key geconfigureerd (Instellingen)")
+	}
+	c := claude.NewClient(key)
+	c.Override = override
+	return c, nil
+}
+
+// SidecarScriptPath returns the runner.mjs path, overridable via RDM_SIDECAR.
+func SidecarScriptPath() string {
+	if p := os.Getenv("RDM_SIDECAR"); p != "" {
+		return p
+	}
+	return filepath.Join("sidecar", "runner.mjs")
+}
+
+// DefaultRunHistoryDir is ~/.config/rdm/test-runs.
+func DefaultRunHistoryDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "rdm", "test-runs")
 }
 
 func (s *TestService) project(id string) (domain.Project, error) {

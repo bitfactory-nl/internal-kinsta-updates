@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/services"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -32,12 +33,18 @@ type Services struct {
 	SSH      *services.SSHService
 	VulnScan *services.VulnScanService
 	Security *services.SecurityService
+	Test     *services.TestService
 }
 
 func NewServices(cfg Config) *Services {
 	project := services.NewProjectService(cfg.Global.ProjectsRoots)
 	kinsta := services.NewKinstaService(&cfg.Global, project)
 	notify := services.NewNotifyService()
+
+	runner := browser.NewRunner(services.SidecarScriptPath())
+	runStore := services.NewRunStore(services.DefaultRunHistoryDir())
+	testSvc := services.NewTestService(project, &cfg.Global, runStore, runner)
+
 	return &Services{
 		Project:  project,
 		Git:      services.NewGitService(project),
@@ -52,6 +59,7 @@ func NewServices(cfg Config) *Services {
 		SSH:      services.NewSSHService(),
 		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
 		Security: services.NewSecurityService(&cfg.Global, project),
+		Test:     testSvc,
 	}
 }
 
@@ -70,5 +78,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.SSH),
 		application.NewService(s.VulnScan),
 		application.NewService(s.Security),
+		application.NewService(s.Test),
 	}
 }
