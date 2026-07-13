@@ -13,6 +13,7 @@ import * as SSHService from "./sshservice.js";
 import * as SearchService from "./searchservice.js";
 import * as SecurityService from "./securityservice.js";
 import * as SettingsService from "./settingsservice.js";
+import * as TestService from "./testservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
 export {
     BatchService,
@@ -27,6 +28,7 @@ export {
     SearchService,
     SecurityService,
     SettingsService,
+    TestService,
     VulnScanService
 };
 

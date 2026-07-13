@@ -21,6 +21,7 @@ export class AppSettings {
     "pluginRepoRef": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
+    "anthropicApiKey": string;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -47,6 +48,9 @@ export class AppSettings {
         }
         if (!("gitPruneOnFetch" in $$source)) {
             this["gitPruneOnFetch"] = false;
+        }
+        if (!("anthropicApiKey" in $$source)) {
+            this["anthropicApiKey"] = "";
         }
 
         Object.assign(this, $$source);

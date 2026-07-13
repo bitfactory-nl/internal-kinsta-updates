@@ -46,6 +46,35 @@ export class AWSProjectCfg {
     }
 }
 
+/**
+ * BasicAuth holds HTTP basic-auth credentials for one environment.
+ * Pass is a keychain: reference, never a literal secret in git.
+ */
+export class BasicAuth {
+    "user": string;
+    "pass": string;
+
+    /** Creates a new BasicAuth instance. */
+    constructor($$source: Partial<BasicAuth> = {}) {
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("pass" in $$source)) {
+            this["pass"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BasicAuth instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BasicAuth {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BasicAuth($$parsedSource as Partial<BasicAuth>);
+    }
+}
+
 export class BlameLine {
     "lineNo": number;
     "commit": string;
@@ -364,6 +393,20 @@ export enum DiffStatus {
     DiffVulnerable = "vulnerable",
 };
 
+/**
+ * EnvKey identifies one of the three comparable environments.
+ */
+export enum EnvKey {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    EnvLocal = "local",
+    EnvAcc = "acc",
+    EnvProd = "prod",
+};
+
 export class FileChange {
     "path": string;
     "oldPath"?: string;
@@ -432,6 +475,89 @@ export class FileDiff {
     }
 }
 
+/**
+ * Finding is one categorised visual difference for a step.
+ */
+export class Finding {
+    "category": FindingCategory;
+    "severity": Severity;
+    "where": string;
+    "description": string;
+
+    /** Creates a new Finding instance. */
+    constructor($$source: Partial<Finding> = {}) {
+        if (!("category" in $$source)) {
+            this["category"] = FindingCategory.$zero;
+        }
+        if (!("severity" in $$source)) {
+            this["severity"] = Severity.$zero;
+        }
+        if (!("where" in $$source)) {
+            this["where"] = "";
+        }
+        if (!("description" in $$source)) {
+            this["description"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Finding instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Finding {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Finding($$parsedSource as Partial<Finding>);
+    }
+}
+
+/**
+ * FindingCategory classifies a visual difference.
+ */
+export enum FindingCategory {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    CatLayoutBreak = "layout-break",
+    CatMissingElement = "missing-element",
+    CatStyling = "styling",
+    CatContentOnly = "content-only",
+};
+
+/**
+ * Flow is a named happy-path scenario.
+ */
+export class Flow {
+    "name": string;
+    "steps": Step[];
+
+    /** Creates a new Flow instance. */
+    constructor($$source: Partial<Flow> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("steps" in $$source)) {
+            this["steps"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Flow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Flow {
+        const $$createField1_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("steps" in $$parsedSource) {
+            $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
+        }
+        return new Flow($$parsedSource as Partial<Flow>);
+    }
+}
+
 export class GitStatus {
     "branch": string;
     "upstream": string;
@@ -484,8 +610,8 @@ export class GitStatus {
      * Creates a new GitStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): GitStatus {
-        const $$createField4_0 = $$createType9;
-        const $$createField5_0 = $$createType9;
+        const $$createField4_0 = $$createType11;
+        const $$createField5_0 = $$createType11;
         const $$createField6_0 = $$createType1;
         const $$createField7_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -559,7 +685,7 @@ export class GraphCommit {
     static createFrom($$source: any = {}): GraphCommit {
         const $$createField5_0 = $$createType1;
         const $$createField6_0 = $$createType1;
-        const $$createField9_0 = $$createType11;
+        const $$createField9_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("parents" in $$parsedSource) {
             $$parsedSource["parents"] = $$createField5_0($$parsedSource["parents"]);
@@ -648,7 +774,7 @@ export class KinstaProjectCfg {
      * Creates a new KinstaProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): KinstaProjectCfg {
-        const $$createField1_0 = $$createType13;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField1_0($$parsedSource["environments"]);
@@ -656,6 +782,21 @@ export class KinstaProjectCfg {
         return new KinstaProjectCfg($$parsedSource as Partial<KinstaProjectCfg>);
     }
 }
+
+/**
+ * ModelTier is a logical model choice; mapped to a concrete Anthropic model id
+ * in the claude adapter (Plan 3).
+ */
+export enum ModelTier {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    TierHaiku = "haiku",
+    TierSonnet = "sonnet",
+    TierOpus = "opus",
+};
 
 export class PaidPlugin {
     "slug": string;
@@ -819,9 +960,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType14;
-        const $$createField5_0 = $$createType15;
-        const $$createField6_0 = $$createType16;
+        const $$createField4_0 = $$createType16;
+        const $$createField5_0 = $$createType17;
+        const $$createField6_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -844,6 +985,7 @@ export class ProjectConfig {
     "aws"?: AWSProjectCfg | null;
     "vps"?: VPSProjectCfg | null;
     "ssh"?: SSHTarget | null;
+    "testing"?: TestingCfg | null;
 
     /** Creates a new ProjectConfig instance. */
     constructor($$source: Partial<ProjectConfig> = {}) {
@@ -864,10 +1006,11 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType20;
-        const $$createField5_0 = $$createType22;
-        const $$createField6_0 = $$createType24;
+        const $$createField3_0 = $$createType20;
+        const $$createField4_0 = $$createType22;
+        const $$createField5_0 = $$createType24;
+        const $$createField6_0 = $$createType26;
+        const $$createField7_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -880,6 +1023,9 @@ export class ProjectConfig {
         }
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField6_0($$parsedSource["ssh"]);
+        }
+        if ("testing" in $$parsedSource) {
+            $$parsedSource["testing"] = $$createField7_0($$parsedSource["testing"]);
         }
         return new ProjectConfig($$parsedSource as Partial<ProjectConfig>);
     }
@@ -942,6 +1088,52 @@ export enum Provider {
     ProviderNone = "none",
 };
 
+/**
+ * Regression is something broken on the update side relative to the release
+ * baseline, or a hard failure (5xx) that is always reported.
+ */
+export class Regression {
+    "kind": RegressionKind;
+    "detail": string;
+    "hard": boolean;
+
+    /** Creates a new Regression instance. */
+    constructor($$source: Partial<Regression> = {}) {
+        if (!("kind" in $$source)) {
+            this["kind"] = RegressionKind.$zero;
+        }
+        if (!("detail" in $$source)) {
+            this["detail"] = "";
+        }
+        if (!("hard" in $$source)) {
+            this["hard"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Regression instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Regression {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Regression($$parsedSource as Partial<Regression>);
+    }
+}
+
+/**
+ * RegressionKind distinguishes console vs HTTP-status regressions.
+ */
+export enum RegressionKind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    RegConsole = "console",
+    RegStatus = "status",
+};
+
 export class SSHTarget {
     "host": string;
     "port": number;
@@ -971,6 +1163,22 @@ export class SSHTarget {
         return new SSHTarget($$parsedSource as Partial<SSHTarget>);
     }
 }
+
+/**
+ * Severity ranks a finding.
+ */
+export enum Severity {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * The Dutch values ("hoog"/"laag") are intentional user-facing report labels; do not translate to English.
+     */
+    SeverityHigh = "hoog",
+    SeverityLow = "laag",
+};
 
 export class Stash {
     "index": number;
@@ -1004,6 +1212,106 @@ export class Stash {
         return new Stash($$parsedSource as Partial<Stash>);
     }
 }
+
+/**
+ * Step is one action in a flow. Target holds a natural-language description
+ * (click/type/assert) or a path/URL (navigate). Selector is the last working
+ * Playwright selector, cached so replay is deterministic; self-heal updates it.
+ */
+export class Step {
+    "action": StepType;
+    "target"?: string;
+    "value"?: string;
+    "selector"?: string;
+
+    /** Creates a new Step instance. */
+    constructor($$source: Partial<Step> = {}) {
+        if (!("action" in $$source)) {
+            this["action"] = StepType.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Step instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Step {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Step($$parsedSource as Partial<Step>);
+    }
+}
+
+/**
+ * StepResult is the compared outcome for a single step.
+ */
+export class StepResult {
+    "index": number;
+    "action": StepType;
+    "screenshotBase": string;
+    "screenshotUpdate": string;
+    "findings": Finding[];
+    "regressions": Regression[];
+    "healNote"?: string;
+    "error"?: string;
+
+    /** Creates a new StepResult instance. */
+    constructor($$source: Partial<StepResult> = {}) {
+        if (!("index" in $$source)) {
+            this["index"] = 0;
+        }
+        if (!("action" in $$source)) {
+            this["action"] = StepType.$zero;
+        }
+        if (!("screenshotBase" in $$source)) {
+            this["screenshotBase"] = "";
+        }
+        if (!("screenshotUpdate" in $$source)) {
+            this["screenshotUpdate"] = "";
+        }
+        if (!("findings" in $$source)) {
+            this["findings"] = [];
+        }
+        if (!("regressions" in $$source)) {
+            this["regressions"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new StepResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): StepResult {
+        const $$createField4_0 = $$createType30;
+        const $$createField5_0 = $$createType32;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
+        }
+        if ("regressions" in $$parsedSource) {
+            $$parsedSource["regressions"] = $$createField5_0($$parsedSource["regressions"]);
+        }
+        return new StepResult($$parsedSource as Partial<StepResult>);
+    }
+}
+
+/**
+ * StepType is the kind of action a flow step performs.
+ */
+export enum StepType {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    StepNavigate = "navigate",
+    StepClick = "click",
+    StepInput = "type",
+    StepLogin = "login",
+    StepWait = "wait",
+    StepAssert = "assert",
+};
 
 export class Tag {
     "name": string;
@@ -1039,6 +1347,131 @@ export class Tag {
     }
 }
 
+/**
+ * TestAccount is a site login used by `login` flow steps.
+ * Pass is a keychain: reference.
+ */
+export class TestAccount {
+    "user": string;
+    "pass": string;
+
+    /** Creates a new TestAccount instance. */
+    constructor($$source: Partial<TestAccount> = {}) {
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("pass" in $$source)) {
+            this["pass"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TestAccount instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TestAccount {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TestAccount($$parsedSource as Partial<TestAccount>);
+    }
+}
+
+/**
+ * TestRun is one full comparison of a flow across two environments.
+ */
+export class TestRun {
+    "id": string;
+    "projectId": string;
+    "flowName": string;
+    "baselineEnv": EnvKey;
+    "updateEnv": EnvKey;
+    "models": string[];
+    "startedAt": time$0.Time;
+    "steps": StepResult[];
+
+    /** Creates a new TestRun instance. */
+    constructor($$source: Partial<TestRun> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("flowName" in $$source)) {
+            this["flowName"] = "";
+        }
+        if (!("baselineEnv" in $$source)) {
+            this["baselineEnv"] = EnvKey.$zero;
+        }
+        if (!("updateEnv" in $$source)) {
+            this["updateEnv"] = EnvKey.$zero;
+        }
+        if (!("models" in $$source)) {
+            this["models"] = [];
+        }
+        if (!("startedAt" in $$source)) {
+            this["startedAt"] = null;
+        }
+        if (!("steps" in $$source)) {
+            this["steps"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TestRun instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TestRun {
+        const $$createField5_0 = $$createType1;
+        const $$createField7_0 = $$createType34;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("models" in $$parsedSource) {
+            $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
+        }
+        if ("steps" in $$parsedSource) {
+            $$parsedSource["steps"] = $$createField7_0($$parsedSource["steps"]);
+        }
+        return new TestRun($$parsedSource as Partial<TestRun>);
+    }
+}
+
+/**
+ * TestingCfg lives under `testing:` in .rdm.yml (committed, no secrets).
+ * acc/prod URLs still come from deploy_conf.json; only `local` is set here.
+ */
+export class TestingCfg {
+    "environments"?: { [_ in string]?: string };
+    "basicAuth"?: { [_ in string]?: BasicAuth };
+    "testAccount"?: TestAccount | null;
+
+    /** Creates a new TestingCfg instance. */
+    constructor($$source: Partial<TestingCfg> = {}) {
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TestingCfg instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TestingCfg {
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType36;
+        const $$createField2_0 = $$createType38;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("environments" in $$parsedSource) {
+            $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
+        }
+        if ("basicAuth" in $$parsedSource) {
+            $$parsedSource["basicAuth"] = $$createField1_0($$parsedSource["basicAuth"]);
+        }
+        if ("testAccount" in $$parsedSource) {
+            $$parsedSource["testAccount"] = $$createField2_0($$parsedSource["testAccount"]);
+        }
+        return new TestingCfg($$parsedSource as Partial<TestingCfg>);
+    }
+}
+
 export class VPSProjectCfg {
     "provider": string;
     "ssh": SSHTarget;
@@ -1067,7 +1500,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType23;
+        const $$createField1_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -1085,20 +1518,34 @@ const $$createType4 = DiffLine.createFrom;
 const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = DiffHunk.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = FileChange.createFrom;
+const $$createType8 = Step.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = GraphEdge.createFrom;
+const $$createType10 = FileChange.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = KinstaEnvBinding.createFrom;
-const $$createType13 = $Create.Map($Create.Any, $$createType12);
-const $$createType14 = ProjectConfig.createFrom;
-const $$createType15 = DeployConf.createFrom;
-const $$createType16 = GitStatus.createFrom;
-const $$createType17 = KinstaProjectCfg.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
-const $$createType19 = AWSProjectCfg.createFrom;
+const $$createType12 = GraphEdge.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = KinstaEnvBinding.createFrom;
+const $$createType15 = $Create.Map($Create.Any, $$createType14);
+const $$createType16 = ProjectConfig.createFrom;
+const $$createType17 = DeployConf.createFrom;
+const $$createType18 = GitStatus.createFrom;
+const $$createType19 = KinstaProjectCfg.createFrom;
 const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = VPSProjectCfg.createFrom;
+const $$createType21 = AWSProjectCfg.createFrom;
 const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = SSHTarget.createFrom;
+const $$createType23 = VPSProjectCfg.createFrom;
 const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = SSHTarget.createFrom;
+const $$createType26 = $Create.Nullable($$createType25);
+const $$createType27 = TestingCfg.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = Finding.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = Regression.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = StepResult.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = BasicAuth.createFrom;
+const $$createType36 = $Create.Map($Create.Any, $$createType35);
+const $$createType37 = TestAccount.createFrom;
+const $$createType38 = $Create.Nullable($$createType37);
