@@ -12,20 +12,25 @@ function readStdin() {
 
 async function openSide(target, timeout) {
   const browser = await chromium.launch()
-  const context = await browser.newContext({
-    ignoreHTTPSErrors: true,
-    httpCredentials: target.basicAuth
-      ? { username: target.basicAuth.user, password: target.basicAuth.pass }
-      : undefined,
-  })
-  const page = await context.newPage()
-  page.setDefaultTimeout(timeout)
-  const consoleErrors = []
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
-  page.on('pageerror', (e) => consoleErrors.push(String(e)))
-  const statusCodes = {}
-  page.on('response', (r) => { statusCodes[r.url()] = r.status() })
-  return { browser, context, page, consoleErrors, statusCodes, baseURL: target.url }
+  try {
+    const context = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      httpCredentials: target.basicAuth
+        ? { username: target.basicAuth.user, password: target.basicAuth.pass }
+        : undefined,
+    })
+    const page = await context.newPage()
+    page.setDefaultTimeout(timeout)
+    const consoleErrors = []
+    page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+    page.on('pageerror', (e) => consoleErrors.push(String(e)))
+    const statusCodes = {}
+    page.on('response', (r) => { statusCodes[r.url()] = r.status() })
+    return { browser, context, page, consoleErrors, statusCodes, baseURL: target.url }
+  } catch (e) {
+    await browser.close().catch(() => {})
+    throw e
+  }
 }
 
 // Resolve a locator for click/type/assert: prefer the cached CSS selector,
@@ -98,12 +103,23 @@ async function main() {
         error: '',
         snapshot: '',
       }
+      let failedSide = null
       try {
         await applyStep(baseline, step, req.testAccount)
-        await applyStep(update, step, req.testAccount)
       } catch (e) {
         result.error = String(e && e.message ? e.message : e)
-        try { result.snapshot = JSON.stringify(await update.page.accessibility.snapshot()) } catch {}
+        failedSide = baseline
+      }
+      if (!result.error) {
+        try {
+          await applyStep(update, step, req.testAccount)
+        } catch (e) {
+          result.error = String(e && e.message ? e.message : e)
+          failedSide = update
+        }
+      }
+      if (failedSide) {
+        try { result.snapshot = await failedSide.page.locator('html').ariaSnapshot() } catch {}
       }
       try { result.baseline.screenshot = await shoot(baseline, req.screenshotDir, `s${i}-baseline.png`) } catch {}
       try { result.update.screenshot = await shoot(update, req.screenshotDir, `s${i}-update.png`) } catch {}
@@ -111,6 +127,12 @@ async function main() {
       result.update.consoleErrors = [...update.consoleErrors]
       result.baseline.statusCodes = { ...baseline.statusCodes }
       result.update.statusCodes = { ...update.statusCodes }
+      // Reset per-side observations IN PLACE so the next step reports only its
+      // own errors/status codes (page listeners hold these references).
+      baseline.consoleErrors.length = 0
+      update.consoleErrors.length = 0
+      for (const k in baseline.statusCodes) delete baseline.statusCodes[k]
+      for (const k in update.statusCodes) delete update.statusCodes[k]
       resp.steps.push(result)
       if (result.error) break
     }
