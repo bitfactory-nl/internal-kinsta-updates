@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -83,4 +84,22 @@ func (s *RunStore) List(projectID string) ([]domain.TestRun, error) {
 	}
 	sort.Slice(runs, func(i, j int) bool { return runs[i].StartedAt.After(runs[j].StartedAt) })
 	return runs, nil
+}
+
+// Owns reports whether path is inside the store's base directory (guards the
+// Screenshot endpoint against reading arbitrary files).
+func (s *RunStore) Owns(path string) bool {
+	base, err := filepath.Abs(s.baseDir)
+	if err != nil {
+		return false
+	}
+	p, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(base, p)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

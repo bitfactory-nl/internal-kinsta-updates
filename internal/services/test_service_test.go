@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rdm/sites-tool/internal/adapters/browser"
@@ -202,5 +203,26 @@ func TestServiceRunSelfHealRerun(t *testing.T) {
 	flows, _ := svc.ListFlows("p1")
 	if flows[0].Steps[0].Selector != "button.accept" {
 		t.Errorf("healed selector not persisted: %+v", flows[0].Steps[0])
+	}
+}
+
+func TestServiceScreenshot(t *testing.T) {
+	base := t.TempDir()
+	ps := NewProjectService(nil)
+	svc := NewTestService(ps, &config.Global{}, NewRunStore(base), &fakeRunner{})
+
+	png := filepath.Join(base, "p", "r", "screenshots", "s0.png")
+	writePNG(t, png)
+
+	url, err := svc.Screenshot(png)
+	if err != nil {
+		t.Fatalf("Screenshot: %v", err)
+	}
+	if !strings.HasPrefix(url, "data:image/png;base64,") {
+		t.Errorf("not a data URL: %q", url)
+	}
+
+	if _, err := svc.Screenshot("/etc/passwd"); err == nil {
+		t.Error("expected error for path outside history")
 	}
 }

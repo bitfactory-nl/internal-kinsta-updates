@@ -69,6 +69,14 @@ export function SaveFlows(projectID: string, flows: domain$0.Flow[]): $Cancellab
     return $Call.ByID(2629359469, projectID, flows);
 }
 
+/**
+ * Screenshot returns a run screenshot as a data: URL for the webview. The path
+ * must live inside the run-history directory.
+ */
+export function Screenshot(path: string): $CancellablePromise<string> {
+    return $Call.ByID(4281490373, path);
+}
+
 // Private type creation functions
 const $$createType0 = domain$0.Step.createFrom;
 const $$createType1 = $Create.Array($$createType0);

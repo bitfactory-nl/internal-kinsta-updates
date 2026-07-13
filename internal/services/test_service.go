@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -116,6 +117,19 @@ func (s *TestService) ListRuns(projectID string) ([]domain.TestRun, error) {
 // GetRun returns a single stored run.
 func (s *TestService) GetRun(projectID, runID string) (domain.TestRun, error) {
 	return s.store.Get(projectID, runID)
+}
+
+// Screenshot returns a run screenshot as a data: URL for the webview. The path
+// must live inside the run-history directory.
+func (s *TestService) Screenshot(path string) (string, error) {
+	if !s.store.Owns(path) {
+		return "", fmt.Errorf("pad buiten historie: %s", path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("lees screenshot: %w", err)
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(data), nil
 }
 
 // stepTimeoutMs bounds a single sidecar request (per replay).

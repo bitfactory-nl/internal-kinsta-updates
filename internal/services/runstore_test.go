@@ -1,6 +1,7 @@
 package services
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -72,5 +73,20 @@ func TestRunStoreListSortedNewestFirst(t *testing.T) {
 	}
 	if len(list) != 2 || list[0].ID != "b" {
 		t.Fatalf("expected newest first, got %+v", list)
+	}
+}
+
+func TestRunStoreOwns(t *testing.T) {
+	base := t.TempDir()
+	store := NewRunStore(base)
+	inside := filepath.Join(base, "p", "r", "screenshots", "s0.png")
+	if !store.Owns(inside) {
+		t.Error("expected Owns=true for path inside base")
+	}
+	if store.Owns(filepath.Join(base, "..", "etc", "passwd")) {
+		t.Error("expected Owns=false for traversal path")
+	}
+	if store.Owns("/totally/elsewhere.png") {
+		t.Error("expected Owns=false for unrelated path")
 	}
 }
