@@ -8,6 +8,7 @@ type Global struct {
 	PluginRepo    PluginRepo    `yaml:"plugin_repo"`
 	Notifications Notifications `yaml:"notifications"`
 	Git           GitGlobal     `yaml:"git"`
+	AI            AIGlobal      `yaml:"ai"`
 }
 
 type KinstaGlobal struct {
@@ -29,4 +30,8 @@ type Notifications struct {
 type GitGlobal struct {
 	DefaultRemote string `yaml:"default_remote"` // default: origin
 	PruneOnFetch  bool   `yaml:"prune_on_fetch"`
+}
+
+type AIGlobal struct {
+	APIKey string `yaml:"api_key"` // keychain:rdm.anthropic.apiKey or literal (dev only)
 }

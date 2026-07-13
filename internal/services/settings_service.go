@@ -16,6 +16,7 @@ type AppSettings struct {
 	PluginRepoRef    string `json:"pluginRepoRef"`
 	GitDefaultRemote string `json:"gitDefaultRemote"`
 	GitPruneOnFetch  bool   `json:"gitPruneOnFetch"`
+	AnthropicAPIKey  string `json:"anthropicApiKey"`
 }
 
 type SettingsService struct {
@@ -37,6 +38,7 @@ func (s *SettingsService) Get() AppSettings {
 		PluginRepoRef:    s.cfg.PluginRepo.Ref,
 		GitDefaultRemote: s.cfg.Git.DefaultRemote,
 		GitPruneOnFetch:  s.cfg.Git.PruneOnFetch,
+		AnthropicAPIKey:  s.cfg.AI.APIKey,
 	}
 }
 
@@ -57,5 +59,6 @@ func (s *SettingsService) Save(settings AppSettings) error {
 		s.cfg.Git.DefaultRemote = settings.GitDefaultRemote
 	}
 	s.cfg.Git.PruneOnFetch = settings.GitPruneOnFetch
+	s.cfg.AI.APIKey = settings.AnthropicAPIKey
 	return config.SaveGlobal(*s.cfg)
 }
