@@ -17,7 +17,9 @@ function Screenshot({ projectId, path, label }: { projectId: string; path: strin
   const [err, setErr] = useState(false)
   useEffect(() => {
     let alive = true
-    if (!path) { setUrl(null); return }
+    setErr(false)
+    setUrl(null)
+    if (!path) { return }
     Services.TestService.Screenshot(path)
       .then(u => { if (alive) setUrl(u) })
       .catch(() => { if (alive) setErr(true) })
@@ -91,6 +93,7 @@ export default function TestsTab({ projectId }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [authoring, setAuthoring] = useState(false)
   const [authorText, setAuthorText] = useState('')
+  const [authorName, setAuthorName] = useState('')
 
   const loadFlows = useCallback(() => {
     Services.TestService.ListFlows(projectId)
@@ -135,15 +138,14 @@ export default function TestsTab({ projectId }: Props) {
 
   const doAuthor = async () => {
     const desc = authorText.trim()
-    if (!desc) return
+    const name = authorName.trim()
+    if (!desc || !name) { setError('Geef een naam én een beschrijving op.'); return }
     setError(null)
     try {
       const steps = await Services.TestService.AuthorFlow(projectId, desc)
-      const name = window.prompt('Naam voor deze flow?')
-      if (!name) return
       const next = [...flows, { name, steps } as Flow]
       await Services.TestService.SaveFlows(projectId, next)
-      setAuthoring(false); setAuthorText('')
+      setAuthoring(false); setAuthorText(''); setAuthorName('')
       loadFlows(); setSelectedFlow(name)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -199,11 +201,14 @@ export default function TestsTab({ projectId }: Props) {
 
       {authoring && (
         <div className="shrink-0 px-6 py-3 border-b border-border bg-panel-2">
+          <input value={authorName} onChange={e => setAuthorName(e.target.value)}
+            placeholder="Naam van de flow (bv. Contactformulier)"
+            className="w-full bg-panel border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg mb-2" />
           <textarea value={authorText} onChange={e => setAuthorText(e.target.value)}
             placeholder="Beschrijf de flow in natuurlijke taal, bijv. 'Ga naar de homepage, accepteer cookies, open het menu en ga naar Contact.'"
             className="w-full h-20 bg-panel border border-border rounded-lg p-2.5 text-[12.5px] text-fg resize-none" />
           <div className="flex justify-end gap-2 mt-2">
-            <button onClick={() => setAuthoring(false)} className="text-[12px] text-fg-muted px-3 py-1.5">Annuleer</button>
+            <button onClick={() => { setAuthoring(false); setAuthorName('') }} className="text-[12px] text-fg-muted px-3 py-1.5">Annuleer</button>
             <button onClick={doAuthor} className="text-[12px] font-semibold text-white bg-accent px-3 py-1.5 rounded-lg">Genereer stappen</button>
           </div>
         </div>
