@@ -29,7 +29,7 @@ type TestService struct {
 	cfg       *config.Global
 	store     *RunStore
 	runner    browserRunner
-	newVision func() (visionClient, error)
+	newVision func(override domain.ModelTier) (visionClient, error)
 }
 
 // NewTestService wires the service. newVision defaults to a real claude.Client
@@ -40,8 +40,9 @@ func NewTestService(projects *ProjectService, cfg *config.Global, store *RunStor
 	return s
 }
 
-// defaultVision is a temporary stub replaced in Task 5 (Wails wiring).
-func (s *TestService) defaultVision() (visionClient, error) {
+// defaultVision is a temporary stub replaced in Task 5 (Wails wiring). It will
+// build a claude.Client from the resolved key and set c.Override = override.
+func (s *TestService) defaultVision(override domain.ModelTier) (visionClient, error) {
 	return nil, fmt.Errorf("vision client not wired")
 }
 
@@ -76,7 +77,7 @@ func (s *TestService) AuthorFlow(projectID, description string) ([]domain.Step, 
 	if _, err := s.project(projectID); err != nil {
 		return nil, err
 	}
-	v, err := s.newVision()
+	v, err := s.newVision("")
 	if err != nil {
 		return nil, err
 	}
@@ -93,12 +94,16 @@ func (s *TestService) GetRun(projectID, runID string) (domain.TestRun, error) {
 	return s.store.Get(projectID, runID)
 }
 
-// runTimeoutMs bounds a full run.
-const runTimeoutMs = 60000
+// stepTimeoutMs bounds a single sidecar request (per replay).
+const stepTimeoutMs = 30000
+
+// runCtxTimeout is a Go-side backstop for the whole run (all AI + sidecar work).
+const runCtxTimeout = 5 * time.Minute
 
 // Run executes a flow on two environments, self-heals failed steps once,
 // compares screenshots, computes console/status regressions, saves and returns
-// the run. baselineEnv is the release side. override forces a model tier ("" = auto).
+// the run. baselineEnv is the release side. override, when non-empty, forces the
+// model tier for every AI call in the run ("" = automatic routing).
 func (s *TestService) Run(projectID, flowName string, baselineEnv, updateEnv domain.EnvKey, override domain.ModelTier) (domain.TestRun, error) {
 	p, err := s.project(projectID)
 	if err != nil {
@@ -135,7 +140,7 @@ func (s *TestService) Run(projectID, flowName string, baselineEnv, updateEnv dom
 	if err != nil {
 		return domain.TestRun{}, err
 	}
-	v, err := s.newVision()
+	v, err := s.newVision(override)
 	if err != nil {
 		return domain.TestRun{}, err
 	}
@@ -153,11 +158,12 @@ func (s *TestService) Run(projectID, flowName string, baselineEnv, updateEnv dom
 			TestAccount:   toAccount(updAcc),
 			Flow:          flow,
 			ScreenshotDir: shotDir,
-			TimeoutMs:     runTimeoutMs,
+			TimeoutMs:     stepTimeoutMs,
 		}
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), runCtxTimeout)
+	defer cancel()
 	resp, err := s.runner.Run(ctx, buildReq(flows[flowIdx]))
 	if err != nil {
 		return domain.TestRun{}, fmt.Errorf("run: %w", err)

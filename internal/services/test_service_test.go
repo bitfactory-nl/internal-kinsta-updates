@@ -62,7 +62,7 @@ func newTestService(t *testing.T, repoPath string, runner browserRunner, vis vis
 		Deploy: domain.DeployConf{Link: domain.DeployLinks{Prod: "https://prod.test"}},
 	}}
 	svc := NewTestService(ps, &config.Global{}, NewRunStore(t.TempDir()), runner)
-	svc.newVision = func() (visionClient, error) { return vis, nil }
+	svc.newVision = func(override domain.ModelTier) (visionClient, error) { return vis, nil }
 	return svc
 }
 
