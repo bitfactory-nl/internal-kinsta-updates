@@ -70,9 +70,9 @@ export default function BlameTab({ projectId }: Props) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Left: file picker */}
-      <div className="w-[220px] shrink-0 border-r border-black/[0.08] flex flex-col overflow-hidden">
+      <div className="w-[290px] shrink-0 border-r border-border flex flex-col overflow-hidden">
         {loadingFiles ? (
-          <div className="flex items-center justify-center py-4 text-gray-600 text-xs gap-1">
+          <div className="flex items-center justify-center py-4 text-fg-muted text-xs gap-1">
             <span className="animate-spin inline-block">↻</span> Laden…
           </div>
         ) : (
@@ -83,23 +83,23 @@ export default function BlameTab({ projectId }: Props) {
       {/* Right: blame view */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {!selectedFile ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic">
             Selecteer een bestand
           </div>
         ) : loading ? (
-          <div className="flex-1 flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex-1 flex items-center justify-center gap-2 text-fg-muted text-sm">
             <span className="animate-spin inline-block">↻</span> Blame laden…
           </div>
         ) : error ? (
-          <div className="m-3 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{error}</div>
+          <div className="m-3 bg-red-soft text-red px-3 py-2 rounded-[9px] text-xs">{error}</div>
         ) : lines.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic">
             Geen blame data
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
             {/* Commit gutter */}
-            <div className="w-[180px] shrink-0 border-r border-black/[0.08] overflow-y-auto select-none">
+            <div className="w-[180px] shrink-0 border-r border-border bg-panel overflow-y-auto select-none">
               {commitBlocks.map((block, i) => {
                 const meta = commitMeta[block.hash]
                 const isHovered = hoveredCommit === block.hash
@@ -109,15 +109,15 @@ export default function BlameTab({ projectId }: Props) {
                     style={{ height: block.count * LINE_H }}
                     onMouseEnter={() => setHoveredCommit(block.hash)}
                     onMouseLeave={() => setHoveredCommit(null)}
-                    className={`px-2 overflow-hidden border-b border-white/[0.03] transition-colors
-                      ${isHovered ? 'bg-indigo-500/10' : ''}`}
+                    className={`px-2 overflow-hidden border-b border-border transition-colors
+                      ${isHovered ? 'bg-sel' : ''}`}
                   >
                     <div className="flex items-start gap-1.5 pt-px">
-                      <span className="text-[10px] font-mono text-indigo-600 shrink-0 leading-[20px]">
+                      <span className="text-[10px] font-mono text-accent shrink-0 leading-[20px]">
                         {block.hash.slice(0, 7)}
                       </span>
                       {block.count >= 2 && meta && (
-                        <span className="text-[10px] text-gray-600 truncate leading-[20px]">
+                        <span className="text-[10px] font-[450] text-fg-faint truncate leading-[20px]">
                           {meta.author?.name ?? ''}{block.count >= 3 ? ` · ${timeAgo(String(meta.date ?? ''))}` : ''}
                         </span>
                       )}
@@ -135,13 +135,13 @@ export default function BlameTab({ projectId }: Props) {
                       key={line.lineNo}
                       onMouseEnter={() => setHoveredCommit(line.commit)}
                       onMouseLeave={() => setHoveredCommit(null)}
-                      className={`transition-colors ${hoveredCommit === line.commit ? 'bg-indigo-500/10' : ''}`}
+                      className={`transition-colors ${hoveredCommit === line.commit ? 'bg-sel' : ''}`}
                       style={{ height: LINE_H }}
                     >
-                      <td className="text-right text-[11px] text-gray-700 font-mono px-2 select-none w-10 shrink-0 leading-[20px]">
+                      <td className="text-right text-[11px] text-fg-faint font-mono px-2 select-none w-10 shrink-0 leading-[20px]">
                         {line.lineNo}
                       </td>
-                      <td className="text-[11px] text-gray-700 font-mono whitespace-pre pl-1 pr-4 leading-[20px]">
+                      <td className="text-[11px] text-fg-muted font-mono whitespace-pre pl-1 pr-4 leading-[20px]">
                         {line.content}
                       </td>
                     </tr>

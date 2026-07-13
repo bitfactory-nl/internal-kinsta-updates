@@ -7,13 +7,15 @@ export interface CommitGraphProps {
   onSelect: (hash: string) => void
 }
 
-const LANE_W = 14
-const ROW_H = 32
-const R = 4
+const LANE_W = 16
+const ROW_H = 52
+const R = 5
 
 const LANE_COLORS = [
-  '#6366f1', '#10b981', '#f59e0b', '#ef4444',
-  '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16',
+  'var(--accent)',
+  'var(--green)',
+  'var(--orange)',
+  'var(--purple)',
 ]
 
 function laneColor(lane: number): string {
@@ -37,21 +39,18 @@ function timeAgo(dateStr: string): string {
 }
 
 function RefPill({ label: refName }: { label: string }) {
-  let cls = 'text-gray-600 ring-gray-400/50'
-  if (refName === 'HEAD') {
-    cls = 'text-yellow-700 ring-yellow-400/40'
-  } else if (refName.startsWith('tag:')) {
-    cls = 'text-emerald-700 ring-emerald-500/30'
-  } else if (refName.startsWith('origin/') || refName.includes('remote')) {
-    cls = 'text-gray-600 ring-gray-400/50'
-  } else {
-    cls = 'text-indigo-700 ring-indigo-500/30'
-  }
-
   const label = refName.startsWith('tag:') ? refName.slice(4) : refName
 
+  if (refName === 'HEAD') {
+    return (
+      <span className="font-mono text-[9.5px] font-semibold text-green bg-green-soft px-1.5 py-[2px] rounded-[5px] shrink-0">
+        {label}
+      </span>
+    )
+  }
+
   return (
-    <span className={`text-[10px] px-1.5 py-px rounded ring-1 ${cls} font-mono shrink-0`}>
+    <span className="font-mono text-[9.5px] font-medium text-fg-muted bg-panel-2 border border-border px-1.5 py-[2px] rounded-[5px] shrink-0">
       {label}
     </span>
   )
@@ -72,12 +71,12 @@ function CommitRow({ commit, prevEdges, prevColumns, selected, onSelect }: Commi
   return (
     <button
       onClick={() => onSelect(commit.hash)}
-      className={`w-full flex items-center gap-0 min-h-[${ROW_H}px] text-left transition-colors
-        ${selected ? 'bg-indigo-100' : 'hover:bg-black/[0.04]'}`}
+      className={`w-full flex items-center gap-0 text-left transition-colors border-b border-border
+        ${selected ? 'bg-sel' : 'hover:bg-hover'}`}
       style={{ minHeight: ROW_H }}
     >
       {/* SVG graph strip */}
-      <div className="shrink-0" style={{ width: svgWidth }}>
+      <div className="shrink-0 pl-2" style={{ width: svgWidth + 8 }}>
         <svg
           width={svgWidth}
           height={ROW_H}
@@ -90,14 +89,13 @@ function CommitRow({ commit, prevEdges, prevColumns, selected, onSelect }: Commi
             const y1 = 0
             const x2 = edge.toLane * LANE_W + LANE_W / 2
             const y2 = ROW_H / 2
-            const color = laneColor(edge.colorLane ?? edge.fromLane)
             return (
               <line
                 key={`in-${i}`}
                 x1={x1} y1={y1}
                 x2={x2} y2={y2}
-                stroke={color}
-                strokeWidth={1.5}
+                stroke="var(--border)"
+                strokeWidth={2}
                 strokeLinecap="round"
               />
             )
@@ -109,36 +107,35 @@ function CommitRow({ commit, prevEdges, prevColumns, selected, onSelect }: Commi
             const y1 = ROW_H / 2
             const x2 = edge.toLane * LANE_W + LANE_W / 2
             const y2 = ROW_H
-            const color = laneColor(edge.colorLane ?? edge.fromLane)
             return (
               <line
                 key={`out-${i}`}
                 x1={x1} y1={y1}
                 x2={x2} y2={y2}
-                stroke={color}
-                strokeWidth={1.5}
+                stroke="var(--border)"
+                strokeWidth={2}
                 strokeLinecap="round"
               />
             )
           })}
 
-          {/* Commit circle */}
+          {/* Commit dot */}
           <circle
             cx={commit.lane * LANE_W + LANE_W / 2}
             cy={ROW_H / 2}
             r={R}
             fill={laneColor(commit.lane)}
-            stroke="rgba(255,255,255,0.2)"
-            strokeWidth={1}
+            stroke="var(--panel)"
+            strokeWidth={3}
           />
         </svg>
       </div>
 
       {/* Commit info */}
-      <div className="flex-1 min-w-0 px-2 py-1">
+      <div className="flex-1 min-w-0 px-2.5 py-2">
         {/* Subject + refs */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className={`text-xs truncate flex-1 ${selected ? 'text-gray-900' : 'text-gray-800'}`}>
+        <div className="flex items-center gap-[7px] min-w-0">
+          <span className="text-[13px] font-medium text-fg truncate flex-1">
             {commit.subject}
           </span>
           {(commit.refs ?? []).length > 0 && (
@@ -150,11 +147,12 @@ function CommitRow({ commit, prevEdges, prevColumns, selected, onSelect }: Commi
           )}
         </div>
 
-        {/* Author + time */}
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[11px] text-gray-600 truncate">{commit.author}</span>
-          <span className="text-[11px] text-gray-600 shrink-0">{timeAgo(commit.authorDate)}</span>
-          <span className="text-[10px] text-gray-700 font-mono shrink-0 ml-auto">{commit.shortHash}</span>
+        {/* Author + time + hash */}
+        <div className="flex items-center gap-2.5 mt-[3px] text-[11.5px] font-[450] text-fg-faint">
+          <span className="truncate">{commit.author}</span>
+          <span>·</span>
+          <span className="shrink-0">{timeAgo(commit.authorDate)}</span>
+          <span className="font-mono text-[11px] font-medium shrink-0 ml-auto pr-2">{commit.shortHash}</span>
         </div>
       </div>
     </button>
@@ -172,14 +170,14 @@ export default function CommitGraph({ commits, selectedHash, onSelect }: CommitG
 
   if (commits.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-gray-600 text-sm italic">
+      <div className="flex items-center justify-center py-8 text-fg-faint text-[13px] italic">
         No commits
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col divide-y divide-black/[0.06]">
+    <div className="flex flex-col">
       {rows.map(({ commit, prevEdges, prevColumns }) => (
         <CommitRow
           key={commit.hash}

@@ -97,16 +97,16 @@ export default function PluginsTab({ projectId }: Props) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Environment list */}
-      <div className="w-[200px] shrink-0 border-r border-black/[0.08] flex flex-col overflow-hidden">
-        <div className="px-3 py-2 border-b border-black/[0.06] shrink-0 flex items-center gap-2">
-          <p className="text-xs font-medium text-gray-900 truncate flex-1">
+      <div className="w-[200px] shrink-0 border-r border-border flex flex-col overflow-hidden">
+        <div className="px-3 py-2.5 border-b border-border shrink-0 flex items-center gap-2">
+          <p className="text-xs font-semibold text-fg truncate flex-1">
             {site.site.display_name || site.site.name}
           </p>
           <button
             onClick={refreshManifest}
             disabled={loading}
             title="Manifest verversen"
-            className="text-[11px] text-gray-700 hover:text-gray-900 transition-colors"
+            className="text-[11px] text-fg-muted hover:text-fg transition-colors"
           >
             {loading ? <span className="animate-spin inline-block">↻</span> : '⟳'}
           </button>
@@ -116,13 +116,15 @@ export default function PluginsTab({ projectId }: Props) {
             <button
               key={env.id}
               onClick={() => loadDiff(env.id)}
-              className={`w-full text-left px-3 py-2 border-b border-black/[0.06] transition-colors
-                ${selectedEnvId === env.id ? 'bg-indigo-100' : 'hover:bg-black/[0.04]'}`}
+              className={`w-full text-left px-3 py-2 transition-colors
+                ${selectedEnvId === env.id ? 'bg-sel' : 'hover:bg-hover'}`}
             >
               <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${env.is_blocked ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                <span className="text-xs text-gray-800 truncate">{env.display_name || env.name}</span>
-                {env.name === 'live' && <span className="ml-auto text-[9px] text-indigo-700 shrink-0">live</span>}
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${env.is_blocked ? 'bg-red' : 'bg-green'}`} />
+                <span className={`text-xs truncate ${selectedEnvId === env.id ? 'text-fg font-medium' : 'text-fg-muted'}`}>{env.display_name || env.name}</span>
+                {env.name === 'live' && (
+                  <span className="ml-auto shrink-0 text-[9px] font-semibold font-mono text-green bg-green-soft px-1.5 py-px rounded-full">live</span>
+                )}
               </div>
             </button>
           ))}
@@ -132,35 +134,36 @@ export default function PluginsTab({ projectId }: Props) {
       {/* Diff detail */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {!selectedEnvId ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic">
             Selecteer een omgeving
           </div>
         ) : loading ? (
           <Spinner />
         ) : error ? (
-          <div className="m-4 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{error}</div>
+          <div className="m-4 bg-red-soft text-red px-3 py-2 rounded-lg text-xs">{error}</div>
         ) : diffs ? (
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
             <section>
-              <h3 className="text-xs font-semibold text-gray-900 mb-2">
-                Betaalde plugins <span className="text-gray-600 font-normal">{paid.length}</span>
+              <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+                Betaalde plugins <span className="font-mono normal-case tracking-normal text-fg-faint">{paid.length}</span>
               </h3>
-              <div className="space-y-px">
-                {paid.map(d => <DiffRow key={d.slug} diff={d} />)}
-                {paid.length === 0 && (
-                  <p className="text-xs text-gray-600 italic px-2">
-                    Geen betaalde plugins uit het manifest geïnstalleerd op deze omgeving.
-                  </p>
-                )}
-              </div>
+              {paid.length > 0 ? (
+                <div className="bg-panel border border-border rounded-[11px] overflow-hidden divide-y divide-border">
+                  {paid.map(d => <DiffRow key={d.slug} diff={d} />)}
+                </div>
+              ) : (
+                <p className="text-[13px] font-[450] text-fg-faint italic">
+                  Geen betaalde plugins uit het manifest geïnstalleerd op deze omgeving.
+                </p>
+              )}
             </section>
 
             {vulnerableOther.length > 0 && (
               <section>
-                <h3 className="text-xs font-semibold text-red-700 mb-2">
-                  Kwetsbaar (overig) <span className="font-normal">{vulnerableOther.length}</span>
+                <h3 className="text-[11px] font-semibold tracking-[.08em] text-red uppercase mb-2.5">
+                  Kwetsbaar (overig) <span className="font-mono normal-case tracking-normal">{vulnerableOther.length}</span>
                 </h3>
-                <div className="space-y-px">
+                <div className="bg-panel border border-border rounded-[11px] overflow-hidden divide-y divide-border">
                   {vulnerableOther.map(d => <DiffRow key={d.slug} diff={d} />)}
                 </div>
               </section>
@@ -174,12 +177,12 @@ export default function PluginsTab({ projectId }: Props) {
 
 function DiffRow({ diff }: { diff: PluginDiff }) {
   return (
-    <div className="flex items-center gap-2 py-1 px-2 rounded hover:bg-black/[0.03]">
+    <div className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-hover transition-colors">
       <StatusBadge status={diff.status} />
-      <span className="text-[11px] text-gray-700 flex-1 truncate font-mono">{diff.slug}</span>
-      <span className="text-[10px] font-mono text-gray-600 shrink-0">{diff.installedVersion || '—'}</span>
+      <span className="text-xs font-medium text-fg flex-1 truncate font-mono">{diff.slug}</span>
+      <span className="text-[11px] font-mono text-fg-faint shrink-0">{diff.installedVersion || '—'}</span>
       {diff.status === DiffStatus.DiffUpdate && diff.availableVersion && (
-        <span className="text-[10px] text-amber-500 font-mono shrink-0">→ {diff.availableVersion}</span>
+        <span className="text-[11px] text-green font-mono font-semibold shrink-0">→ {diff.availableVersion}</span>
       )}
     </div>
   )
@@ -187,15 +190,15 @@ function DiffRow({ diff }: { diff: PluginDiff }) {
 
 function StatusBadge({ status }: { status: DiffStatus }) {
   const map: Record<DiffStatus, { label: string; cls: string }> = {
-    [DiffStatus.$zero]: { label: '—', cls: 'bg-gray-500/20 text-gray-600' },
-    [DiffStatus.DiffVulnerable]: { label: '⚠ kwetsbaar', cls: 'bg-red-500/20 text-red-700' },
-    [DiffStatus.DiffUpdate]: { label: '↑ update', cls: 'bg-amber-500/20 text-amber-700' },
-    [DiffStatus.DiffUpToDate]: { label: 'actueel', cls: 'bg-emerald-500/20 text-emerald-700' },
-    [DiffStatus.DiffNotFound]: { label: 'wp.org', cls: 'bg-gray-500/20 text-gray-600' },
+    [DiffStatus.$zero]: { label: '—', cls: 'text-fg-muted bg-hover' },
+    [DiffStatus.DiffVulnerable]: { label: '⚠ kwetsbaar', cls: 'text-red bg-red-soft' },
+    [DiffStatus.DiffUpdate]: { label: '↑ update', cls: 'text-amber bg-amber-soft' },
+    [DiffStatus.DiffUpToDate]: { label: 'actueel', cls: 'text-green bg-green-soft' },
+    [DiffStatus.DiffNotFound]: { label: 'wp.org', cls: 'text-fg-muted bg-hover' },
   }
   const { label, cls } = map[status] ?? map[DiffStatus.$zero]
   return (
-    <span className={`text-[10px] px-1.5 py-px rounded-full shrink-0 whitespace-nowrap ${cls}`}>
+    <span className={`text-[10px] font-semibold font-mono px-1.5 py-px rounded-full shrink-0 whitespace-nowrap ${cls}`}>
       {label}
     </span>
   )
@@ -203,16 +206,19 @@ function StatusBadge({ status }: { status: DiffStatus }) {
 
 function Empty({ title, hint }: { title: string; hint: string }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-2 p-8 text-center">
-      <p className="text-gray-600 text-sm font-medium">{title}</p>
-      <p className="text-gray-600 text-xs">{hint}</p>
+    <div className="flex-1 flex flex-col items-center justify-center gap-3.5 p-10 text-center">
+      <div className="w-[52px] h-[52px] rounded-[14px] border-[1.5px] border-dashed border-border-strong flex items-center justify-center font-mono font-medium text-[22px] text-fg-faint">
+        {'{ }'}
+      </div>
+      <p className="text-[15px] font-semibold text-fg">{title}</p>
+      <p className="text-[13px] font-[450] text-fg-muted max-w-[380px]">{hint}</p>
     </div>
   )
 }
 
 function Spinner() {
   return (
-    <div className="flex-1 flex items-center justify-center gap-2 text-gray-600 text-sm">
+    <div className="flex-1 flex items-center justify-center gap-2 text-fg-faint text-sm">
       <span className="animate-spin inline-block">↻</span>
     </div>
   )

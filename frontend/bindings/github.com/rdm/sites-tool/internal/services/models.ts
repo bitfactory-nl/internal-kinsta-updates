@@ -17,6 +17,8 @@ export class AppSettings {
     "kinstaApiKey": string;
     "kinstaCompanyId": string;
     "githubToken": string;
+    "pluginRepo": string;
+    "pluginRepoRef": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
 
@@ -33,6 +35,12 @@ export class AppSettings {
         }
         if (!("githubToken" in $$source)) {
             this["githubToken"] = "";
+        }
+        if (!("pluginRepo" in $$source)) {
+            this["pluginRepo"] = "";
+        }
+        if (!("pluginRepoRef" in $$source)) {
+            this["pluginRepoRef"] = "";
         }
         if (!("gitDefaultRemote" in $$source)) {
             this["gitDefaultRemote"] = "";

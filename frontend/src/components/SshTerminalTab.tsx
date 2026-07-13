@@ -81,9 +81,10 @@ export default function SshTerminalTab({ projectId }: Props) {
     try {
       const term = new Terminal({
         fontSize: 12,
-        fontFamily: 'Menlo, Monaco, monospace',
+        fontFamily: '"IBM Plex Mono", Menlo, Monaco, monospace',
+        lineHeight: 1.2,
         cursorBlink: true,
-        theme: { background: '#1e1e1e', foreground: '#e5e5e5' },
+        theme: { background: '#0b0c0e', foreground: '#cdd3da', cursor: '#cdd3da' },
       })
       const fit = new FitAddon()
       term.loadAddon(fit)
@@ -144,29 +145,33 @@ export default function SshTerminalTab({ projectId }: Props) {
 
   useEffect(() => () => disconnect(), [disconnect])
 
+  const selectedEnv = envs.find(e => e.id === selectedEnvId)
+
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Environment list */}
-      <div className="w-[200px] shrink-0 border-r border-black/[0.08] flex flex-col overflow-hidden">
-        <div className="px-3 py-2 border-b border-black/[0.06] shrink-0">
-          <p className="text-xs font-medium text-gray-900">Omgevingen</p>
+      <div className="w-[220px] shrink-0 border-r border-border flex flex-col overflow-hidden">
+        <div className="px-3.5 py-3 border-b border-border shrink-0">
+          <p className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase">Omgevingen</p>
         </div>
         <div className="flex-1 overflow-y-auto py-1">
           {envs.length === 0 && (
-            <p className="text-xs text-gray-600 italic px-3 py-2">Geen Kinsta-omgevingen gevonden.</p>
+            <p className="text-[13px] text-fg-faint italic px-3.5 py-2">Geen Kinsta-omgevingen gevonden.</p>
           )}
           {envs.map(env => (
             <button
               key={env.id}
               onClick={() => selectEnv(env)}
               disabled={connected}
-              className={`w-full text-left px-3 py-2 border-b border-black/[0.06] transition-colors disabled:opacity-50
-                ${selectedEnvId === env.id ? 'bg-indigo-100' : 'hover:bg-black/[0.04]'}`}
+              className={`w-full text-left px-3.5 py-2.5 border-b border-border transition-colors disabled:opacity-50
+                ${selectedEnvId === env.id ? 'bg-sel' : 'hover:bg-hover'}`}
             >
               <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${env.is_blocked ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                <span className="text-xs text-gray-800 truncate">{env.display_name || env.name}</span>
-                {env.name === 'live' && <span className="ml-auto text-[9px] text-indigo-700 shrink-0">live</span>}
+                <span className={`w-2 h-2 rounded-full shrink-0 ${env.is_blocked ? 'bg-red' : 'bg-green'}`} />
+                <span className="text-[12.5px] text-fg truncate">{env.display_name || env.name}</span>
+                {env.name === 'live' && (
+                  <span className="ml-auto text-[10px] font-semibold font-mono text-accent bg-accent-soft px-1.5 py-px rounded-full shrink-0">live</span>
+                )}
               </div>
             </button>
           ))}
@@ -175,41 +180,63 @@ export default function SshTerminalTab({ projectId }: Props) {
 
       {/* Connection form + terminal */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <div className="px-3 py-2 border-b border-black/[0.06] shrink-0 flex items-end gap-2 flex-wrap">
+        <div className="px-4 py-3 border-b border-border shrink-0 flex items-end gap-2.5 flex-wrap">
           <Field label="Host">
             <input value={host} onChange={e => setHost(e.target.value)} disabled={connected}
-              className="w-36 text-xs px-2 py-1 rounded border border-black/10 bg-white disabled:opacity-60 font-mono" />
+              className="w-36 bg-panel border border-border rounded-[9px] px-2.5 py-1.5 text-[12.5px] text-fg
+                         placeholder-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
+                         disabled:opacity-60 font-mono" />
           </Field>
           <Field label="Poort">
             <input value={port} onChange={e => setPort(e.target.value)} disabled={connected}
-              className="w-16 text-xs px-2 py-1 rounded border border-black/10 bg-white disabled:opacity-60 font-mono" />
+              className="w-16 bg-panel border border-border rounded-[9px] px-2.5 py-1.5 text-[12.5px] text-fg
+                         placeholder-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
+                         disabled:opacity-60 font-mono" />
           </Field>
           <Field label="Gebruiker">
             <input value={user} onChange={e => setUser(e.target.value)} disabled={connected} placeholder="ssh-user"
-              className="w-32 text-xs px-2 py-1 rounded border border-black/10 bg-white disabled:opacity-60 font-mono" />
+              className="w-32 bg-panel border border-border rounded-[9px] px-2.5 py-1.5 text-[12.5px] text-fg
+                         placeholder-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
+                         disabled:opacity-60 font-mono" />
           </Field>
           {!connected ? (
             <button onClick={connect} disabled={connecting || !host}
-              className="text-xs px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors">
+              className="bg-accent text-white text-[12.5px] font-semibold px-[18px] py-[9px] rounded-[9px]
+                         hover:bg-accent-2 disabled:opacity-50 transition-colors">
               {connecting ? 'Verbinden…' : 'Verbinden'}
             </button>
           ) : (
             <button onClick={disconnect}
-              className="text-xs px-3 py-1 rounded bg-red-600 text-white hover:bg-red-500 transition-colors">
+              className="bg-red-soft text-red border border-border text-[12.5px] font-semibold px-[15px] py-[9px]
+                         rounded-[9px] hover:bg-hover transition-colors">
               Verbreken
             </button>
           )}
         </div>
 
         {error && (
-          <div className="m-3 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{error}</div>
+          <div className="m-3 bg-red-soft text-red border border-border px-3 py-2 rounded-[9px] text-[12.5px]">{error}</div>
         )}
 
-        <div className="flex-1 min-h-0 bg-[#1e1e1e] p-1">
-          <div ref={containerRef} className="w-full h-full" />
+        {/* Terminal chrome — always dark, regardless of theme */}
+        <div className="flex-1 min-h-0 flex flex-col bg-[#0b0c0e]">
+          <div className="flex-none flex items-center gap-2.5 px-4 py-[9px] border-b border-white/[0.08]">
+            <span className="font-mono text-[12px] font-medium text-[#8b929c] truncate">
+              {selectedEnv ? (selectedEnv.display_name || selectedEnv.name) : projectId}
+            </span>
+            <span className="font-mono text-[11px] font-medium text-[#5a616b] bg-white/[0.06] px-2 py-0.5 rounded-[5px]">
+              {connected ? 'ssh' : 'zsh'}
+            </span>
+            <span className="ml-auto font-mono text-[12px] font-medium text-[#5a616b]">
+              {connected ? '● verbonden' : ''}
+            </span>
+          </div>
+          <div className="flex-1 min-h-0 p-2">
+            <div ref={containerRef} className="w-full h-full" />
+          </div>
         </div>
         {!connected && !error && (
-          <p className="text-[11px] text-gray-600 px-3 py-1.5 shrink-0">
+          <p className="text-[11.5px] text-fg-muted px-4 py-2 shrink-0">
             Kies een omgeving om host/poort in te vullen, vul de SSH-gebruiker in en verbind. Authenticatie via je ssh-agent.
           </p>
         )}
@@ -220,8 +247,8 @@ export default function SshTerminalTab({ projectId }: Props) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-0.5">
-      <span className="text-[10px] text-gray-600 uppercase tracking-wide">{label}</span>
+    <label className="flex flex-col gap-1">
+      <span className="text-[10px] font-semibold tracking-[.08em] text-fg-faint uppercase">{label}</span>
       {children}
     </label>
   )

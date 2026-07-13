@@ -50,6 +50,15 @@ function flattenFiltered(nodes: TreeNode[], query: string): string[] {
   return results
 }
 
+function fileDotClass(name: string): string {
+  const lower = name.toLowerCase()
+  if (lower.startsWith('dockerfile') || lower.startsWith('docker-compose')) return 'bg-green'
+  const ext = lower.includes('.') ? lower.split('.').pop()! : ''
+  if (ext === 'php') return 'bg-purple'
+  if (['json', 'yml', 'yaml', 'env', 'ini', 'conf', 'lock', 'toml', 'xml'].includes(ext)) return 'bg-orange'
+  return 'bg-fg-faint opacity-50'
+}
+
 interface NodeProps {
   node: TreeNode
   depth: number
@@ -68,13 +77,12 @@ function TreeNodeRow({ node, depth, expanded, onToggle, selected, onSelect }: No
       <>
         <button
           onClick={() => onToggle(node.path)}
-          className="w-full text-left flex items-center gap-1 px-2 py-0.5 hover:bg-black/[0.04] transition-colors text-gray-600"
-          style={{ paddingLeft: 8 + indent }}
+          className="w-full text-left flex items-center gap-2 px-[9px] py-[5px] rounded-md
+                     text-[12.5px] font-mono font-[450] text-fg-muted hover:bg-hover transition-colors"
+          style={{ paddingLeft: 9 + indent }}
         >
-          <span className="text-[10px] shrink-0 w-3 text-gray-600">
-            {isExpanded ? '▾' : '▸'}
-          </span>
-          <span className="text-xs truncate">{node.name}</span>
+          <span className="text-fg-faint shrink-0">{isExpanded ? '▾' : '▸'}</span>
+          <span className="truncate">{node.name}</span>
         </button>
         {isExpanded && node.children.map(child => (
           <TreeNodeRow
@@ -91,24 +99,16 @@ function TreeNodeRow({ node, depth, expanded, onToggle, selected, onSelect }: No
     )
   }
 
-  const ext = node.name.includes('.') ? node.name.split('.').pop()! : ''
-  const extColor: Record<string, string> = {
-    php: 'text-violet-600', js: 'text-yellow-600', ts: 'text-blue-600',
-    tsx: 'text-blue-600', jsx: 'text-yellow-600', css: 'text-pink-600',
-    scss: 'text-pink-600', html: 'text-orange-600', json: 'text-amber-500',
-    md: 'text-gray-600', yml: 'text-emerald-600', yaml: 'text-emerald-600',
-  }
-  const dotColor = extColor[ext] ?? 'text-gray-600'
-
   return (
     <button
       onClick={() => onSelect(node.path)}
-      className={`w-full text-left flex items-center gap-1.5 px-2 py-0.5 transition-colors
-        ${selected === node.path ? 'bg-indigo-100 text-gray-900' : 'hover:bg-black/[0.04] text-gray-700'}`}
-      style={{ paddingLeft: 8 + indent }}
+      className={`w-full text-left flex items-center gap-[9px] px-[9px] py-[5px] rounded-md
+        text-[12.5px] font-mono font-[450] transition-colors
+        ${selected === node.path ? 'bg-sel text-fg' : 'text-fg hover:bg-hover'}`}
+      style={{ paddingLeft: 9 + indent }}
     >
-      <span className={`text-[10px] shrink-0 ${dotColor}`}>●</span>
-      <span className="text-xs truncate font-mono">{node.name}</span>
+      <span className={`w-[7px] h-[7px] rounded-full shrink-0 ${fileDotClass(node.name)}`} />
+      <span className="truncate">{node.name}</span>
     </button>
   )
 }
@@ -138,27 +138,29 @@ export default function FilePicker({ files, selected, onSelect }: Props) {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-2 py-1.5 border-b border-black/[0.08] shrink-0">
+      <div className="px-3.5 py-3 border-b border-border shrink-0">
         <input
           type="search"
           placeholder="Filter bestanden…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full bg-black/[0.05] text-xs text-gray-800 placeholder-gray-400
-                     rounded px-2 py-1 outline-none focus:ring-1 focus:ring-indigo-500/40"
+          className="w-full bg-bg border border-border rounded-[8px] px-[11px] py-2
+                     text-[12.5px] text-fg placeholder-fg-faint outline-none
+                     focus:border-accent focus:ring-1 focus:ring-accent/30"
         />
       </div>
-      <div className="flex-1 overflow-y-auto py-1">
+      <div className="flex-1 overflow-y-auto py-1.5 px-2">
         {filteredFiles ? (
           filteredFiles.length === 0 ? (
-            <p className="text-xs text-gray-600 text-center py-4">Geen resultaten</p>
+            <p className="text-[12.5px] text-fg-faint italic text-center py-4">Geen resultaten</p>
           ) : (
             filteredFiles.map(path => (
               <button
                 key={path}
                 onClick={() => onSelect(path)}
-                className={`w-full text-left px-3 py-0.5 text-xs font-mono transition-colors truncate
-                  ${selected === path ? 'bg-indigo-100 text-gray-900' : 'hover:bg-black/[0.04] text-gray-700'}`}
+                className={`w-full text-left px-[9px] py-[5px] rounded-md text-[12.5px]
+                  font-mono font-[450] transition-colors truncate
+                  ${selected === path ? 'bg-sel text-fg' : 'text-fg-muted hover:bg-hover'}`}
               >
                 {path}
               </button>

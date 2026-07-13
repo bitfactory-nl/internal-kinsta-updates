@@ -15,15 +15,16 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-6 text-center">
-          <p className="text-red-600 text-sm font-semibold">
+          <p className="text-red text-[13px] font-semibold">
             {this.props.label ?? 'Render error'}
           </p>
-          <pre className="text-xs text-red-700/70 bg-red-100 rounded-lg p-3 max-w-lg text-left whitespace-pre-wrap break-all">
+          <pre className="text-[12px] font-mono text-red bg-red-soft border border-border rounded-[11px] p-3.5 max-w-lg text-left whitespace-pre-wrap break-all">
             {this.state.error}
           </pre>
           <button
             onClick={() => this.setState({ error: null })}
-            className="text-xs text-gray-600 hover:text-gray-800 transition-colors"
+            className="bg-panel-2 border border-border text-fg-muted text-[12.5px] font-semibold px-[15px] py-[9px]
+                       rounded-[9px] hover:bg-hover transition-colors"
           >
             Retry
           </button>

@@ -38,50 +38,52 @@ export default function SettingsPage({ onClose }: Props) {
     }
   }
 
+  const inputClass = `flex-1 bg-bg border border-border rounded-[9px] px-3 py-2 text-[13px] text-fg
+                      placeholder-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
+                      font-mono min-w-0`
+
   if (!settings) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-600 text-sm">
+      <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px]">
         <span className="animate-spin inline-block mr-2">↻</span> Laden…
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-bg">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-black/[0.08] shrink-0 flex items-center gap-3">
-        <h2 className="text-base font-semibold text-gray-900 flex-1">Instellingen</h2>
+      <div className="h-14 px-6 bg-panel border-b border-border shrink-0 flex items-center gap-3">
+        <h2 className="text-[15px] font-bold text-fg flex-1">Instellingen</h2>
         <button
           onClick={onClose}
-          className="text-gray-600 hover:text-gray-900 transition-colors text-lg leading-none"
+          className="text-fg-muted hover:text-fg transition-colors text-lg leading-none"
           title="Sluiten"
         >✕</button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-7">
+      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-7 max-w-[820px]">
 
         {/* Kinsta */}
         <section>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
             Kinsta
           </h3>
-          <div className="bg-black/[0.03] rounded-xl divide-y divide-black/[0.07]">
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
             <div className="flex items-center gap-4 px-4 py-3">
-              <label className="text-xs text-gray-600 w-28 shrink-0">API Key</label>
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">API Key</label>
               <div className="flex-1 flex items-center gap-2">
                 <input
                   type={showApiKey ? 'text' : 'password'}
                   value={settings.kinstaApiKey}
                   onChange={e => update('kinstaApiKey', e.target.value)}
                   placeholder="Bearer sk_live_…"
-                  className="flex-1 bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                             rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
-                             font-mono border border-transparent focus:border-indigo-400 min-w-0"
+                  className={inputClass}
                 />
                 <button
                   onClick={() => setShowApiKey(v => !v)}
-                  className="text-gray-600 hover:text-gray-800 text-xs shrink-0 transition-colors px-1"
+                  className="text-fg-muted hover:text-fg text-xs shrink-0 transition-colors px-1"
                   title={showApiKey ? 'Verbergen' : 'Tonen'}
                 >
                   {showApiKey ? '🙈' : '👁'}
@@ -89,21 +91,19 @@ export default function SettingsPage({ onClose }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-4 px-4 py-3">
-              <label className="text-xs text-gray-600 w-28 shrink-0">Company ID</label>
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Company ID</label>
               <input
                 type="text"
                 value={settings.kinstaCompanyId}
                 onChange={e => update('kinstaCompanyId', e.target.value)}
                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                className="flex-1 bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                           rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
-                           font-mono border border-transparent focus:border-indigo-400"
+                className={inputClass}
               />
             </div>
-            <div className="px-4 py-2">
-              <p className="text-[11px] text-gray-600">
+            <div className="px-4 py-2.5">
+              <p className="text-[11.5px] text-fg-muted">
                 De API key en Company ID zijn te vinden in het{' '}
-                <span className="text-gray-600">Kinsta dashboard → My Info → API Keys</span>.
+                <span className="text-fg">Kinsta dashboard → My Info → API Keys</span>.
               </p>
             </div>
           </div>
@@ -111,36 +111,54 @@ export default function SettingsPage({ onClose }: Props) {
 
         {/* GitHub */}
         <section>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
             GitHub
           </h3>
-          <div className="bg-black/[0.03] rounded-xl divide-y divide-black/[0.07]">
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
             <div className="flex items-center gap-4 px-4 py-3">
-              <label className="text-xs text-gray-600 w-28 shrink-0">Access token</label>
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Access token</label>
               <div className="flex-1 flex items-center gap-2">
                 <input
                   type={showGithubToken ? 'text' : 'password'}
                   value={settings.githubToken}
                   onChange={e => update('githubToken', e.target.value)}
                   placeholder="ghp_… of github_pat_…"
-                  className="flex-1 bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                             rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
-                             font-mono border border-transparent focus:border-indigo-400 min-w-0"
+                  className={inputClass}
                 />
                 <button
                   onClick={() => setShowGithubToken(v => !v)}
-                  className="text-gray-600 hover:text-gray-800 text-xs shrink-0 transition-colors px-1"
+                  className="text-fg-muted hover:text-fg text-xs shrink-0 transition-colors px-1"
                   title={showGithubToken ? 'Verbergen' : 'Tonen'}
                 >
                   {showGithubToken ? '🙈' : '👁'}
                 </button>
               </div>
             </div>
-            <div className="px-4 py-2">
-              <p className="text-[11px] text-gray-600">
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Plugin-repo</label>
+              <input
+                value={settings.pluginRepo}
+                onChange={e => update('pluginRepo', e.target.value)}
+                placeholder="org/repo-naam"
+                className={inputClass}
+              />
+            </div>
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Branch/ref</label>
+              <input
+                value={settings.pluginRepoRef}
+                onChange={e => update('pluginRepoRef', e.target.value)}
+                placeholder="main"
+                className={inputClass}
+              />
+            </div>
+            <div className="px-4 py-2.5">
+              <p className="text-[11.5px] text-fg-muted">
                 Personal access token met leestoegang tot de bitfactory-nl repositories
-                (scopes: <span className="font-mono">repo</span> + Actions read).
-                Gebruikt voor de Security- en Plugins-tab.
+                (scopes: <span className="font-mono text-fg">repo</span> + Actions read).
+                Gebruikt voor de Security- en Plugins-tab. De plugin-repo
+                (bijv. <span className="font-mono text-fg">bitfactory-nl/paid-plugins</span>) bevat
+                het manifest met betaalde plugins voor de Plugins-tab.
               </p>
             </div>
           </div>
@@ -148,20 +166,20 @@ export default function SettingsPage({ onClose }: Props) {
 
         {/* Editor */}
         <section>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
             Editor
           </h3>
-          <div className="bg-black/[0.03] rounded-xl px-4 py-3 flex items-center gap-4">
-            <label className="text-xs text-gray-600 w-28 shrink-0">Standaard editor</label>
+          <div className="bg-panel border border-border rounded-[11px] px-4 py-3 flex items-center gap-4">
+            <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Standaard editor</label>
             <div className="flex gap-2">
               {(['cursor', 'vscode', 'phpstorm'] as const).map(e => (
                 <button
                   key={e}
                   onClick={() => update('editor', e)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border
+                  className={`px-3 py-1.5 rounded-[9px] text-[12.5px] font-semibold transition-colors border
                     ${settings.editor === e
-                      ? 'bg-indigo-100 border-indigo-400 text-gray-900'
-                      : 'border-black/[0.10] text-gray-600 hover:text-gray-800 hover:bg-black/[0.05]'}`}
+                      ? 'bg-accent-soft border-accent text-accent'
+                      : 'bg-panel-2 border-border text-fg-muted hover:bg-hover'}`}
                 >
                   {e === 'cursor' ? 'Cursor' : e === 'vscode' ? 'VS Code' : 'PhpStorm'}
                 </button>
@@ -172,35 +190,35 @@ export default function SettingsPage({ onClose }: Props) {
 
         {/* Git */}
         <section>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
             Git
           </h3>
-          <div className="bg-black/[0.03] rounded-xl divide-y divide-black/[0.07]">
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
             <div className="flex items-center gap-4 px-4 py-3">
-              <label className="text-xs text-gray-600 w-28 shrink-0">Default remote</label>
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Default remote</label>
               <input
                 type="text"
                 value={settings.gitDefaultRemote}
                 onChange={e => update('gitDefaultRemote', e.target.value)}
                 placeholder="origin"
-                className="w-32 bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                           rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
-                           font-mono border border-transparent focus:border-indigo-400"
+                className="w-36 bg-bg border border-border rounded-[9px] px-3 py-2 text-[13px] text-fg
+                           placeholder-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
+                           font-mono"
               />
             </div>
             <div className="flex items-center gap-4 px-4 py-3">
-              <label className="text-xs text-gray-600 w-28 shrink-0">Prune on fetch</label>
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Prune on fetch</label>
               <button
                 onClick={() => update('gitPruneOnFetch', !settings.gitPruneOnFetch)}
                 className={`relative w-9 h-5 rounded-full transition-colors ${
-                  settings.gitPruneOnFetch ? 'bg-indigo-500' : 'bg-black/[0.08]'
+                  settings.gitPruneOnFetch ? 'bg-accent' : 'bg-panel-2 border border-border'
                 }`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
                   settings.gitPruneOnFetch ? 'translate-x-4' : 'translate-x-0'
                 }`} />
               </button>
-              <span className="text-xs text-gray-600">
+              <span className="text-[12.5px] text-fg-muted">
                 Verwijder remote-tracking branches die niet meer bestaan
               </span>
             </div>
@@ -209,38 +227,39 @@ export default function SettingsPage({ onClose }: Props) {
 
         {/* Config file location */}
         <section>
-          <h3 className="text-[11px] font-semibold uppercase tracking-wider text-gray-600 mb-3">
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
             Configuratie
           </h3>
-          <div className="bg-black/[0.03] rounded-xl px-4 py-3">
-            <p className="text-[11px] text-gray-600">
+          <div className="bg-panel border border-border rounded-[11px] px-4 py-3">
+            <p className="text-[11.5px] text-fg-muted">
               Instellingen worden opgeslagen in{' '}
-              <code className="text-gray-600 font-mono">~/.config/rdm/config.yml</code>
+              <code className="text-fg font-mono">~/.config/rdm/config.yml</code>
             </p>
           </div>
         </section>
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-3 border-t border-black/[0.08] shrink-0 flex items-center gap-3">
+      <div className="px-6 py-3 bg-panel border-t border-border shrink-0 flex items-center gap-3">
         {error && (
-          <p className="text-xs text-red-600 flex-1 truncate">{error}</p>
+          <p className="text-[12.5px] text-red flex-1 truncate">{error}</p>
         )}
         {saved && !error && (
-          <p className="text-xs text-emerald-600 flex-1">✓ Opgeslagen</p>
+          <p className="text-[12.5px] text-green flex-1">✓ Opgeslagen</p>
         )}
         {!error && !saved && <span className="flex-1" />}
         <button
           onClick={onClose}
-          className="px-4 py-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+          className="bg-panel-2 border border-border text-fg-muted text-[12.5px] font-semibold px-[15px] py-[9px]
+                     rounded-[9px] hover:bg-hover transition-colors"
         >
           Annuleren
         </button>
         <button
           onClick={save}
           disabled={saving}
-          className="px-4 py-1.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50
-                     text-gray-900 text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+          className="bg-accent text-white text-[12.5px] font-semibold px-[18px] py-[9px] rounded-[9px]
+                     hover:bg-accent-2 disabled:opacity-50 transition-colors flex items-center gap-2"
         >
           {saving && <span className="animate-spin inline-block text-xs">↻</span>}
           Opslaan
