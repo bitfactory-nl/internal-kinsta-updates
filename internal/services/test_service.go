@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/config"
@@ -89,4 +91,175 @@ func (s *TestService) ListRuns(projectID string) ([]domain.TestRun, error) {
 // GetRun returns a single stored run.
 func (s *TestService) GetRun(projectID, runID string) (domain.TestRun, error) {
 	return s.store.Get(projectID, runID)
+}
+
+// runTimeoutMs bounds a full run.
+const runTimeoutMs = 60000
+
+// Run executes a flow on two environments, self-heals failed steps once,
+// compares screenshots, computes console/status regressions, saves and returns
+// the run. baselineEnv is the release side. override forces a model tier ("" = auto).
+func (s *TestService) Run(projectID, flowName string, baselineEnv, updateEnv domain.EnvKey, override domain.ModelTier) (domain.TestRun, error) {
+	p, err := s.project(projectID)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+	flows, err := config.LoadFlows(p.Path)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+	flowIdx := -1
+	for i, f := range flows {
+		if f.Name == flowName {
+			flowIdx = i
+			break
+		}
+	}
+	if flowIdx < 0 {
+		return domain.TestRun{}, fmt.Errorf("flow %q niet gevonden", flowName)
+	}
+
+	baseURL, err := domain.ResolveEnvURL(p, baselineEnv)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+	updURL, err := domain.ResolveEnvURL(p, updateEnv)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+	baseAcc, err := config.ResolveTestAccess(p.Config.Testing, baselineEnv)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+	updAcc, err := config.ResolveTestAccess(p.Config.Testing, updateEnv)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+	v, err := s.newVision()
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+
+	runID := time.Now().Format("20060102-150405")
+	shotDir, err := s.store.ScreenshotDir(projectID, runID)
+	if err != nil {
+		return domain.TestRun{}, err
+	}
+
+	buildReq := func(flow domain.Flow) browser.RunRequest {
+		return browser.RunRequest{
+			Baseline:      browser.EnvTarget{URL: baseURL, BasicAuth: toBasic(baseAcc)},
+			Update:        browser.EnvTarget{URL: updURL, BasicAuth: toBasic(updAcc)},
+			TestAccount:   toAccount(updAcc),
+			Flow:          flow,
+			ScreenshotDir: shotDir,
+			TimeoutMs:     runTimeoutMs,
+		}
+	}
+
+	ctx := context.Background()
+	resp, err := s.runner.Run(ctx, buildReq(flows[flowIdx]))
+	if err != nil {
+		return domain.TestRun{}, fmt.Errorf("run: %w", err)
+	}
+
+	if s.healFlow(ctx, v, &flows[flowIdx], resp) {
+		if err := config.SaveFlows(p.Path, flows); err != nil {
+			return domain.TestRun{}, fmt.Errorf("persist healed flow: %w", err)
+		}
+		resp, err = s.runner.Run(ctx, buildReq(flows[flowIdx]))
+		if err != nil {
+			return domain.TestRun{}, fmt.Errorf("rerun after heal: %w", err)
+		}
+	}
+
+	run := domain.TestRun{
+		ID: runID, ProjectID: projectID, FlowName: flowName,
+		BaselineEnv: baselineEnv, UpdateEnv: updateEnv,
+		StartedAt: time.Now(),
+		Models:    []string{modelLabel(override)},
+	}
+	for _, sr := range resp.Steps {
+		sres := domain.StepResult{
+			Index:            sr.Index,
+			Action:           domain.StepType(sr.Action),
+			ScreenshotBase:   sr.Baseline.Screenshot,
+			ScreenshotUpdate: sr.Update.Screenshot,
+			Error:            sr.Error,
+		}
+		sres.Regressions = domain.DiffRegressions(
+			domain.PageObservation{ConsoleErrors: sr.Baseline.ConsoleErrors, StatusCodes: sr.Baseline.StatusCodes},
+			domain.PageObservation{ConsoleErrors: sr.Update.ConsoleErrors, StatusCodes: sr.Update.StatusCodes},
+		)
+		if sr.Baseline.Screenshot != "" && sr.Update.Screenshot != "" {
+			baseImg, e1 := os.ReadFile(sr.Baseline.Screenshot)
+			updImg, e2 := os.ReadFile(sr.Update.Screenshot)
+			if e1 == nil && e2 == nil {
+				highImpact := len(sres.Regressions) > 0
+				findings, ferr := v.Compare(ctx, baseImg, updImg,
+					fmt.Sprintf("stap %d (%s)", sr.Index, sr.Action), highImpact)
+				if ferr != nil {
+					sres.Error = joinErr(sres.Error, ferr.Error())
+				} else {
+					sres.Findings = findings
+				}
+			}
+		}
+		run.Steps = append(run.Steps, sres)
+	}
+
+	if err := s.store.Save(run); err != nil {
+		return run, fmt.Errorf("save run: %w", err)
+	}
+	return run, nil
+}
+
+// healFlow patches selectors for failed steps that carry an accessibility
+// snapshot. Returns true if any step was patched.
+func (s *TestService) healFlow(ctx context.Context, v visionClient, flow *domain.Flow, resp browser.RunResponse) bool {
+	patched := false
+	for _, sr := range resp.Steps {
+		if sr.Error == "" || sr.Snapshot == "" {
+			continue
+		}
+		if sr.Index < 0 || sr.Index >= len(flow.Steps) {
+			continue
+		}
+		target := flow.Steps[sr.Index].Target
+		sel, err := v.Heal(ctx, sr.Snapshot, target)
+		if err != nil || sel == "" {
+			continue
+		}
+		flow.Steps[sr.Index].Selector = sel
+		patched = true
+	}
+	return patched
+}
+
+func toBasic(a config.ResolvedAccess) *browser.BasicCred {
+	if a.BasicAuthUser == "" && a.BasicAuthPass == "" {
+		return nil
+	}
+	return &browser.BasicCred{User: a.BasicAuthUser, Pass: a.BasicAuthPass}
+}
+
+func toAccount(a config.ResolvedAccess) *browser.AccountCred {
+	if a.TestUser == "" && a.TestPass == "" {
+		return nil
+	}
+	return &browser.AccountCred{User: a.TestUser, Pass: a.TestPass}
+}
+
+func modelLabel(override domain.ModelTier) string {
+	if override == "" {
+		return "auto"
+	}
+	return string(override)
+}
+
+func joinErr(existing, add string) string {
+	if existing == "" {
+		return add
+	}
+	return existing + "; " + add
 }
