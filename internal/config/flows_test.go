@@ -57,6 +57,8 @@ func TestValidateFlows(t *testing.T) {
 		{"bad action", []domain.Flow{{Name: "X", Steps: []domain.Step{{Action: "boop", Target: "/"}}}}, true},
 		{"type without value", []domain.Flow{{Name: "X", Steps: []domain.Step{{Action: domain.StepInput, Target: "E-mail"}}}}, true},
 		{"missing target", []domain.Flow{{Name: "X", Steps: []domain.Step{{Action: domain.StepNavigate}}}}, true},
+		{"login without target ok", []domain.Flow{{Name: "X", Steps: []domain.Step{{Action: domain.StepLogin}}}}, false},
+		{"login with target ok", []domain.Flow{{Name: "X", Steps: []domain.Step{{Action: domain.StepLogin, Target: "/wp-login.php"}}}}, false},
 		{"duplicate name", []domain.Flow{sampleFlows()[0], sampleFlows()[0]}, true},
 	}
 	for _, c := range cases {

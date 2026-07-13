@@ -72,7 +72,8 @@ func ValidateFlows(flows []domain.Flow) error {
 			if s.Action == domain.StepInput && strings.TrimSpace(s.Value) == "" {
 				return fmt.Errorf("flow %q stap %d: type-stap zonder waarde", f.Name, j)
 			}
-			if s.Action != domain.StepWait && strings.TrimSpace(s.Target) == "" {
+			// login uses the test-account credentials; wait/login need no target
+			if s.Action != domain.StepWait && s.Action != domain.StepLogin && strings.TrimSpace(s.Target) == "" {
 				return fmt.Errorf("flow %q stap %d: target ontbreekt", f.Name, j)
 			}
 		}
