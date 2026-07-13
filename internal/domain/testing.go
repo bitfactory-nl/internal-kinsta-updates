@@ -58,6 +58,7 @@ type Flow struct {
 // Severity ranks a finding.
 type Severity string
 
+// The Dutch values ("hoog"/"laag") are intentional user-facing report labels; do not translate to English.
 const (
 	SeverityHigh Severity = "hoog"
 	SeverityLow  Severity = "laag"
