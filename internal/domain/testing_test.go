@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
@@ -137,5 +138,40 @@ func TestResolveEnvURLMissingLocal(t *testing.T) {
 	p := Project{}
 	if _, err := ResolveEnvURL(p, EnvLocal); err == nil {
 		t.Error("expected error for missing local URL")
+	}
+}
+
+func TestDiffRegressions(t *testing.T) {
+	baseline := PageObservation{
+		ConsoleErrors: []string{"shared error"},
+		StatusCodes:   map[string]int{"/ok": 200, "/always404": 404, "/always500": 500},
+	}
+	update := PageObservation{
+		ConsoleErrors: []string{"shared error", "NEW error"},
+		StatusCodes: map[string]int{
+			"/ok":        200,
+			"/always404": 404, // shared 4xx -> not a regression
+			"/always500": 500, // 5xx -> always reported (hard)
+			"/new404":    404, // new 4xx -> regression, not hard
+			"/new500":    500, // new 5xx -> regression, hard
+		},
+	}
+
+	got := DiffRegressions(baseline, update)
+
+	want := []Regression{
+		{Kind: RegConsole, Detail: "NEW error", Hard: false},
+		{Kind: RegStatus, Detail: "/always500 → 500", Hard: true},
+		{Kind: RegStatus, Detail: "/new404 → 404", Hard: false},
+		{Kind: RegStatus, Detail: "/new500 → 500", Hard: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("DiffRegressions()\n got  %+v\n want %+v", got, want)
+	}
+}
+
+func TestDiffRegressionsEmpty(t *testing.T) {
+	if got := DiffRegressions(PageObservation{}, PageObservation{}); len(got) != 0 {
+		t.Errorf("expected no regressions, got %+v", got)
 	}
 }

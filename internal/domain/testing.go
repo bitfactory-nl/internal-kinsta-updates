@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -155,4 +156,48 @@ func ResolveEnvURL(p Project, env EnvKey) (string, error) {
 		return "", fmt.Errorf("geen prod-URL in deploy_conf.json")
 	}
 	return "", fmt.Errorf("onbekende omgeving %q", env)
+}
+
+// DiffRegressions reports console/status problems that are NEW on the update
+// side relative to the release baseline, plus hard failures (5xx) which are
+// always reported. Output is deterministic (console sorted, then status by URL).
+func DiffRegressions(baseline, update PageObservation) []Regression {
+	var out []Regression
+
+	base := make(map[string]bool, len(baseline.ConsoleErrors))
+	for _, e := range baseline.ConsoleErrors {
+		base[e] = true
+	}
+	var newConsole []string
+	for _, e := range update.ConsoleErrors {
+		if !base[e] {
+			newConsole = append(newConsole, e)
+		}
+	}
+	sort.Strings(newConsole)
+	for _, e := range newConsole {
+		out = append(out, Regression{Kind: RegConsole, Detail: e})
+	}
+
+	urls := make([]string, 0, len(update.StatusCodes))
+	for u := range update.StatusCodes {
+		urls = append(urls, u)
+	}
+	sort.Strings(urls)
+	for _, u := range urls {
+		us := update.StatusCodes[u]
+		if us < 400 {
+			continue
+		}
+		hard := us >= 500
+		newFailure := baseline.StatusCodes[u] < 400 // was OK or absent on baseline
+		if hard || newFailure {
+			out = append(out, Regression{
+				Kind:   RegStatus,
+				Detail: fmt.Sprintf("%s → %d", u, us),
+				Hard:   hard,
+			})
+		}
+	}
+	return out
 }
