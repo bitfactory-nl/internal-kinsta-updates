@@ -1,6 +1,10 @@
 package domain
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // EnvKey identifies one of the three comparable environments.
 type EnvKey string
@@ -126,4 +130,29 @@ type TestRun struct {
 	Models      []string     `json:"models"`
 	StartedAt   time.Time    `json:"startedAt"`
 	Steps       []StepResult `json:"steps"`
+}
+
+// ResolveEnvURL returns the URL for env. `local` comes from the project's
+// testing config in .rdm.yml; `acc`/`prod` come from deploy_conf.json.
+func ResolveEnvURL(p Project, env EnvKey) (string, error) {
+	switch env {
+	case EnvLocal:
+		if p.Config.Testing != nil {
+			if u := strings.TrimSpace(p.Config.Testing.Environments["local"]); u != "" {
+				return u, nil
+			}
+		}
+		return "", fmt.Errorf("geen local-URL in .rdm.yml (testing.environments.local)")
+	case EnvAcc:
+		if u := strings.TrimSpace(p.Deploy.Link.Acc); u != "" {
+			return u, nil
+		}
+		return "", fmt.Errorf("geen acc-URL in deploy_conf.json")
+	case EnvProd:
+		if u := strings.TrimSpace(p.Deploy.Link.Prod); u != "" {
+			return u, nil
+		}
+		return "", fmt.Errorf("geen prod-URL in deploy_conf.json")
+	}
+	return "", fmt.Errorf("onbekende omgeving %q", env)
 }

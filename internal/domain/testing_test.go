@@ -103,3 +103,39 @@ func TestTestingCfgYAMLRoundTrip(t *testing.T) {
 		t.Errorf("test account = %+v, want {t keychain:q}", got.Testing.TestAccount)
 	}
 }
+
+func TestResolveEnvURL(t *testing.T) {
+	p := Project{
+		Config: ProjectConfig{Testing: &TestingCfg{
+			Environments: map[string]string{"local": "https://cefetra.test"},
+		}},
+		Deploy: DeployConf{Link: DeployLinks{Acc: "https://acc.cefetra.com", Prod: "https://cefetra.com"}},
+	}
+
+	cases := []struct {
+		env     EnvKey
+		want    string
+		wantErr bool
+	}{
+		{EnvLocal, "https://cefetra.test", false},
+		{EnvAcc, "https://acc.cefetra.com", false},
+		{EnvProd, "https://cefetra.com", false},
+		{EnvKey("staging"), "", true},
+	}
+	for _, c := range cases {
+		got, err := ResolveEnvURL(p, c.env)
+		if (err != nil) != c.wantErr {
+			t.Errorf("%s: err = %v, wantErr %v", c.env, err, c.wantErr)
+		}
+		if got != c.want {
+			t.Errorf("%s: got %q, want %q", c.env, got, c.want)
+		}
+	}
+}
+
+func TestResolveEnvURLMissingLocal(t *testing.T) {
+	p := Project{}
+	if _, err := ResolveEnvURL(p, EnvLocal); err == nil {
+		t.Error("expected error for missing local URL")
+	}
+}
