@@ -37,6 +37,7 @@ export {
     BatchResult,
     MakeResult,
     MakeTarget,
+    ProjectWorkflow,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,

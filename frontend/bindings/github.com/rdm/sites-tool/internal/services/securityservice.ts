@@ -16,6 +16,14 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * DispatchWorkflow start handmatig een workflow_dispatch-run van workflowID op
+ * de default branch van het project-repo.
+ */
+export function DispatchWorkflow(projectID: string, workflowID: number): $CancellablePromise<void> {
+    return $Call.ByID(794705320, projectID, workflowID);
+}
+
+/**
  * GetScanResults haalt het nieuwste security-audit artifact op voor het project.
  * Geeft een foutmelding als het project geen GitHub-remote heeft of als er nog
  * geen scan-artifact bestaat.
@@ -26,6 +34,18 @@ export function GetScanResults(projectID: string): $CancellablePromise<$models.S
     });
 }
 
+/**
+ * ListWorkflows haalt de actieve GitHub Actions workflows van het project-repo
+ * op, elk met de status van de meest recente run (leeg als er nog geen run is).
+ */
+export function ListWorkflows(projectID: string): $CancellablePromise<$models.ProjectWorkflow[]> {
+    return $Call.ByID(785615671, projectID).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.SecurityScanResult.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
+const $$createType2 = $models.ProjectWorkflow.createFrom;
+const $$createType3 = $Create.Array($$createType2);

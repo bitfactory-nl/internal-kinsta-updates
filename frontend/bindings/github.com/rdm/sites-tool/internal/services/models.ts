@@ -159,6 +159,55 @@ export class MakeTarget {
 }
 
 /**
+ * ProjectWorkflow is een actieve GitHub Actions workflow van een project-repo,
+ * met de status van de meest recente run.
+ */
+export class ProjectWorkflow {
+    "id": number;
+    "name": string;
+    "path": string;
+    "runStatus": string;
+    "runConclusion": string;
+    "runUrl": string;
+    "runAt": string;
+
+    /** Creates a new ProjectWorkflow instance. */
+    constructor($$source: Partial<ProjectWorkflow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("runStatus" in $$source)) {
+            this["runStatus"] = "";
+        }
+        if (!("runConclusion" in $$source)) {
+            this["runConclusion"] = "";
+        }
+        if (!("runUrl" in $$source)) {
+            this["runUrl"] = "";
+        }
+        if (!("runAt" in $$source)) {
+            this["runAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectWorkflow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectWorkflow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectWorkflow($$parsedSource as Partial<ProjectWorkflow>);
+    }
+}
+
+/**
  * SearchHit represents a single grep match in a file.
  */
 export class SearchHit {
