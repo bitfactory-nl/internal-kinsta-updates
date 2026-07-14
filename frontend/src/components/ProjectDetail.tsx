@@ -17,13 +17,14 @@ import SshTerminalTab from './SshTerminalTab'
 import UpdatesTab from './UpdatesTab'
 import SecurityTab from './SecurityTab'
 import TestsTab from './TestsTab'
+import ReportTab from './ReportTab'
 
 export interface ProjectDetailProps {
   project: Project
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'terminal' | 'updates' | 'security' | 'tests'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'terminal' | 'updates' | 'security' | 'tests' | 'report'
 
 interface NavItem {
   id: TabId
@@ -142,6 +143,10 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       title: 'TOOLS',
       items: [{ id: 'terminal' as TabId, label: 'Terminal' }],
     }] : []),
+    {
+      title: 'KLANT',
+      items: [{ id: 'report' as TabId, label: 'Rapportage' }],
+    },
   ].filter(g => g.items.length > 0)
 
   const typeLabel = project.deploy?.type ? (deployTypeLabel[project.deploy.type] ?? project.deploy.type) : null
@@ -247,6 +252,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} />}
           {activeTab === 'security' && <SecurityTab projectId={project.id} />}
           {activeTab === 'tests' && <TestsTab projectId={project.id} />}
+          {activeTab === 'report' && <ReportTab projectId={project.id} />}
         </div>
       </div>
     </div>
