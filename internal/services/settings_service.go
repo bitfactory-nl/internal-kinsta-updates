@@ -12,8 +12,11 @@ type AppSettings struct {
 	KinstaAPIKey     string `json:"kinstaApiKey"`
 	KinstaCompanyID  string `json:"kinstaCompanyId"`
 	GithubToken      string `json:"githubToken"`
+	PluginRepo       string `json:"pluginRepo"`
+	PluginRepoRef    string `json:"pluginRepoRef"`
 	GitDefaultRemote string `json:"gitDefaultRemote"`
 	GitPruneOnFetch  bool   `json:"gitPruneOnFetch"`
+	AnthropicAPIKey  string `json:"anthropicApiKey"`
 }
 
 type SettingsService struct {
@@ -31,8 +34,11 @@ func (s *SettingsService) Get() AppSettings {
 		KinstaAPIKey:     s.cfg.Kinsta.APIKey,
 		KinstaCompanyID:  s.cfg.Kinsta.CompanyID,
 		GithubToken:      s.cfg.PluginRepo.GithubToken,
+		PluginRepo:       s.cfg.PluginRepo.Repo,
+		PluginRepoRef:    s.cfg.PluginRepo.Ref,
 		GitDefaultRemote: s.cfg.Git.DefaultRemote,
 		GitPruneOnFetch:  s.cfg.Git.PruneOnFetch,
+		AnthropicAPIKey:  s.cfg.AI.APIKey,
 	}
 }
 
@@ -45,9 +51,14 @@ func (s *SettingsService) Save(settings AppSettings) error {
 	s.cfg.Kinsta.APIKey = settings.KinstaAPIKey
 	s.cfg.Kinsta.CompanyID = settings.KinstaCompanyID
 	s.cfg.PluginRepo.GithubToken = settings.GithubToken
+	s.cfg.PluginRepo.Repo = settings.PluginRepo
+	if settings.PluginRepoRef != "" {
+		s.cfg.PluginRepo.Ref = settings.PluginRepoRef
+	}
 	if settings.GitDefaultRemote != "" {
 		s.cfg.Git.DefaultRemote = settings.GitDefaultRemote
 	}
 	s.cfg.Git.PruneOnFetch = settings.GitPruneOnFetch
+	s.cfg.AI.APIKey = settings.AnthropicAPIKey
 	return config.SaveGlobal(*s.cfg)
 }

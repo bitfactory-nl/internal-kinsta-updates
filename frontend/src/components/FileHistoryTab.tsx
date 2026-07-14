@@ -78,9 +78,9 @@ export default function FileHistoryTab({ projectId }: Props) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Col 1: file picker */}
-      <div className="w-[220px] shrink-0 border-r border-black/[0.08] flex flex-col overflow-hidden">
+      <div className="w-[290px] shrink-0 border-r border-border flex flex-col overflow-hidden">
         {loadingFiles ? (
-          <div className="flex items-center justify-center py-4 text-gray-600 text-xs gap-1">
+          <div className="flex items-center justify-center py-4 text-fg-muted text-xs gap-1">
             <span className="animate-spin inline-block">↻</span> Laden…
           </div>
         ) : (
@@ -89,42 +89,41 @@ export default function FileHistoryTab({ projectId }: Props) {
       </div>
 
       {/* Col 2: commit list for selected file */}
-      <div className="w-[240px] shrink-0 border-r border-black/[0.08] flex flex-col overflow-hidden">
+      <div className="w-[260px] shrink-0 border-r border-border flex flex-col overflow-hidden">
         {!selectedFile ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic p-4 text-center">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic p-4 text-center">
             Selecteer een bestand
           </div>
         ) : loadingHistory ? (
-          <div className="flex-1 flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex-1 flex items-center justify-center gap-2 text-fg-muted text-sm">
             <span className="animate-spin inline-block">↻</span>
           </div>
         ) : commits.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic">
             Geen geschiedenis
           </div>
         ) : (
           <>
-            <div className="px-3 py-1.5 text-[11px] text-gray-600 border-b border-black/[0.06] shrink-0 truncate">
-              {commits.length} commit{commits.length !== 1 ? 's' : ''} — {selectedFile}
+            <div className="px-3.5 py-2 text-[11px] font-[450] text-fg-faint border-b border-border shrink-0 truncate">
+              {commits.length} commit{commits.length !== 1 ? 's' : ''} — <span className="font-mono">{selectedFile}</span>
             </div>
             <div className="flex-1 overflow-y-auto">
               {commits.map(c => (
                 <button
                   key={c.hash}
                   onClick={() => selectCommit(c.hash)}
-                  className={`w-full text-left px-3 py-2 border-b border-black/[0.06] transition-colors
-                    ${selectedHash === c.hash ? 'bg-indigo-100' : 'hover:bg-black/[0.04]'}`}
+                  className={`w-full text-left px-3.5 py-2.5 border-b border-border transition-colors
+                    ${selectedHash === c.hash ? 'bg-sel' : 'hover:bg-hover'}`}
                 >
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="font-mono text-[10px] text-indigo-600 shrink-0">
+                  <p className="text-[13px] text-fg leading-snug truncate">{c.subject}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[11px] font-[450] text-fg-faint truncate">
+                      {c.author?.name ?? ''} · {timeAgo(String(c.authoredAt ?? ''))}
+                    </span>
+                    <span className="font-mono text-[10.5px] font-[450] text-fg-faint ml-auto shrink-0">
                       {c.shortHash ?? c.hash?.slice(0, 7)}
                     </span>
-                    <span className="text-[10px] text-gray-600 ml-auto shrink-0">
-                      {timeAgo(String(c.authoredAt ?? ''))}
-                    </span>
                   </div>
-                  <p className="text-xs text-gray-800 truncate leading-snug">{c.subject}</p>
-                  <p className="text-[10px] text-gray-600 truncate mt-0.5">{c.author?.name ?? ''}</p>
                 </button>
               ))}
             </div>
@@ -135,11 +134,11 @@ export default function FileHistoryTab({ projectId }: Props) {
       {/* Col 3: diff for selected commit */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {!selectedHash ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic">
             Selecteer een commit
           </div>
         ) : loadingDiff ? (
-          <div className="flex-1 flex items-center justify-center gap-2 text-gray-600 text-sm">
+          <div className="flex-1 flex items-center justify-center gap-2 text-fg-muted text-sm">
             <span className="animate-spin inline-block">↻</span>
           </div>
         ) : (

@@ -98,6 +98,97 @@ func (s *SecurityService) GetScanResults(projectID string) (*SecurityScanResult,
 	return result, nil
 }
 
+// ProjectWorkflow is een actieve GitHub Actions workflow van een project-repo,
+// met de status van de meest recente run.
+type ProjectWorkflow struct {
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	RunStatus     string `json:"runStatus"`
+	RunConclusion string `json:"runConclusion"`
+	RunURL        string `json:"runUrl"`
+	RunAt         string `json:"runAt"`
+}
+
+// ListWorkflows haalt de actieve GitHub Actions workflows van het project-repo
+// op, elk met de status van de meest recente run (leeg als er nog geen run is).
+func (s *SecurityService) ListWorkflows(projectID string) ([]ProjectWorkflow, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	client, repo, err := s.githubClientFor(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	workflows, err := client.ListWorkflows(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ProjectWorkflow, 0, len(workflows))
+	for _, w := range workflows {
+		if w.State != "active" {
+			continue
+		}
+		pw := ProjectWorkflow{ID: w.ID, Name: w.Name, Path: w.Path}
+
+		run, err := client.LatestRun(ctx, repo, w.ID)
+		if err != nil {
+			return nil, err
+		}
+		if run != nil {
+			pw.RunStatus = run.Status
+			pw.RunConclusion = run.Conclusion
+			pw.RunURL = run.HTMLURL
+			pw.RunAt = run.CreatedAt
+		}
+		result = append(result, pw)
+	}
+	return result, nil
+}
+
+// DispatchWorkflow start handmatig een workflow_dispatch-run van workflowID op
+// de default branch van het project-repo.
+func (s *SecurityService) DispatchWorkflow(projectID string, workflowID int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	client, repo, err := s.githubClientFor(ctx, projectID)
+	if err != nil {
+		return err
+	}
+
+	ref, err := client.DefaultBranch(ctx, repo)
+	if err != nil {
+		return err
+	}
+	return client.DispatchWorkflow(ctx, repo, workflowID, ref)
+}
+
+// githubClientFor resolves projectID to its repo and builds an authenticated
+// ActionsClient, reusing the same token/remote resolution as GetScanResults.
+func (s *SecurityService) githubClientFor(ctx context.Context, projectID string) (*github.ActionsClient, string, error) {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	repo, err := githubRepoFor(ctx, path)
+	if err != nil {
+		return nil, "", err
+	}
+
+	token, err := config.ResolveSecret(s.cfg.PluginRepo.GithubToken)
+	if err != nil {
+		return nil, "", fmt.Errorf("github token: %w", err)
+	}
+	if strings.Trim(token, `"'`) == "" {
+		return nil, "", fmt.Errorf("geen GitHub access token ingesteld — voeg deze toe via ⚙ Instellingen → GitHub")
+	}
+	return github.NewActionsClient(token), repo, nil
+}
+
 // pathFor resolves a projectID to its filesystem path.
 func (s *SecurityService) pathFor(id string) (string, error) {
 	for _, p := range s.project.List() {

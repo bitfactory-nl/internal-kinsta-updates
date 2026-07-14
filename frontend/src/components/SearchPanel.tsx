@@ -46,64 +46,64 @@ export default function SearchPanel({ onSelectProject }: Props) {
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Search input */}
-      <div className="px-4 py-3 border-b border-black/[0.08] shrink-0">
+      <div className="px-4 py-3 border-b border-border shrink-0">
         <input
           type="search"
           placeholder="Zoek in alle bestanden…"
           value={query}
           onChange={onChange}
           autoFocus
-          className="w-full bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                     rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
-                     border border-transparent focus:border-indigo-400"
+          className="w-full max-w-[520px] bg-panel border border-border rounded-[9px] px-3 py-2
+                     text-[13px] text-fg placeholder-fg-faint outline-none
+                     focus:border-accent focus:ring-1 focus:ring-accent/30"
         />
       </div>
 
       {/* Results */}
       <div className="flex-1 overflow-y-auto">
         {loading && (
-          <div className="flex items-center justify-center py-8 gap-2 text-gray-600 text-sm">
+          <div className="flex items-center justify-center py-8 gap-2 text-fg-faint text-[13px]">
             <span className="animate-spin inline-block">↻</span> Zoeken…
           </div>
         )}
 
         {!loading && results !== null && totalHits === 0 && (
-          <p className="text-xs text-gray-600 text-center py-8">Geen resultaten voor "{query}"</p>
+          <p className="text-[13px] text-fg-faint italic text-center py-8">Geen resultaten voor "{query}"</p>
         )}
 
         {!loading && totalHits > 0 && (
           <>
-            <div className="px-4 py-1.5 text-[11px] text-gray-600 border-b border-black/[0.06] shrink-0">
+            <div className="px-4 py-2 text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase border-b border-border shrink-0">
               {totalHits} treffer{totalHits !== 1 ? 's' : ''} in {Object.keys(grouped).length} project{Object.keys(grouped).length !== 1 ? 'en' : ''}
             </div>
             {Object.entries(grouped).map(([projectId, hits]) => (
               <div key={projectId}>
                 <button
                   onClick={() => onSelectProject(projectId)}
-                  className="w-full text-left px-4 py-1.5 text-[11px] font-semibold text-indigo-700
-                             bg-black/[0.03] hover:bg-black/[0.05] transition-colors border-b border-black/[0.06]"
+                  className="w-full text-left px-4 py-2 text-[12px] font-semibold text-accent
+                             bg-panel hover:bg-hover transition-colors border-b border-border"
                 >
                   {hits[0].displayName}
-                  <span className="ml-2 text-gray-600 font-normal">{hits.length}</span>
+                  <span className="ml-2 text-fg-faint font-normal font-mono">{hits.length}</span>
                 </button>
                 {hits.slice(0, 50).map((h, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-2 px-4 py-1 border-b border-black/[0.05] hover:bg-black/[0.03]"
+                    className="flex items-start gap-2 px-4 py-1 border-b border-border hover:bg-hover transition-colors"
                   >
-                    <span className="text-[10px] text-gray-600 font-mono shrink-0 w-8 text-right pt-px">
+                    <span className="text-[11px] text-fg-faint font-mono shrink-0 w-8 text-right pt-px">
                       {h.line}
                     </span>
-                    <span className="text-[10px] text-indigo-600 font-mono shrink-0 truncate max-w-[140px]">
+                    <span className="text-[11px] text-accent-2 font-mono shrink-0 truncate max-w-[140px]">
                       {h.file}
                     </span>
-                    <span className="text-[11px] text-gray-700 font-mono truncate flex-1">
+                    <span className="text-[12px] text-fg-muted font-mono truncate flex-1">
                       {h.content.trim()}
                     </span>
                   </div>
                 ))}
                 {hits.length > 50 && (
-                  <p className="text-[10px] text-gray-600 px-4 py-1 italic">
+                  <p className="text-[11px] text-fg-faint px-4 py-1 italic">
                     + {hits.length - 50} meer…
                   </p>
                 )}
@@ -113,7 +113,7 @@ export default function SearchPanel({ onSelectProject }: Props) {
         )}
 
         {!loading && results === null && query.length < 2 && query.length > 0 && (
-          <p className="text-xs text-gray-600 text-center py-8">Typ minimaal 2 tekens…</p>
+          <p className="text-[13px] text-fg-faint italic text-center py-8">Typ minimaal 2 tekens…</p>
         )}
       </div>
     </div>

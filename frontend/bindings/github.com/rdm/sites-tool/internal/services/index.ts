@@ -9,10 +9,12 @@ import * as MakeService from "./makeservice.js";
 import * as NotifyService from "./notifyservice.js";
 import * as PluginService from "./pluginservice.js";
 import * as ProjectService from "./projectservice.js";
+import * as ReportService from "./reportservice.js";
 import * as SSHService from "./sshservice.js";
 import * as SearchService from "./searchservice.js";
 import * as SecurityService from "./securityservice.js";
 import * as SettingsService from "./settingsservice.js";
+import * as TestService from "./testservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
 export {
     BatchService,
@@ -23,10 +25,12 @@ export {
     NotifyService,
     PluginService,
     ProjectService,
+    ReportService,
     SSHService,
     SearchService,
     SecurityService,
     SettingsService,
+    TestService,
     VulnScanService
 };
 
@@ -35,6 +39,7 @@ export {
     BatchResult,
     MakeResult,
     MakeTarget,
+    ProjectWorkflow,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,

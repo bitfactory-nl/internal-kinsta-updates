@@ -17,8 +17,11 @@ export class AppSettings {
     "kinstaApiKey": string;
     "kinstaCompanyId": string;
     "githubToken": string;
+    "pluginRepo": string;
+    "pluginRepoRef": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
+    "anthropicApiKey": string;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -34,11 +37,20 @@ export class AppSettings {
         if (!("githubToken" in $$source)) {
             this["githubToken"] = "";
         }
+        if (!("pluginRepo" in $$source)) {
+            this["pluginRepo"] = "";
+        }
+        if (!("pluginRepoRef" in $$source)) {
+            this["pluginRepoRef"] = "";
+        }
         if (!("gitDefaultRemote" in $$source)) {
             this["gitDefaultRemote"] = "";
         }
         if (!("gitPruneOnFetch" in $$source)) {
             this["gitPruneOnFetch"] = false;
+        }
+        if (!("anthropicApiKey" in $$source)) {
+            this["anthropicApiKey"] = "";
         }
 
         Object.assign(this, $$source);
@@ -143,6 +155,55 @@ export class MakeTarget {
     static createFrom($$source: any = {}): MakeTarget {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new MakeTarget($$parsedSource as Partial<MakeTarget>);
+    }
+}
+
+/**
+ * ProjectWorkflow is een actieve GitHub Actions workflow van een project-repo,
+ * met de status van de meest recente run.
+ */
+export class ProjectWorkflow {
+    "id": number;
+    "name": string;
+    "path": string;
+    "runStatus": string;
+    "runConclusion": string;
+    "runUrl": string;
+    "runAt": string;
+
+    /** Creates a new ProjectWorkflow instance. */
+    constructor($$source: Partial<ProjectWorkflow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("runStatus" in $$source)) {
+            this["runStatus"] = "";
+        }
+        if (!("runConclusion" in $$source)) {
+            this["runConclusion"] = "";
+        }
+        if (!("runUrl" in $$source)) {
+            this["runUrl"] = "";
+        }
+        if (!("runAt" in $$source)) {
+            this["runAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectWorkflow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectWorkflow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectWorkflow($$parsedSource as Partial<ProjectWorkflow>);
     }
 }
 

@@ -6,7 +6,7 @@ version: '3'
 # This information is used to generate the build assets.
 info:
   companyName: "Micromanage" # The name of the company
-  productName: "RDM Sites Tool" # The name of the application
+  productName: "Kinsta Updater" # The name of the application
   productIdentifier: "nl.micromanage.rdm-sites-tool" # The unique product identifier
   description: "Git & deployment dashboard" # The application description
   copyright: "(c) 2026, Micromanage" # Copyright text

@@ -27,15 +27,18 @@ function timeAgo(dateStr: string): string {
 }
 
 function RefPill({ label }: { label: string }) {
-  let cls = 'text-gray-600 ring-gray-400/50'
-  if (label === 'HEAD') cls = 'text-yellow-700 ring-yellow-400/40'
-  else if (label.startsWith('tag:')) cls = 'text-emerald-700 ring-emerald-500/30'
-  else if (label.startsWith('origin/') || label.includes('remote')) cls = 'text-gray-600 ring-gray-400/50'
-  else cls = 'text-indigo-700 ring-indigo-500/30'
-
   const display = label.startsWith('tag:') ? label.slice(4) : label
+
+  if (label === 'HEAD') {
+    return (
+      <span className="font-mono text-[9.5px] font-semibold text-green bg-green-soft px-1.5 py-[2px] rounded-[5px] shrink-0">
+        {display}
+      </span>
+    )
+  }
+
   return (
-    <span className={`text-[10px] px-1.5 py-px rounded ring-1 ${cls} font-mono`}>
+    <span className="font-mono text-[9.5px] font-medium text-fg-muted bg-panel-2 border border-border px-1.5 py-[2px] rounded-[5px] shrink-0">
       {display}
     </span>
   )
@@ -102,14 +105,14 @@ export default function HistoryTab({ projectId }: HistoryTabProps) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Left: Commit graph */}
-      <div className="w-[40%] shrink-0 flex flex-col border-r border-black/[0.08] overflow-hidden">
+      <div className="flex-1 min-w-0 max-w-[660px] shrink-0 flex flex-col border-r border-border overflow-hidden">
         {historyError && (
-          <div className="m-2 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">
+          <div className="m-2 bg-red-soft text-red px-3 py-2 rounded-[7px] text-xs">
             {historyError}
           </div>
         )}
         {loadingHistory ? (
-          <div className="flex items-center justify-center py-8 gap-2 text-gray-600 text-sm">
+          <div className="flex items-center justify-center py-8 gap-2 text-fg-faint text-[13px]">
             <span className="animate-spin inline-block">↻</span>
             <span>Loading history…</span>
           </div>
@@ -127,33 +130,33 @@ export default function HistoryTab({ projectId }: HistoryTabProps) {
       {/* Right: Diff panel */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {!selectedHash ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] font-[450] italic">
             Select a commit to view changes
           </div>
         ) : (
           <>
             {/* Commit header */}
             {selectedCommit && (
-              <div className="px-4 py-3 border-b border-black/[0.08] shrink-0">
+              <div className="px-4 py-3 border-b border-border shrink-0">
                 <div className="flex items-start gap-2 mb-1 flex-wrap">
-                  <span className="font-mono text-[11px] bg-black/[0.08] text-gray-700 px-1.5 py-px rounded shrink-0">
+                  <span className="font-mono text-[11px] font-medium bg-panel-2 border border-border text-fg-muted px-1.5 py-px rounded-[5px] shrink-0">
                     {selectedCommit.shortHash}
                   </span>
                   {(selectedCommit.refs ?? []).map((r, i) => (
                     <RefPill key={i} label={r} />
                   ))}
                 </div>
-                <h3 className="text-sm font-medium text-gray-900 mt-1 leading-snug">
+                <h3 className="text-[13px] font-medium text-fg mt-1 leading-snug">
                   {selectedCommit.subject}
                 </h3>
-                <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
+                <div className="flex items-center gap-2 mt-1 text-[11.5px] font-[450] text-fg-faint">
                   <span>{selectedCommit.author}</span>
                   <span>·</span>
                   <span>{timeAgo(selectedCommit.authorDate)}</span>
                   {new Date(selectedCommit.authorDate).toLocaleDateString('nl-NL', {
                     day: 'numeric', month: 'short', year: 'numeric'
                   }) && (
-                    <span className="text-gray-600">
+                    <span className="text-fg-faint">
                       {new Date(selectedCommit.authorDate).toLocaleDateString('nl-NL', {
                         day: 'numeric', month: 'short', year: 'numeric'
                       })}
@@ -162,12 +165,12 @@ export default function HistoryTab({ projectId }: HistoryTabProps) {
                 </div>
                 {(selectedCommit.parents ?? []).length > 0 && (
                   <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                    <span className="text-[11px] text-gray-600">Parents:</span>
+                    <span className="text-[11px] text-fg-faint">Parents:</span>
                     {selectedCommit.parents.map(p => (
                       <button
                         key={p}
                         onClick={() => selectCommit(p)}
-                        className="font-mono text-[11px] text-indigo-600 hover:text-indigo-700 transition-colors"
+                        className="font-mono text-[11px] text-accent hover:text-accent-2 transition-colors"
                       >
                         {p.slice(0, 7)}
                       </button>
@@ -179,12 +182,12 @@ export default function HistoryTab({ projectId }: HistoryTabProps) {
 
             {/* File list */}
             {!loadingDiff && (commitDiffs ?? []).length > 0 && (
-              <div className="border-b border-black/[0.08] shrink-0 max-h-[160px] overflow-y-auto">
+              <div className="border-b border-border shrink-0 max-h-[160px] overflow-y-auto">
                 <div className="px-3 py-1.5">
                   <button
                     onClick={() => setSelectedFile(null)}
-                    className={`w-full text-left text-[11px] px-2 py-1 rounded transition-colors
-                      ${!selectedFile ? 'bg-black/[0.08] text-gray-900' : 'text-gray-600 hover:bg-black/[0.04]'}`}
+                    className={`w-full text-left text-[11px] px-2 py-1 rounded-[5px] transition-colors
+                      ${!selectedFile ? 'bg-sel text-fg' : 'text-fg-muted hover:bg-hover'}`}
                   >
                     All files ({commitDiffs!.length})
                   </button>
@@ -197,13 +200,13 @@ export default function HistoryTab({ projectId }: HistoryTabProps) {
                       <button
                         key={`${d.path}-${i}`}
                         onClick={() => setSelectedFile(d.path === selectedFile ? null : d.path)}
-                        className={`w-full text-left flex items-center gap-2 px-2 py-0.5 rounded transition-colors
-                          ${selectedFile === d.path ? 'bg-black/[0.08] text-gray-900' : 'text-gray-600 hover:bg-black/[0.04]'}`}
+                        className={`w-full text-left flex items-center gap-2 px-2 py-0.5 rounded-[5px] transition-colors
+                          ${selectedFile === d.path ? 'bg-sel text-fg' : 'text-fg-muted hover:bg-hover'}`}
                       >
                         <span className="font-mono text-[11px] flex-1 truncate">{d.path}</span>
                         <span className="text-[10px] font-mono shrink-0 flex gap-1">
-                          {adds > 0 && <span className="text-emerald-600">+{adds}</span>}
-                          {dels > 0 && <span className="text-red-600">-{dels}</span>}
+                          {adds > 0 && <span className="text-green">+{adds}</span>}
+                          {dels > 0 && <span className="text-red">-{dels}</span>}
                         </span>
                       </button>
                     )
@@ -214,7 +217,7 @@ export default function HistoryTab({ projectId }: HistoryTabProps) {
 
             {/* Diff error */}
             {diffError && (
-              <div className="m-2 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">
+              <div className="m-2 bg-red-soft text-red px-3 py-2 rounded-[7px] text-xs">
                 {diffError}
               </div>
             )}

@@ -108,8 +108,8 @@ export default function KinstaTab({ projectId }: Props) {
   if (configured === false) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-gray-600 text-sm font-medium">Kinsta niet geconfigureerd</p>
-        <p className="text-gray-600 text-xs">Voeg je API key toe via ⚙ Instellingen.</p>
+        <p className="text-fg text-[15px] font-semibold">Kinsta niet geconfigureerd</p>
+        <p className="text-fg-muted text-[13px]">Voeg je API key toe via ⚙ Instellingen.</p>
       </div>
     )
   }
@@ -125,40 +125,52 @@ export default function KinstaTab({ projectId }: Props) {
       s.display_name?.toLowerCase().includes(siteFilter.toLowerCase())
     )
     return (
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="px-4 py-3 border-b border-black/[0.08] shrink-0">
-          <p className="text-xs text-gray-600 mb-2">
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+        <div className="px-6 py-5 pb-10">
+          <p className="text-[12.5px] text-fg-muted mb-3.5">
             Koppel dit project aan een Kinsta site om de dashboard te activeren.
-            De keuze wordt opgeslagen in <code className="text-gray-600 font-mono">.rdm.yml</code>.
+            De keuze wordt opgeslagen in <code className="text-fg font-mono">.rdm.yml</code>.
           </p>
           <input
             type="search"
             placeholder="Filter sites…"
             value={siteFilter}
             onChange={e => setSiteFilter(e.target.value)}
-            className="w-full bg-black/[0.05] text-xs text-gray-800 placeholder-gray-400
-                       rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40"
+            className="w-full max-w-[520px] bg-panel border border-border rounded-[9px] px-3 py-2
+                       text-[13px] text-fg placeholder-fg-faint outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent/30 mb-4 block"
           />
-        </div>
 
-        {loadingSites && <Spinner />}
-        {siteError && <div className="m-4 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{siteError}</div>}
+          {loadingSites && <Spinner />}
+          {siteError && (
+            <div className="mb-4 bg-red-soft text-red border border-border px-3 py-2 rounded-[9px] text-[12.5px]">
+              {siteError}
+            </div>
+          )}
 
-        <div className="flex-1 overflow-y-auto divide-y divide-black/[0.06]">
-          {filtered.map(s => (
-            <button
-              key={s.id}
-              onClick={() => linkSite(s.id)}
-              disabled={linking}
-              className="w-full text-left px-4 py-2.5 hover:bg-black/[0.05] transition-colors flex items-center gap-3"
-            >
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.status === 'live' ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-              <span className="text-sm text-gray-800 flex-1 truncate">{s.display_name || s.name}</span>
-              <span className="text-[10px] text-gray-600 font-mono shrink-0">{s.name}</span>
-            </button>
-          ))}
-          {!loadingSites && filtered.length === 0 && (
-            <p className="text-xs text-gray-600 text-center py-8">Geen sites gevonden</p>
+          {!loadingSites && (
+            <div className="bg-panel border border-border rounded-[11px] overflow-hidden divide-y divide-border">
+              {filtered.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => linkSite(s.id)}
+                  disabled={linking}
+                  className="w-full text-left px-4 py-3 hover:bg-hover transition-colors flex items-center gap-3"
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${s.status === 'live' ? 'bg-green' : 'bg-fg-faint'}`} />
+                  <span className="text-[13px] font-medium text-fg flex-1 truncate">{s.display_name || s.name}</span>
+                  {s.id === linkedSiteId && (
+                    <span className="text-[10px] font-semibold tracking-[.03em] text-accent bg-accent-soft px-2 py-[3px] rounded-[5px] shrink-0">
+                      LINKED
+                    </span>
+                  )}
+                  <span className="text-[12px] text-fg-faint font-mono shrink-0">{s.name}</span>
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <p className="text-[13px] text-fg-faint italic text-center py-8">Geen sites gevonden</p>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -167,7 +179,9 @@ export default function KinstaTab({ projectId }: Props) {
 
   // ── Loading site details ─────────────────────────────────────────────────────
   if (loadingSite) return <Spinner />
-  if (siteError) return <div className="m-4 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{siteError}</div>
+  if (siteError) return (
+    <div className="m-4 bg-red-soft text-red border border-border px-3 py-2 rounded-[9px] text-[12.5px]">{siteError}</div>
+  )
   if (!site) return null
 
   // ── Site detail view ─────────────────────────────────────────────────────────
@@ -184,15 +198,15 @@ export default function KinstaTab({ projectId }: Props) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Left: environment list */}
-      <div className="w-[200px] shrink-0 border-r border-black/[0.08] flex flex-col overflow-hidden">
-        <div className="px-3 py-2 border-b border-black/[0.06] shrink-0">
-          <p className="text-xs font-medium text-gray-900 truncate">{site.site.display_name || site.site.name}</p>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${site.site.status === 'live' ? 'bg-emerald-400' : 'bg-gray-500'}`} />
-            <span className="text-[10px] text-gray-600">{site.site.status}</span>
+      <div className="w-[220px] shrink-0 border-r border-border flex flex-col overflow-hidden">
+        <div className="px-3.5 py-3 border-b border-border shrink-0">
+          <p className="text-[13px] font-medium text-fg truncate">{site.site.display_name || site.site.name}</p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${site.site.status === 'live' ? 'bg-green' : 'bg-fg-faint'}`} />
+            <span className="text-[11px] text-fg-muted">{site.site.status}</span>
             <button
               onClick={unlink}
-              className="ml-auto text-[10px] text-gray-700 hover:text-gray-800 transition-colors"
+              className="ml-auto text-[11px] text-fg-faint hover:text-fg transition-colors"
               title="Andere site kiezen"
             >
               ↩
@@ -204,16 +218,18 @@ export default function KinstaTab({ projectId }: Props) {
             <button
               key={env.id}
               onClick={() => loadEnv(env.id)}
-              className={`w-full text-left px-3 py-2 border-b border-black/[0.06] transition-colors
-                ${selectedEnvId === env.id ? 'bg-indigo-100' : 'hover:bg-black/[0.04]'}`}
+              className={`w-full text-left px-3.5 py-2.5 border-b border-border transition-colors
+                ${selectedEnvId === env.id ? 'bg-sel' : 'hover:bg-hover'}`}
             >
               <div className="flex items-center gap-1.5">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${env.is_blocked ? 'bg-red-400' : 'bg-emerald-400'}`} />
-                <span className="text-xs text-gray-800 truncate">{env.display_name || env.name}</span>
-                {env.name === 'live' && <span className="ml-auto text-[9px] text-indigo-700 shrink-0">live</span>}
+                <span className={`w-2 h-2 rounded-full shrink-0 ${env.is_blocked ? 'bg-red' : 'bg-green'}`} />
+                <span className="text-[12.5px] text-fg truncate">{env.display_name || env.name}</span>
+                {env.name === 'live' && (
+                  <span className="ml-auto text-[10px] font-semibold font-mono text-accent bg-accent-soft px-1.5 py-px rounded-full shrink-0">live</span>
+                )}
               </div>
               {env.container_info?.php_engine_version && (
-                <p className="text-[10px] text-gray-600 mt-0.5 pl-3">
+                <p className="text-[11px] text-fg-faint font-mono mt-0.5 pl-3.5">
                   PHP {env.container_info.php_engine_version.replace('php', '')}
                 </p>
               )}
@@ -225,36 +241,36 @@ export default function KinstaTab({ projectId }: Props) {
       {/* Right: environment detail */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {!selectedEnvId ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic">
             Selecteer een omgeving
           </div>
         ) : loadingEnv ? (
           <Spinner />
         ) : envError ? (
-          <div className="m-4 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{envError}</div>
+          <div className="m-4 bg-red-soft text-red border border-border px-3 py-2 rounded-[9px] text-[12.5px]">{envError}</div>
         ) : envDetails ? (
-          <div className="flex-1 overflow-y-auto p-3 space-y-4">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
             {/* Environment info — from already-loaded site.environments */}
             {(() => {
               const env = (site.environments ?? []).find(e => e.id === selectedEnvId)
               if (!env) return null
               const phpVersion = env.container_info?.php_engine_version?.replace('php', '') || '—'
               return (
-                <div className="bg-black/[0.04] rounded-lg p-3">
-                  <h3 className="text-xs font-semibold text-gray-900 mb-2">Omgeving</h3>
-                  <div className="grid grid-cols-2 gap-1 text-[11px]">
-                    <span className="text-gray-600">PHP</span>
-                    <span className="text-gray-700">{phpVersion}</span>
-                    <span className="text-gray-600">WordPress</span>
-                    <span className="text-gray-700">{env.wordpress_version || '—'}</span>
-                    <span className="text-gray-600">Status</span>
-                    <span className={env.is_blocked ? 'text-red-600' : 'text-emerald-600'}>
+                <div className="bg-panel border border-border rounded-[11px] p-4">
+                  <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">Omgeving</h3>
+                  <div className="grid grid-cols-2 gap-1.5 text-[12px]">
+                    <span className="text-fg-muted">PHP</span>
+                    <span className="text-fg font-mono">{phpVersion}</span>
+                    <span className="text-fg-muted">WordPress</span>
+                    <span className="text-fg font-mono">{env.wordpress_version || '—'}</span>
+                    <span className="text-fg-muted">Status</span>
+                    <span className={env.is_blocked ? 'text-red' : 'text-green'}>
                       {env.is_blocked ? 'Geblokkeerd' : 'Actief'}
                     </span>
                     {env.ssh_connection?.ssh_ip?.external_ip && (
                       <>
-                        <span className="text-gray-600">SSH IP</span>
-                        <span className="text-gray-700 font-mono">{env.ssh_connection.ssh_ip.external_ip}:{env.ssh_connection.ssh_port}</span>
+                        <span className="text-fg-muted">SSH IP</span>
+                        <span className="text-fg font-mono">{env.ssh_connection.ssh_ip.external_ip}:{env.ssh_connection.ssh_port}</span>
                       </>
                     )}
                   </div>
@@ -263,65 +279,73 @@ export default function KinstaTab({ projectId }: Props) {
             })()}
 
             {vulnerableCount > 0 && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-xs text-red-700">
+              <div className="bg-red-soft border border-border rounded-[11px] px-4 py-2.5 text-[12.5px] text-red">
                 ⚠ {vulnerableCount} kwetsbare plugin{vulnerableCount !== 1 ? 's/thema\'s' : '/thema'}
               </div>
             )}
             {updateCount > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs text-amber-700">
+              <div className="bg-amber-soft border border-border rounded-[11px] px-4 py-2.5 text-[12.5px] text-amber">
                 ↑ {updateCount} update{updateCount !== 1 ? 's' : ''} beschikbaar
               </div>
             )}
 
             {/* Plugins */}
             <div>
-              <h3 className="text-xs font-semibold text-gray-900 mb-2">
-                Plugins <span className="text-gray-600 font-normal">{envDetails.plugins.length}</span>
+              <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+                Plugins · {envDetails.plugins.length}
                 {envDetails.plugins.filter(p => p.update === 'available').length > 0 && (
-                  <span className="ml-2 text-amber-500 font-normal">
+                  <span className="ml-2 text-amber normal-case tracking-normal">
                     {envDetails.plugins.filter(p => p.update === 'available').length} update{envDetails.plugins.filter(p => p.update === 'available').length !== 1 ? 's' : ''}
                   </span>
                 )}
               </h3>
-              <div className="space-y-px">
+              <div className="bg-panel border border-border rounded-[11px] overflow-hidden divide-y divide-border">
                 {envDetails.plugins.map(p => (
-                  <div key={p.name} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-black/[0.03]">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.status === 'active' ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-                    <span className="text-[11px] text-gray-700 flex-1 truncate">{p.title || p.name}</span>
-                    {p.is_version_vulnerable && <span className="text-[10px] text-red-600 shrink-0">⚠ kwetsbaar</span>}
-                    <span className="text-[10px] font-mono text-gray-600 shrink-0">{p.version}</span>
+                  <div key={p.name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-hover transition-colors">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${p.status === 'active' ? 'bg-green' : 'bg-fg-faint'}`} />
+                    <span className="text-[13px] font-medium text-fg flex-1 truncate">{p.title || p.name}</span>
+                    {p.is_version_vulnerable && (
+                      <span className="text-[10px] font-semibold text-red bg-red-soft px-2 py-[3px] rounded-[5px] shrink-0">⚠ kwetsbaar</span>
+                    )}
+                    <span className="text-[12px] font-mono text-fg-faint shrink-0">{p.version}</span>
                     {p.update === 'available' && (
-                      <span className="text-[10px] text-amber-500 shrink-0">→ {p.update_version}</span>
+                      <span className="text-[12px] font-mono font-semibold text-green shrink-0">→ {p.update_version}</span>
                     )}
                   </div>
                 ))}
-                {envDetails.plugins.length === 0 && <p className="text-xs text-gray-600 italic px-2">Geen plugins</p>}
+                {envDetails.plugins.length === 0 && (
+                  <p className="text-[13px] text-fg-faint italic px-4 py-3">Geen plugins</p>
+                )}
               </div>
             </div>
 
             {/* Themes */}
             <div>
-              <h3 className="text-xs font-semibold text-gray-900 mb-2">
-                Thema's <span className="text-gray-600 font-normal">{envDetails.themes.length}</span>
+              <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+                Thema's · {envDetails.themes.length}
                 {envDetails.themes.filter(t => t.update === 'available').length > 0 && (
-                  <span className="ml-2 text-amber-500 font-normal">
+                  <span className="ml-2 text-amber normal-case tracking-normal">
                     {envDetails.themes.filter(t => t.update === 'available').length} update{envDetails.themes.filter(t => t.update === 'available').length !== 1 ? 's' : ''}
                   </span>
                 )}
               </h3>
-              <div className="space-y-px">
+              <div className="bg-panel border border-border rounded-[11px] overflow-hidden divide-y divide-border">
                 {envDetails.themes.map(t => (
-                  <div key={t.name} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-black/[0.03]">
-                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${t.status === 'active' ? 'bg-indigo-400' : 'bg-gray-600'}`} />
-                    <span className="text-[11px] text-gray-700 flex-1 truncate">{t.title || t.name}</span>
-                    {t.is_version_vulnerable && <span className="text-[10px] text-red-600 shrink-0">⚠ kwetsbaar</span>}
-                    <span className="text-[10px] font-mono text-gray-600 shrink-0">{t.version}</span>
+                  <div key={t.name} className="flex items-center gap-3 px-4 py-2.5 hover:bg-hover transition-colors">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${t.status === 'active' ? 'bg-accent' : 'bg-fg-faint'}`} />
+                    <span className="text-[13px] font-medium text-fg flex-1 truncate">{t.title || t.name}</span>
+                    {t.is_version_vulnerable && (
+                      <span className="text-[10px] font-semibold text-red bg-red-soft px-2 py-[3px] rounded-[5px] shrink-0">⚠ kwetsbaar</span>
+                    )}
+                    <span className="text-[12px] font-mono text-fg-faint shrink-0">{t.version}</span>
                     {t.update === 'available' && (
-                      <span className="text-[10px] text-amber-500 shrink-0">→ {t.update_version}</span>
+                      <span className="text-[12px] font-mono font-semibold text-green shrink-0">→ {t.update_version}</span>
                     )}
                   </div>
                 ))}
-                {envDetails.themes.length === 0 && <p className="text-xs text-gray-600 italic px-2">Geen thema's</p>}
+                {envDetails.themes.length === 0 && (
+                  <p className="text-[13px] text-fg-faint italic px-4 py-3">Geen thema's</p>
+                )}
               </div>
             </div>
           </div>
@@ -333,7 +357,7 @@ export default function KinstaTab({ projectId }: Props) {
 
 function Spinner() {
   return (
-    <div className="flex-1 flex items-center justify-center gap-2 text-gray-600 text-sm">
+    <div className="flex-1 flex items-center justify-center gap-2 text-fg-faint text-[13px]">
       <span className="animate-spin inline-block">↻</span>
     </div>
   )

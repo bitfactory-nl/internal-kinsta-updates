@@ -16,13 +16,49 @@ import PluginsTab from './PluginsTab'
 import SshTerminalTab from './SshTerminalTab'
 import UpdatesTab from './UpdatesTab'
 import SecurityTab from './SecurityTab'
+import TestsTab from './TestsTab'
+import ReportTab from './ReportTab'
 
 export interface ProjectDetailProps {
   project: Project
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'terminal' | 'updates' | 'security'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'terminal' | 'updates' | 'security' | 'tests' | 'report'
+
+interface NavItem {
+  id: TabId
+  label: string
+  badge?: number
+  badgeClass?: string
+}
+
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+const deployTypeLabel: Record<string, string> = {
+  wordpress_kinsta:  'WordPress / Kinsta',
+  wordpress_transip: 'WordPress / TransIP',
+  wordpress_5_2:     'WordPress 5.2',
+}
+
+function HeaderIconBtn({ onClick, title, disabled, children }: {
+  onClick: () => void; title: string; disabled?: boolean; children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="w-7 h-7 rounded-[7px] border border-border flex items-center justify-center
+                 text-fg-muted hover:text-fg hover:bg-hover transition-colors text-[13px] font-mono"
+    >
+      {children}
+    </button>
+  )
+}
 
 export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('info')
@@ -80,107 +116,144 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
 
   const isLoading = (key: string) => loadingOp === key
 
-  const tabs: { id: TabId; label: string; badge?: number }[] = [
-    { id: 'info',        label: 'Info' },
-    { id: 'history',     label: 'History' },
-    { id: 'changes',     label: 'Changes', badge: dirtyCount > 0 ? dirtyCount : undefined },
-    { id: 'branches',    label: 'Branches' },
-    { id: 'stash',       label: 'Stash & Tags' },
-    { id: 'blame',       label: 'Blame' },
-    { id: 'filehistory', label: 'File History' },
-    ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
-    ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
-    ...(isKinsta ? [{ id: 'terminal' as TabId, label: 'Terminal' }] : []),
-    ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
-    ...(status?.isRepo ? [{ id: 'security' as TabId, label: 'Security' }] : []),
-  ]
+  const navGroups: NavGroup[] = [
+    { title: 'OVERVIEW', items: [{ id: 'info' as TabId, label: 'Info' }] },
+    {
+      title: 'SOURCE CONTROL',
+      items: [
+        { id: 'history' as TabId, label: 'History' },
+        { id: 'changes' as TabId, label: 'Changes', badge: dirtyCount > 0 ? dirtyCount : undefined, badgeClass: 'bg-amber-soft text-amber' },
+        { id: 'branches' as TabId, label: 'Branches' },
+        { id: 'stash' as TabId, label: 'Stash & Tags' },
+        { id: 'blame' as TabId, label: 'Blame' },
+        { id: 'filehistory' as TabId, label: 'File History' },
+      ],
+    },
+    ...(isKinsta || status?.isRepo ? [{
+      title: 'WORDPRESS',
+      items: [
+        ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
+        ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
+        ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
+        ...(status?.isRepo ? [{ id: 'security' as TabId, label: 'Security' }] : []),
+        ...(status?.isRepo ? [{ id: 'tests' as TabId, label: 'Tests' }] : []),
+      ],
+    }] : []),
+    ...(isKinsta ? [{
+      title: 'TOOLS',
+      items: [{ id: 'terminal' as TabId, label: 'Terminal' }],
+    }] : []),
+    {
+      title: 'KLANT',
+      items: [{ id: 'report' as TabId, label: 'Rapportage' }],
+    },
+  ].filter(g => g.items.length > 0)
+
+  const typeLabel = project.deploy?.type ? (deployTypeLabel[project.deploy.type] ?? project.deploy.type) : null
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-black/[0.08] shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-base font-semibold text-gray-900 truncate flex-1">
-            {project.displayName}
-          </h2>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => Services.EditorService.OpenInEditor(project.id, project.path)}
-              title="Open in editor"
-              className="w-7 h-7 flex items-center justify-center rounded-md text-gray-600
-                         hover:text-gray-900 hover:bg-black/[0.08] transition-colors text-sm"
-            >
-              ✎
-            </button>
-
-            {status?.isRepo && (
-              <>
-                <button onClick={doFetch} disabled={loadingOp !== null} title="Fetch"
-                  className="w-7 h-7 flex items-center justify-center rounded-md text-gray-600
-                             hover:text-gray-900 hover:bg-black/[0.08] transition-colors text-sm">
-                  {isLoading('fetch') ? <span className="animate-spin inline-block text-xs">↻</span> : '⟳'}
-                </button>
-                <button onClick={doPull} disabled={loadingOp !== null} title="Pull"
-                  className="w-7 h-7 flex items-center justify-center rounded-md text-gray-600
-                             hover:text-gray-900 hover:bg-black/[0.08] transition-colors text-sm">
-                  {isLoading('pull') ? <span className="animate-spin inline-block text-xs">↻</span> : '↓'}
-                </button>
-                <button onClick={doPush} disabled={loadingOp !== null} title="Push"
-                  className="w-7 h-7 flex items-center justify-center rounded-md text-gray-600
-                             hover:text-gray-900 hover:bg-black/[0.08] transition-colors text-sm">
-                  {isLoading('push') ? <span className="animate-spin inline-block text-xs">↻</span> : '↑'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {opError && (
-          <div className="mb-2 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{opError}</div>
+      <header className="h-[56px] shrink-0 flex items-center gap-3 px-[22px] border-b border-border bg-panel">
+        <h2 className="text-[15px] font-bold tracking-[-.01em] text-fg truncate">
+          {project.displayName}
+        </h2>
+        {status?.isRepo && status.branch && (
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium font-mono text-fg-muted
+                           bg-panel-2 border border-border px-2 py-[3px] rounded-md max-w-[260px]">
+            <span className="truncate">⑂ {status.branch}</span>
+          </span>
+        )}
+        {typeLabel && (
+          <span className="inline-flex items-center text-[10.5px] font-semibold tracking-[.02em]
+                           text-purple bg-accent-soft px-2 py-[3px] rounded-md whitespace-nowrap">
+            {typeLabel}
+          </span>
         )}
 
-        {/* Tabs — scrollable for small windows */}
-        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-none">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap
-                ${activeTab === tab.id
-                  ? 'bg-black/[0.08] text-gray-900'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-black/[0.04]'}`}
-            >
-              {tab.label}
-              {tab.badge !== undefined && (
-                <span className="bg-amber-500/30 text-amber-700 text-[10px] px-1.5 py-px rounded-full font-mono">
-                  {tab.badge}
-                </span>
-              )}
-            </button>
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <HeaderIconBtn
+            onClick={() => Services.EditorService.OpenInEditor(project.id, project.path)}
+            title="Open in editor"
+          >
+            ✎
+          </HeaderIconBtn>
+          {status?.isRepo && (
+            <>
+              <HeaderIconBtn onClick={doFetch} disabled={loadingOp !== null} title="Fetch">
+                {isLoading('fetch') ? <span className="animate-spin inline-block text-xs">↻</span> : '↺'}
+              </HeaderIconBtn>
+              <HeaderIconBtn onClick={doPull} disabled={loadingOp !== null} title="Pull">
+                {isLoading('pull') ? <span className="animate-spin inline-block text-xs">↻</span> : '↓'}
+              </HeaderIconBtn>
+              <HeaderIconBtn onClick={doPush} disabled={loadingOp !== null} title="Push">
+                {isLoading('push') ? <span className="animate-spin inline-block text-xs">↻</span> : '↑'}
+              </HeaderIconBtn>
+            </>
+          )}
+        </div>
+      </header>
+
+      {opError && (
+        <div className="shrink-0 mx-[22px] mt-3 bg-red-soft text-red px-3 py-2 rounded-lg text-xs">
+          {opError}
+        </div>
+      )}
+
+      {/* Nav rail + content */}
+      <div className="flex-1 min-h-0 flex">
+        <nav className="w-[206px] shrink-0 bg-panel border-r border-border py-4 px-1.5 overflow-y-auto">
+          {navGroups.map(grp => (
+            <div key={grp.title} className="mb-[15px]">
+              <div className="text-[10px] font-semibold tracking-[.09em] text-fg-faint px-3 pb-1.5">
+                {grp.title}
+              </div>
+              {grp.items.map(it => {
+                const on = activeTab === it.id
+                return (
+                  <button
+                    key={it.id}
+                    onClick={() => setActiveTab(it.id)}
+                    className={`w-full flex items-center justify-between gap-2 mx-0 my-px px-[11px] py-[7px]
+                                rounded-[7px] text-[13px] transition-colors text-left
+                                ${on
+                                  ? 'font-semibold text-fg bg-sel shadow-[inset_2px_0_0_var(--accent)]'
+                                  : 'font-[450] text-fg-muted hover:bg-hover'}`}
+                  >
+                    <span>{it.label}</span>
+                    {it.badge !== undefined && (
+                      <span className={`text-[10px] font-semibold font-mono px-1.5 py-px rounded-full ${it.badgeClass ?? 'bg-panel-2 text-fg-muted'}`}>
+                        {it.badge}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           ))}
-        </div>
-      </div>
+        </nav>
 
-      {/* Tab content */}
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        {activeTab === 'info' && <InfoTab project={project} />}
-        {activeTab === 'history' && <HistoryTab projectId={project.id} />}
-        {activeTab === 'changes' && (
-          <ChangesTab projectId={project.id} status={status} onRefreshStatus={refreshStatus} />
-        )}
-        {activeTab === 'branches' && (
-          <BranchesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchChange={refreshStatus} />
-        )}
-        {activeTab === 'stash' && <StashTagsTab projectId={project.id} />}
-        {activeTab === 'blame' && <BlameTab projectId={project.id} />}
-        {activeTab === 'filehistory' && <FileHistoryTab projectId={project.id} />}
-        {activeTab === 'kinsta' && <KinstaTab projectId={project.id} />}
-        {activeTab === 'plugins' && <PluginsTab projectId={project.id} />}
-        {activeTab === 'terminal' && <SshTerminalTab projectId={project.id} />}
-        {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} />}
-        {activeTab === 'security' && <SecurityTab projectId={project.id} />}
+        {/* Tab content */}
+        <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-bg">
+          {activeTab === 'info' && <InfoTab project={project} />}
+          {activeTab === 'history' && <HistoryTab projectId={project.id} />}
+          {activeTab === 'changes' && (
+            <ChangesTab projectId={project.id} status={status} onRefreshStatus={refreshStatus} />
+          )}
+          {activeTab === 'branches' && (
+            <BranchesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchChange={refreshStatus} />
+          )}
+          {activeTab === 'stash' && <StashTagsTab projectId={project.id} />}
+          {activeTab === 'blame' && <BlameTab projectId={project.id} />}
+          {activeTab === 'filehistory' && <FileHistoryTab projectId={project.id} />}
+          {activeTab === 'kinsta' && <KinstaTab projectId={project.id} />}
+          {activeTab === 'plugins' && <PluginsTab projectId={project.id} />}
+          {activeTab === 'terminal' && <SshTerminalTab projectId={project.id} />}
+          {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} />}
+          {activeTab === 'security' && <SecurityTab projectId={project.id} />}
+          {activeTab === 'tests' && <TestsTab projectId={project.id} />}
+          {activeTab === 'report' && <ReportTab projectId={project.id} />}
+        </div>
       </div>
     </div>
   )

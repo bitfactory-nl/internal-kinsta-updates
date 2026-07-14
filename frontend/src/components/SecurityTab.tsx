@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import ExternalLink from './ExternalLink'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { SecurityScanResult, SecurityFinding } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 
@@ -7,11 +8,11 @@ interface Props {
 }
 
 const severityStyles: Record<string, string> = {
-  critical: 'bg-red-500/15 text-red-700',
-  high: 'bg-orange-500/15 text-orange-700',
-  moderate: 'bg-amber-500/15 text-amber-700',
-  low: 'bg-gray-500/10 text-gray-600',
-  unknown: 'bg-gray-500/10 text-gray-600',
+  critical: 'text-red bg-red-soft',
+  high: 'text-orange bg-orange-soft',
+  moderate: 'text-amber bg-amber-soft',
+  low: 'text-fg-muted bg-hover',
+  unknown: 'text-fg-muted bg-hover',
 }
 
 function formatDate(dateStr: string): string {
@@ -28,7 +29,7 @@ function formatDate(dateStr: string): string {
 
 function SeverityBadge({ severity }: { severity: string }) {
   return (
-    <span className={`text-[10px] px-1.5 py-px rounded font-medium uppercase shrink-0 ${severityStyles[severity] ?? severityStyles.unknown}`}>
+    <span className={`w-[76px] shrink-0 text-center text-[9.5px] font-semibold tracking-[.04em] uppercase py-1 rounded-[5px] h-fit ${severityStyles[severity] ?? severityStyles.unknown}`}>
       {severity}
     </span>
   )
@@ -36,25 +37,23 @@ function SeverityBadge({ severity }: { severity: string }) {
 
 function FindingRow({ finding }: { finding: SecurityFinding }) {
   return (
-    <div className="px-4 py-3 flex items-start gap-3">
+    <div className="px-4 py-[15px] flex items-start gap-3.5 hover:bg-hover transition-colors">
       <SeverityBadge severity={finding.severity} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-900 truncate">
-          <span className="font-mono">{finding.package}</span>
-          <span className="ml-2 text-[10px] text-gray-600 uppercase">{finding.source}</span>
-        </p>
-        <p className="text-xs text-gray-700 mt-0.5">{finding.title}</p>
-        <p className="text-[11px] text-gray-600 mt-0.5 flex items-center gap-2">
-          {finding.cve && <span className="font-mono">{finding.cve}</span>}
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-semibold text-[13.5px] text-fg truncate">{finding.package}</span>
+          <span className="shrink-0 text-[9.5px] font-medium tracking-[.04em] uppercase text-fg-faint border border-border px-1.5 py-px rounded-[5px]">{finding.source}</span>
+        </div>
+        <p className="text-[12.5px] font-[450] text-fg-muted mt-1">{finding.title}</p>
+        <p className="text-xs mt-1.5 flex items-center gap-2.5">
+          {finding.cve && <span className="font-mono text-fg-faint">{finding.cve}</span>}
           {finding.link && (
-            <a
+            <ExternalLink
               href={finding.link}
-              target="_blank"
-              rel="noreferrer"
-              className="text-indigo-600 hover:text-indigo-800 transition-colors"
+              className="font-medium text-accent hover:text-accent-2 transition-colors"
             >
               details ↗
-            </a>
+            </ExternalLink>
           )}
         </p>
       </div>
@@ -83,7 +82,7 @@ export default function SecurityTab({ projectId }: Props) {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center gap-2 text-gray-600 text-sm">
+      <div className="flex-1 flex items-center justify-center gap-2 text-fg-faint text-sm">
         <span className="animate-spin inline-block">↻</span>
       </div>
     )
@@ -92,10 +91,10 @@ export default function SecurityTab({ projectId }: Props) {
   if (error) {
     return (
       <div className="flex-1 flex flex-col p-4 gap-3">
-        <div className="bg-red-100 text-red-600 px-3 py-2 rounded text-xs">{error}</div>
+        <div className="bg-red-soft text-red px-3 py-2 rounded-lg text-xs">{error}</div>
         <button
           onClick={fetchResults}
-          className="self-start px-3 py-1.5 text-xs bg-black/[0.06] hover:bg-black/[0.1] text-gray-800 rounded-lg transition-colors"
+          className="self-start bg-panel-2 border border-border text-fg-muted text-[12.5px] font-semibold px-[15px] py-[9px] rounded-[9px] hover:bg-hover transition-colors"
         >
           ⟳ Opnieuw proberen
         </button>
@@ -105,7 +104,7 @@ export default function SecurityTab({ projectId }: Props) {
 
   if (!result) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic py-12">
+      <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] italic py-12">
         Geen scanresultaten beschikbaar
       </div>
     )
@@ -119,51 +118,63 @@ export default function SecurityTab({ projectId }: Props) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-      <div className="px-4 py-2 border-b border-black/[0.06] shrink-0 flex items-center gap-3">
-        <span className="text-[11px] text-gray-600">
-          Laatste scan: {formatDate(result.scannedAt)}
-        </span>
-        <span className="text-[11px] text-gray-600">
-          {result.hasComposerReport && 'composer'}
-          {result.hasComposerReport && result.hasNpmReport && ' + '}
-          {result.hasNpmReport && 'npm'}
-        </span>
-        <button
-          onClick={fetchResults}
-          className="ml-auto text-gray-600 hover:text-gray-800 text-xs transition-colors flex items-center gap-1"
-          title="Ververs scanresultaten"
-        >
-          <span className="text-xs">⟳</span> Ververs
-        </button>
-      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="px-6 pt-5 pb-[50px]">
+          {/* Header row */}
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-xs font-[450] text-fg-muted">
+              Laatste scan: {formatDate(result.scannedAt)}
+            </span>
+            {(result.hasComposerReport || result.hasNpmReport) && (
+              <span className="font-mono text-[11px] font-medium text-fg-faint bg-panel-2 border border-border px-2 py-px rounded-[5px]">
+                {result.hasComposerReport && 'composer'}
+                {result.hasComposerReport && result.hasNpmReport && ' + '}
+                {result.hasNpmReport && 'npm'}
+              </span>
+            )}
+            <button
+              onClick={fetchResults}
+              className="ml-auto text-xs font-semibold text-accent hover:text-accent-2 transition-colors flex items-center gap-1"
+              title="Ververs scanresultaten"
+            >
+              ↻ Ververs
+            </button>
+          </div>
 
-      {findings.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-2 text-sm py-12">
-          <span className="text-2xl">✅</span>
-          <p className="text-gray-800">Geen bekende kwetsbaarheden</p>
-          <p className="text-xs text-gray-600">
-            composer audit en npm audit vonden niets in de laatste scan
-          </p>
+          {findings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 text-sm py-12">
+              <span className="text-2xl">✅</span>
+              <p className="text-fg font-medium">Geen bekende kwetsbaarheden</p>
+              <p className="text-xs text-fg-muted">
+                composer audit en npm audit vonden niets in de laatste scan
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Severity count chips */}
+              <div className="flex flex-wrap gap-[9px] mb-[18px]">
+                {(['critical', 'high', 'moderate', 'low', 'unknown'] as const)
+                  .filter(sev => counts[sev])
+                  .map(sev => (
+                    <div key={sev} className="flex items-center gap-2 bg-panel border border-border rounded-[9px] px-[13px] py-2">
+                      <span className={`text-[9.5px] font-semibold tracking-[.05em] uppercase px-2 py-[3px] rounded-[5px] ${severityStyles[sev] ?? severityStyles.unknown}`}>
+                        {sev}
+                      </span>
+                      <span className="font-mono font-semibold text-[15px] text-fg">{counts[sev]}</span>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Findings card */}
+              <div className="bg-panel border border-border rounded-[11px] overflow-hidden divide-y divide-border">
+                {findings.map((f, i) => (
+                  <FindingRow key={`${f.source}-${f.package}-${i}`} finding={f} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="px-4 py-2 border-b border-black/[0.06] shrink-0 flex items-center gap-2">
-            {(['critical', 'high', 'moderate', 'low', 'unknown'] as const)
-              .filter(sev => counts[sev])
-              .map(sev => (
-                <span key={sev} className="flex items-center gap-1.5">
-                  <SeverityBadge severity={sev} />
-                  <span className="text-xs text-gray-700">{counts[sev]}</span>
-                </span>
-              ))}
-          </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-black/[0.06]">
-            {findings.map((f, i) => (
-              <FindingRow key={`${f.source}-${f.package}-${i}`} finding={f} />
-            ))}
-          </div>
-        </>
-      )}
+      </div>
     </div>
   )
 }

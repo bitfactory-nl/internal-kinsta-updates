@@ -18,10 +18,10 @@ type SelectedEntry = {
 }
 
 const kindLabel: Record<string, { label: string; cls: string }> = {
-  added:    { label: 'A', cls: 'text-emerald-600' },
-  modified: { label: 'M', cls: 'text-amber-500' },
-  deleted:  { label: 'D', cls: 'text-red-600' },
-  renamed:  { label: 'R', cls: 'text-sky-600' },
+  added:    { label: 'A', cls: 'text-green' },
+  modified: { label: 'M', cls: 'text-amber' },
+  deleted:  { label: 'D', cls: 'text-red' },
+  renamed:  { label: 'R', cls: 'text-accent-2' },
 }
 
 export default function ChangesTab({ projectId, status, onRefreshStatus }: ChangesTabProps) {
@@ -100,7 +100,7 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
 
   if (!status) {
     return (
-      <div className="flex items-center justify-center py-8 text-gray-600 text-sm italic">
+      <div className="flex items-center justify-center py-8 text-fg-faint text-[13px] italic">
         Loading status…
       </div>
     )
@@ -114,54 +114,54 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Left panel */}
-      <div className="w-[40%] shrink-0 flex flex-col border-r border-black/[0.08] overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
+      <div className="w-[400px] shrink-0 flex flex-col border-r border-border overflow-hidden">
+        <div className="flex-1 overflow-y-auto py-1.5">
           {actionError && (
-            <div className="m-2 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">
+            <div className="m-2 bg-red-soft text-red px-3 py-2 rounded-[7px] text-xs">
               {actionError}
             </div>
           )}
 
           {totalChanges === 0 && (
-            <div className="px-4 py-3 text-sm text-gray-600 italic">
+            <div className="px-[18px] py-3 text-[13px] text-fg-faint italic">
               Working tree clean
             </div>
           )}
 
           {/* Staged files */}
-          <div className="px-3 pt-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                Staged ({staged.length})
+          <div>
+            <div className="flex items-center justify-between px-[18px] pt-[11px] pb-[7px]">
+              <span className="text-[10.5px] font-semibold tracking-[.07em] text-fg-faint uppercase">
+                Staged · {staged.length}
               </span>
               {staged.length > 0 && (
                 <button
                   onClick={() => withAction('unstage-all', () => Services.GitService.UnstageFiles(projectId, staged.map(f => f.path)))}
-                  className="text-[11px] text-gray-600 hover:text-gray-800 transition-colors"
+                  className="text-[11.5px] font-medium text-accent hover:text-accent-2 transition-colors"
                 >
                   Unstage all
                 </button>
               )}
             </div>
             {staged.map(f => {
-              const k = kindLabel[f.kind] ?? { label: '?', cls: 'text-gray-600' }
+              const k = kindLabel[f.kind] ?? { label: '?', cls: 'text-fg-faint' }
               const isSelected = selectedEntry?.path === f.path && selectedEntry?.staged
               return (
                 <div
                   key={f.path}
                   onClick={() => loadDiff(f.path, true)}
-                  className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors
-                    ${isSelected ? 'bg-black/[0.08]' : 'hover:bg-black/[0.04]'}`}
+                  className={`flex items-center gap-2.5 px-[18px] py-2 cursor-pointer transition-colors
+                    ${isSelected ? 'bg-sel' : 'hover:bg-hover'}`}
                 >
-                  <span className={`text-[11px] font-mono font-bold w-3 shrink-0 ${k.cls}`}>{k.label}</span>
-                  <span className="text-xs text-gray-700 flex-1 truncate font-mono" title={f.path}>
+                  <span className={`w-4 text-center text-[12px] font-mono font-semibold shrink-0 ${k.cls}`}>{k.label}</span>
+                  <span className="text-[13px] font-[450] text-fg flex-1 truncate font-mono" title={f.path}>
                     {f.path.split('/').pop()}
                   </span>
                   <button
                     onClick={e => { e.stopPropagation(); unstageFile(f.path) }}
                     disabled={loadingAction !== null}
                     title="Unstage"
-                    className="text-[11px] text-gray-600 hover:text-amber-500 transition-colors shrink-0 px-1"
+                    className="text-[15px] font-semibold font-mono text-fg-faint hover:text-fg transition-colors shrink-0 px-1"
                   >
                     {loading(`unstage-${f.path}`) ? '↻' : '−'}
                   </button>
@@ -171,40 +171,40 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
           </div>
 
           {/* Unstaged files */}
-          <div className="px-3 pt-3">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                Unstaged ({unstaged.length})
+          <div>
+            <div className="flex items-center justify-between px-[18px] pt-[15px] pb-[7px]">
+              <span className="text-[10.5px] font-semibold tracking-[.07em] text-fg-faint uppercase">
+                Unstaged · {unstaged.length}
               </span>
               {(unstaged.length > 0 || untracked.length > 0) && (
                 <button
                   onClick={stageAll}
                   disabled={loadingAction !== null}
-                  className="text-[11px] text-gray-600 hover:text-gray-800 transition-colors"
+                  className="text-[11.5px] font-medium text-accent hover:text-accent-2 transition-colors"
                 >
                   {loading('stage-all') ? <span className="animate-spin inline-block">↻</span> : 'Stage all'}
                 </button>
               )}
             </div>
             {unstaged.map(f => {
-              const k = kindLabel[f.kind] ?? { label: '?', cls: 'text-gray-600' }
+              const k = kindLabel[f.kind] ?? { label: '?', cls: 'text-fg-faint' }
               const isSelected = selectedEntry?.path === f.path && !selectedEntry?.staged
               return (
                 <div
                   key={f.path}
                   onClick={() => loadDiff(f.path, false)}
-                  className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors
-                    ${isSelected ? 'bg-black/[0.08]' : 'hover:bg-black/[0.04]'}`}
+                  className={`flex items-center gap-2.5 px-[18px] py-2 cursor-pointer transition-colors
+                    ${isSelected ? 'bg-sel' : 'hover:bg-hover'}`}
                 >
-                  <span className={`text-[11px] font-mono font-bold w-3 shrink-0 ${k.cls}`}>{k.label}</span>
-                  <span className="text-xs text-gray-700 flex-1 truncate font-mono" title={f.path}>
+                  <span className={`w-4 text-center text-[12px] font-mono font-semibold shrink-0 ${k.cls}`}>{k.label}</span>
+                  <span className="text-[13px] font-[450] text-fg flex-1 truncate font-mono" title={f.path}>
                     {f.path.split('/').pop()}
                   </span>
                   <button
                     onClick={e => { e.stopPropagation(); stageFile(f.path) }}
                     disabled={loadingAction !== null}
                     title="Stage"
-                    className="text-[11px] text-gray-600 hover:text-emerald-600 transition-colors shrink-0 px-1"
+                    className="text-[15px] font-semibold font-mono text-fg-faint hover:text-fg transition-colors shrink-0 px-1"
                   >
                     {loading(`stage-${f.path}`) ? <span className="animate-spin inline-block text-[11px]">↻</span> : '+'}
                   </button>
@@ -215,10 +215,10 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
 
           {/* Untracked files */}
           {untracked.length > 0 && (
-            <div className="px-3 pt-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider">
-                  Untracked ({untracked.length})
+            <div>
+              <div className="flex items-center justify-between px-[18px] pt-[15px] pb-[7px]">
+                <span className="text-[10.5px] font-semibold tracking-[.07em] text-fg-faint uppercase">
+                  Untracked · {untracked.length}
                 </span>
               </div>
               {untracked.map(path => {
@@ -227,11 +227,11 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
                   <div
                     key={path}
                     onClick={() => loadDiff(path, false)}
-                    className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer transition-colors
-                      ${isSelected ? 'bg-black/[0.08]' : 'hover:bg-black/[0.04]'}`}
+                    className={`flex items-center gap-2.5 px-[18px] py-2 cursor-pointer transition-colors
+                      ${isSelected ? 'bg-sel' : 'hover:bg-hover'}`}
                   >
-                    <span className="text-[11px] font-mono font-bold w-3 shrink-0 text-gray-600">?</span>
-                    <span className="text-xs text-gray-600 flex-1 truncate font-mono" title={path}>
+                    <span className="w-4 text-center text-[12px] font-mono font-semibold shrink-0 text-fg-faint">?</span>
+                    <span className="text-[13px] font-[450] text-fg-muted flex-1 truncate font-mono" title={path}>
                       {path.split('/').pop()}
                     </span>
                     <div className="flex items-center gap-0.5 shrink-0">
@@ -239,7 +239,7 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
                         onClick={e => { e.stopPropagation(); stageFile(path) }}
                         disabled={loadingAction !== null}
                         title="Stage"
-                        className="text-[11px] text-gray-600 hover:text-emerald-600 transition-colors px-1"
+                        className="text-[15px] font-semibold font-mono text-fg-faint hover:text-fg transition-colors px-1"
                       >
                         {loading(`stage-${path}`) ? <span className="animate-spin inline-block text-[11px]">↻</span> : '+'}
                       </button>
@@ -247,7 +247,7 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
                         onClick={e => { e.stopPropagation(); discardFile(path) }}
                         disabled={loadingAction !== null}
                         title="Discard"
-                        className="text-[11px] text-gray-600 hover:text-red-600 transition-colors px-1"
+                        className="text-[15px] font-semibold font-mono text-fg-faint hover:text-red transition-colors px-1"
                       >
                         ×
                       </button>
@@ -260,14 +260,14 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
 
           {/* Conflicted */}
           {(status.conflicted ?? []).length > 0 && (
-            <div className="px-3 pt-3">
-              <div className="text-[11px] font-semibold text-red-500 uppercase tracking-wider mb-1.5">
-                Conflicts ({status.conflicted.length})
+            <div>
+              <div className="px-[18px] pt-[15px] pb-[7px] text-[10.5px] font-semibold tracking-[.07em] text-red uppercase">
+                Conflicts · {status.conflicted.length}
               </div>
               {status.conflicted.map(path => (
-                <div key={path} className="flex items-center gap-2 px-2 py-1">
-                  <span className="text-[11px] font-mono font-bold text-red-500 w-3">!</span>
-                  <span className="text-xs text-red-600 font-mono truncate">{path.split('/').pop()}</span>
+                <div key={path} className="flex items-center gap-2.5 px-[18px] py-2">
+                  <span className="w-4 text-center text-[12px] font-mono font-semibold text-red">!</span>
+                  <span className="text-[13px] font-[450] text-red font-mono truncate">{path.split('/').pop()}</span>
                 </div>
               ))}
             </div>
@@ -275,22 +275,22 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
         </div>
 
         {/* Commit form */}
-        <div className="border-t border-black/[0.08] p-3 shrink-0">
+        <div className="border-t border-border bg-panel px-4 py-3.5 shrink-0">
           <textarea
             value={commitMessage}
             onChange={e => setCommitMessage(e.target.value)}
             placeholder="Commit message…"
             rows={3}
-            className="w-full bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                       rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-indigo-500/40
-                       border border-transparent focus:border-indigo-400 resize-none font-mono text-xs mb-2"
+            className="w-full bg-bg border border-border rounded-[9px] px-[13px] py-[11px]
+                       text-[13px] font-[450] text-fg placeholder-fg-faint outline-none
+                       focus:border-accent focus:ring-1 focus:ring-accent/30 resize-none"
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[9px] mt-[11px]">
             <button
               onClick={() => doCommit(false)}
               disabled={!commitMessage.trim() || staged.length === 0 || loadingAction !== null}
-              className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40
-                         disabled:cursor-not-allowed text-gray-900 text-xs font-medium rounded-lg
+              className="flex-1 py-2.5 bg-accent hover:bg-accent-2 disabled:opacity-40
+                         disabled:cursor-not-allowed text-white text-[13px] font-semibold rounded-[9px]
                          transition-colors"
             >
               {loading('commit') ? <span className="animate-spin inline-block">↻</span> : 'Commit'}
@@ -298,8 +298,8 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
             <button
               onClick={() => doCommit(true)}
               disabled={!commitMessage.trim() || loadingAction !== null}
-              className="px-3 py-1.5 bg-black/[0.08] hover:bg-black/[0.10] disabled:opacity-40
-                         disabled:cursor-not-allowed text-gray-700 text-xs rounded-lg
+              className="px-[18px] py-2.5 bg-panel-2 border border-border hover:bg-hover disabled:opacity-40
+                         disabled:cursor-not-allowed text-fg-muted text-[13px] font-semibold rounded-[9px]
                          transition-colors"
             >
               Amend
@@ -307,45 +307,44 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
           </div>
 
           {/* Sync strip */}
-          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-black/[0.08]">
-            <div className="flex items-center gap-1 flex-1">
+          <div className="flex items-center justify-between mt-3 text-[11px] font-[450] font-mono text-fg-faint">
+            <div className="flex items-center gap-1.5 min-w-0">
               {status.ahead > 0 && (
-                <span className="text-[11px] text-emerald-600 font-mono">↑{status.ahead}</span>
+                <span className="text-green shrink-0">↑{status.ahead}</span>
               )}
               {status.behind > 0 && (
-                <span className="text-[11px] text-red-600 font-mono">↓{status.behind}</span>
+                <span className="text-red shrink-0">↓{status.behind}</span>
               )}
               {status.upstream && (
-                <span className="text-[10px] text-gray-600 font-mono truncate">{status.upstream}</span>
+                <span className="truncate">{status.upstream}</span>
               )}
             </div>
-            <button
-              onClick={doFetch}
-              disabled={loadingAction !== null}
-              title="Fetch"
-              className="text-xs text-gray-600 hover:text-gray-800 hover:bg-black/[0.08]
-                         px-2 py-0.5 rounded transition-colors"
-            >
-              {loading('fetch') ? <span className="animate-spin inline-block">↻</span> : '⟳'}
-            </button>
-            <button
-              onClick={doPull}
-              disabled={loadingAction !== null}
-              title="Pull"
-              className="text-xs text-gray-600 hover:text-gray-800 hover:bg-black/[0.08]
-                         px-2 py-0.5 rounded transition-colors"
-            >
-              {loading('pull') ? <span className="animate-spin inline-block">↻</span> : '↓ Pull'}
-            </button>
-            <button
-              onClick={() => doPush(false)}
-              disabled={loadingAction !== null}
-              title="Push"
-              className="text-xs text-gray-600 hover:text-gray-800 hover:bg-black/[0.08]
-                         px-2 py-0.5 rounded transition-colors"
-            >
-              {loading('push') ? <span className="animate-spin inline-block">↻</span> : '↑ Push'}
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={doFetch}
+                disabled={loadingAction !== null}
+                title="Fetch"
+                className="hover:text-fg transition-colors"
+              >
+                {loading('fetch') ? <span className="animate-spin inline-block">↻</span> : '⟳'}
+              </button>
+              <button
+                onClick={doPull}
+                disabled={loadingAction !== null}
+                title="Pull"
+                className="hover:text-fg transition-colors"
+              >
+                {loading('pull') ? <span className="animate-spin inline-block">↻</span> : '↓ Pull'}
+              </button>
+              <button
+                onClick={() => doPush(false)}
+                disabled={loadingAction !== null}
+                title="Push"
+                className="hover:text-fg transition-colors"
+              >
+                {loading('push') ? <span className="animate-spin inline-block">↻</span> : '↑ Push'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -353,13 +352,13 @@ export default function ChangesTab({ projectId, status, onRefreshStatus }: Chang
       {/* Right panel: diff */}
       <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {!selectedEntry ? (
-          <div className="flex-1 flex items-center justify-center text-gray-600 text-sm italic">
+          <div className="flex-1 flex items-center justify-center text-fg-faint text-[13px] font-[450] italic">
             Selecteer een bestand
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-3">
             {diffError && (
-              <div className="mb-2 bg-red-100 text-red-600 px-3 py-2 rounded text-xs">
+              <div className="mb-2 bg-red-soft text-red px-3 py-2 rounded-[7px] text-xs">
                 {diffError}
               </div>
             )}

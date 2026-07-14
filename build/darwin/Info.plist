@@ -4,7 +4,7 @@
         <key>CFBundlePackageType</key>
             <string>APPL</string>
         <key>CFBundleName</key>
-            <string>My Product</string>
+            <string>Kinsta Updater</string>
         <key>CFBundleExecutable</key>
             <string>rdm-sites-tool</string>
         <key>CFBundleIdentifier</key>

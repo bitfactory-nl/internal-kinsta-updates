@@ -20,7 +20,7 @@ func main() {
 	services := app.NewServices(cfg)
 
 	a := application.New(application.Options{
-		Name:        "RDM Sites Tool",
+		Name:        "Kinsta Updater",
 		Description: "Git & deployment dashboard for your projects",
 		Services:    services.Wails(),
 		Assets: application.AssetOptions{
@@ -34,12 +34,13 @@ func main() {
 	// Inject app reference so services can open dialogs / emit events
 	services.Project.SetApp(a)
 	services.SSH.SetApp(a)
+	services.Report.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()
 
 	a.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:  "RDM Sites Tool",
+		Title:  "Kinsta Updater",
 		Width:  1280,
 		Height: 800,
 		Mac: application.MacWindow{
