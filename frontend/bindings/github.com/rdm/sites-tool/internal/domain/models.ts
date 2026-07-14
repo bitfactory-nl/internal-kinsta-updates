@@ -9,6 +9,34 @@ import { Create as $Create } from "@wailsio/runtime";
 // @ts-ignore: Unused imports
 import * as time$0 from "../../../../../time/models.js";
 
+/**
+ * AVGRow is one free-form row in the "AVG check" table.
+ */
+export class AVGRow {
+    "onderwerp": string;
+    "opmerking": string;
+
+    /** Creates a new AVGRow instance. */
+    constructor($$source: Partial<AVGRow> = {}) {
+        if (!("onderwerp" in $$source)) {
+            this["onderwerp"] = "";
+        }
+        if (!("opmerking" in $$source)) {
+            this["opmerking"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AVGRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AVGRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AVGRow($$parsedSource as Partial<AVGRow>);
+    }
+}
+
 export class AWSProjectCfg {
     "region": string;
     "service": string;
@@ -43,6 +71,34 @@ export class AWSProjectCfg {
     static createFrom($$source: any = {}): AWSProjectCfg {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new AWSProjectCfg($$parsedSource as Partial<AWSProjectCfg>);
+    }
+}
+
+/**
+ * ActieRow is one row in the "Acties en aandachtspunten" table.
+ */
+export class ActieRow {
+    "actie": string;
+    "wie": string;
+
+    /** Creates a new ActieRow instance. */
+    constructor($$source: Partial<ActieRow> = {}) {
+        if (!("actie" in $$source)) {
+            this["actie"] = "";
+        }
+        if (!("wie" in $$source)) {
+            this["wie"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ActieRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ActieRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ActieRow($$parsedSource as Partial<ActieRow>);
     }
 }
 
@@ -798,6 +854,38 @@ export enum ModelTier {
     TierOpus = "opus",
 };
 
+/**
+ * MonitorRow is one row in the "Server, Uptime en TLS-monitoring" table.
+ */
+export class MonitorRow {
+    "onderdeel": string;
+    "status": string;
+    "opmerking": string;
+
+    /** Creates a new MonitorRow instance. */
+    constructor($$source: Partial<MonitorRow> = {}) {
+        if (!("onderdeel" in $$source)) {
+            this["onderdeel"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("opmerking" in $$source)) {
+            this["opmerking"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MonitorRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MonitorRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MonitorRow($$parsedSource as Partial<MonitorRow>);
+    }
+}
+
 export class PaidPlugin {
     "slug": string;
     "displayName": string;
@@ -1134,6 +1222,95 @@ export enum RegressionKind {
     RegStatus = "status",
 };
 
+/**
+ * Report is a per-project, per-period client report ("Servicecontract
+ * rapportage") mirroring the Bitfactory quarterly-report docx structure.
+ */
+export class Report {
+    "projectId": string;
+    "period": string;
+    "clientName": string;
+    "websiteName": string;
+    "acties": ActieRow[];
+    "monitoring": MonitorRow[];
+    "software": SoftwareRow[];
+    "dependencyUpdates": UpdateRow[];
+    "wpUpdates": UpdateRow[];
+    "avg": AVGRow[];
+    "updatedAt": time$0.Time;
+
+    /** Creates a new Report instance. */
+    constructor($$source: Partial<Report> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("period" in $$source)) {
+            this["period"] = "";
+        }
+        if (!("clientName" in $$source)) {
+            this["clientName"] = "";
+        }
+        if (!("websiteName" in $$source)) {
+            this["websiteName"] = "";
+        }
+        if (!("acties" in $$source)) {
+            this["acties"] = [];
+        }
+        if (!("monitoring" in $$source)) {
+            this["monitoring"] = [];
+        }
+        if (!("software" in $$source)) {
+            this["software"] = [];
+        }
+        if (!("dependencyUpdates" in $$source)) {
+            this["dependencyUpdates"] = [];
+        }
+        if (!("wpUpdates" in $$source)) {
+            this["wpUpdates"] = [];
+        }
+        if (!("avg" in $$source)) {
+            this["avg"] = [];
+        }
+        if (!("updatedAt" in $$source)) {
+            this["updatedAt"] = null;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Report instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Report {
+        const $$createField4_0 = $$createType30;
+        const $$createField5_0 = $$createType32;
+        const $$createField6_0 = $$createType34;
+        const $$createField7_0 = $$createType36;
+        const $$createField8_0 = $$createType36;
+        const $$createField9_0 = $$createType38;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("acties" in $$parsedSource) {
+            $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
+        }
+        if ("monitoring" in $$parsedSource) {
+            $$parsedSource["monitoring"] = $$createField5_0($$parsedSource["monitoring"]);
+        }
+        if ("software" in $$parsedSource) {
+            $$parsedSource["software"] = $$createField6_0($$parsedSource["software"]);
+        }
+        if ("dependencyUpdates" in $$parsedSource) {
+            $$parsedSource["dependencyUpdates"] = $$createField7_0($$parsedSource["dependencyUpdates"]);
+        }
+        if ("wpUpdates" in $$parsedSource) {
+            $$parsedSource["wpUpdates"] = $$createField8_0($$parsedSource["wpUpdates"]);
+        }
+        if ("avg" in $$parsedSource) {
+            $$parsedSource["avg"] = $$createField9_0($$parsedSource["avg"]);
+        }
+        return new Report($$parsedSource as Partial<Report>);
+    }
+}
+
 export class SSHTarget {
     "host": string;
     "port": number;
@@ -1179,6 +1356,46 @@ export enum Severity {
     SeverityHigh = "hoog",
     SeverityLow = "laag",
 };
+
+/**
+ * SoftwareRow is one row in the "Server software & frameworks" table.
+ */
+export class SoftwareRow {
+    "component": string;
+    "huidig": string;
+    "ondersteundTot": string;
+    "laatste": string;
+    "opmerking": string;
+
+    /** Creates a new SoftwareRow instance. */
+    constructor($$source: Partial<SoftwareRow> = {}) {
+        if (!("component" in $$source)) {
+            this["component"] = "";
+        }
+        if (!("huidig" in $$source)) {
+            this["huidig"] = "";
+        }
+        if (!("ondersteundTot" in $$source)) {
+            this["ondersteundTot"] = "";
+        }
+        if (!("laatste" in $$source)) {
+            this["laatste"] = "";
+        }
+        if (!("opmerking" in $$source)) {
+            this["opmerking"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SoftwareRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SoftwareRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SoftwareRow($$parsedSource as Partial<SoftwareRow>);
+    }
+}
 
 export class Stash {
     "index": number;
@@ -1283,8 +1500,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType30;
-        const $$createField5_0 = $$createType32;
+        const $$createField4_0 = $$createType40;
+        const $$createField5_0 = $$createType42;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1424,7 +1641,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType1;
-        const $$createField7_0 = $$createType34;
+        const $$createField7_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -1456,8 +1673,8 @@ export class TestingCfg {
      */
     static createFrom($$source: any = {}): TestingCfg {
         const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType36;
-        const $$createField2_0 = $$createType38;
+        const $$createField1_0 = $$createType46;
+        const $$createField2_0 = $$createType48;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -1469,6 +1686,39 @@ export class TestingCfg {
             $$parsedSource["testAccount"] = $$createField2_0($$parsedSource["testAccount"]);
         }
         return new TestingCfg($$parsedSource as Partial<TestingCfg>);
+    }
+}
+
+/**
+ * UpdateRow is one row in the "Managed software-updates" tables (dependency
+ * managers and WordPress core/plugins share the same shape).
+ */
+export class UpdateRow {
+    "naam": string;
+    "uitgevoerd": string;
+    "opmerking": string;
+
+    /** Creates a new UpdateRow instance. */
+    constructor($$source: Partial<UpdateRow> = {}) {
+        if (!("naam" in $$source)) {
+            this["naam"] = "";
+        }
+        if (!("uitgevoerd" in $$source)) {
+            this["uitgevoerd"] = "";
+        }
+        if (!("opmerking" in $$source)) {
+            this["opmerking"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UpdateRow($$parsedSource as Partial<UpdateRow>);
     }
 }
 
@@ -1539,13 +1789,23 @@ const $$createType25 = SSHTarget.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
 const $$createType27 = TestingCfg.createFrom;
 const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = Finding.createFrom;
+const $$createType29 = ActieRow.createFrom;
 const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = Regression.createFrom;
+const $$createType31 = MonitorRow.createFrom;
 const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = StepResult.createFrom;
+const $$createType33 = SoftwareRow.createFrom;
 const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = BasicAuth.createFrom;
-const $$createType36 = $Create.Map($Create.Any, $$createType35);
-const $$createType37 = TestAccount.createFrom;
-const $$createType38 = $Create.Nullable($$createType37);
+const $$createType35 = UpdateRow.createFrom;
+const $$createType36 = $Create.Array($$createType35);
+const $$createType37 = AVGRow.createFrom;
+const $$createType38 = $Create.Array($$createType37);
+const $$createType39 = Finding.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = Regression.createFrom;
+const $$createType42 = $Create.Array($$createType41);
+const $$createType43 = StepResult.createFrom;
+const $$createType44 = $Create.Array($$createType43);
+const $$createType45 = BasicAuth.createFrom;
+const $$createType46 = $Create.Map($Create.Any, $$createType45);
+const $$createType47 = TestAccount.createFrom;
+const $$createType48 = $Create.Nullable($$createType47);

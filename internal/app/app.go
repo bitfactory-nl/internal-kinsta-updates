@@ -34,16 +34,22 @@ type Services struct {
 	VulnScan *services.VulnScanService
 	Security *services.SecurityService
 	Test     *services.TestService
+	Report   *services.ReportService
 }
 
 func NewServices(cfg Config) *Services {
 	project := services.NewProjectService(cfg.Global.ProjectsRoots)
 	kinsta := services.NewKinstaService(&cfg.Global, project)
 	notify := services.NewNotifyService()
+	security := services.NewSecurityService(&cfg.Global, project)
 
 	runner := browser.NewRunner(services.SidecarScriptPath())
 	runStore := services.NewRunStore(services.DefaultRunHistoryDir())
 	testSvc := services.NewTestService(project, &cfg.Global, runStore, runner)
+
+	pdfRunner := browser.NewPDFRunner(services.PDFScriptPath())
+	reportStore := services.NewReportStore(services.DefaultReportsDir())
+	reportSvc := services.NewReportService(project, kinsta, security, reportStore, pdfRunner)
 
 	return &Services{
 		Project:  project,
@@ -58,8 +64,9 @@ func NewServices(cfg Config) *Services {
 		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
 		SSH:      services.NewSSHService(),
 		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
-		Security: services.NewSecurityService(&cfg.Global, project),
+		Security: security,
 		Test:     testSvc,
+		Report:   reportSvc,
 	}
 }
 
@@ -79,5 +86,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.VulnScan),
 		application.NewService(s.Security),
 		application.NewService(s.Test),
+		application.NewService(s.Report),
 	}
 }

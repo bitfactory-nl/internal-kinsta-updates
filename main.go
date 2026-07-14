@@ -34,6 +34,7 @@ func main() {
 	// Inject app reference so services can open dialogs / emit events
 	services.Project.SetApp(a)
 	services.SSH.SetApp(a)
+	services.Report.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()
