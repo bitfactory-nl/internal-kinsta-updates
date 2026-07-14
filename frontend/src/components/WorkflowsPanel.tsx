@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { ProjectWorkflow } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import ExternalLink from './ExternalLink'
@@ -109,31 +109,68 @@ export default function WorkflowsPanel({ projectId }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [dispatchingId, setDispatchingId] = useState<number | null>(null)
 
+  // Kept in sync every render so async callbacks can detect a project switch
+  // that happened after they were kicked off, and bail out instead of
+  // clobbering the now-current project's state with stale results.
+  const projectRef = useRef(projectId)
+  projectRef.current = projectId
+
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const load = useCallback((): Promise<void> => {
+    const pid = projectId
     setLoading(true)
-    return Services.SecurityService.ListWorkflows(projectId)
-      .then(w => { setWorkflows(w ?? []); setError(null) })
-      .catch(e => setError(getErrorMessage(e)))
-      .finally(() => setLoading(false))
+    return Services.SecurityService.ListWorkflows(pid)
+      .then(w => {
+        if (projectRef.current !== pid) return
+        setWorkflows(w ?? [])
+        setError(null)
+      })
+      .catch(e => {
+        if (projectRef.current !== pid) return
+        setError(getErrorMessage(e))
+      })
+      .finally(() => {
+        if (projectRef.current !== pid) return
+        setLoading(false)
+      })
   }, [projectId])
 
   useEffect(() => {
+    if (reloadTimerRef.current) {
+      clearTimeout(reloadTimerRef.current)
+      reloadTimerRef.current = null
+    }
     setWorkflows(null)
     setError(null)
+    setDispatchingId(null)
     load()
   }, [projectId, load])
 
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    }
+  }, [])
+
   const dispatch = async (workflowId: number) => {
+    const pid = projectId
     setError(null)
     setDispatchingId(workflowId)
     try {
-      await Services.SecurityService.DispatchWorkflow(projectId, workflowId)
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      await Services.SecurityService.DispatchWorkflow(pid, workflowId)
+      await new Promise<void>(resolve => {
+        reloadTimerRef.current = setTimeout(() => {
+          reloadTimerRef.current = null
+          resolve()
+        }, 2000)
+      })
+      if (projectRef.current !== pid) return
       await load()
     } catch (e) {
-      setError(getErrorMessage(e))
+      if (projectRef.current === pid) setError(getErrorMessage(e))
     } finally {
-      setDispatchingId(null)
+      if (projectRef.current === pid) setDispatchingId(null)
     }
   }
 
