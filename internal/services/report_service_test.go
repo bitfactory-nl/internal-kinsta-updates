@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/rdm/sites-tool/internal/adapters/kinsta"
@@ -189,6 +190,58 @@ func TestPrefillFillsSoftwareVersionsAndUpdateCounts(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected vulnerable-plugin actie row, got %+v", r.Acties)
+	}
+}
+
+func TestPrefillIsIdempotentAcrossSaveCycles(t *testing.T) {
+	dir := t.TempDir()
+	projects := &fakeReportProjects{projects: map[string]domain.Project{"p1": testProject("p1")}}
+	store := NewReportStore(dir)
+
+	// First cycle: one vulnerable plugin -> prefill, then save the draft
+	// (mirrors the app flow: Prefill → user reviews/edits → SaveReport).
+	kinstaFake1 := &fakeReportKinsta{
+		envs: &kinsta.EnvironmentDetails{
+			Plugins: []kinsta.Plugin{{Name: "a", IsVersionVulnerable: true}},
+		},
+	}
+	svc1 := NewReportService(projects, kinstaFake1, nil, store, nil)
+	r1, err := svc1.Prefill("p1", "Q2 2026")
+	if err != nil {
+		t.Fatalf("Prefill 1: %v", err)
+	}
+	if err := svc1.SaveReport(r1); err != nil {
+		t.Fatalf("SaveReport: %v", err)
+	}
+
+	// Second cycle: two vulnerable plugins now -> prefill again over the
+	// saved draft. The stale "1 kwetsbare..." row must be replaced, not
+	// duplicated alongside the fresh "2 kwetsbare..." row.
+	kinstaFake2 := &fakeReportKinsta{
+		envs: &kinsta.EnvironmentDetails{
+			Plugins: []kinsta.Plugin{
+				{Name: "a", IsVersionVulnerable: true},
+				{Name: "b", IsVersionVulnerable: true},
+			},
+		},
+	}
+	svc2 := NewReportService(projects, kinstaFake2, nil, store, nil)
+	r2, err := svc2.Prefill("p1", "Q2 2026")
+	if err != nil {
+		t.Fatalf("Prefill 2: %v", err)
+	}
+
+	var matches []domain.ActieRow
+	for _, a := range r2.Acties {
+		if strings.Contains(a.Actie, "kwetsbare plugin") {
+			matches = append(matches, a)
+		}
+	}
+	if len(matches) != 1 {
+		t.Fatalf("expected exactly one vulnerable-plugin actie row after repeated prefill, got %d: %+v", len(matches), r2.Acties)
+	}
+	if matches[0].Actie != "2 kwetsbare plugin(s) gevonden" {
+		t.Fatalf("expected latest count in actie text, got %q", matches[0].Actie)
 	}
 }
 

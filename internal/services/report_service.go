@@ -218,7 +218,7 @@ func (s *ReportService) prefillFromKinsta(r *domain.Report, p domain.Project) {
 	}
 	setUpdateOpmerking(r.WPUpdates, "WordPress plug-ins", fmt.Sprintf("%d plugin-updates beschikbaar", pluginUpdates))
 	if vulnerable > 0 {
-		r.Acties = append(r.Acties, domain.ActieRow{
+		r.Acties = appendActieIfAbsent(r.Acties, domain.ActieRow{
 			Actie: fmt.Sprintf("%d kwetsbare plugin(s) gevonden", vulnerable),
 			Wie:   "Bitfactory",
 		})
@@ -242,12 +242,47 @@ func (s *ReportService) prefillFromSecurity(r *domain.Report, projectID string) 
 			composer++
 		}
 	}
-	r.Acties = append(r.Acties, domain.ActieRow{
+	r.Acties = appendActieIfAbsent(r.Acties, domain.ActieRow{
 		Actie: fmt.Sprintf("%d security-findings uit npm/composer audit", len(sec.Findings)),
 		Wie:   "Bitfactory",
 	})
 	setUpdateOpmerking(r.DependencyUpdates, "Composer - PHP packages", fmt.Sprintf("%d findings", composer))
 	setUpdateOpmerking(r.DependencyUpdates, "NPM - Frontend packages", fmt.Sprintf("%d findings", npm))
+}
+
+// actieGeneratedMarkers are the stable substrings identifying a
+// Prefill-generated ActieRow "kind". The leading count in the Actie text
+// changes between runs (e.g. "1 kwetsbare..." -> "2 kwetsbare..."), so
+// matching is done on the fixed tail rather than the full string.
+var actieGeneratedMarkers = []string{"kwetsbare plugin", "security-finding"}
+
+// actieMatch reports whether existing is a previously generated instance of
+// the same kind as candidate (same "Wie" + same stable marker substring).
+func actieMatch(existing, candidate domain.ActieRow) bool {
+	if existing.Wie != candidate.Wie {
+		return false
+	}
+	for _, marker := range actieGeneratedMarkers {
+		if strings.Contains(candidate.Actie, marker) {
+			return strings.Contains(existing.Actie, marker)
+		}
+	}
+	return existing.Actie == candidate.Actie
+}
+
+// appendActieIfAbsent appends row to rows, unless a previously generated row
+// of the same kind (per actieMatch) already exists — in which case that row
+// is overwritten in place with the fresh text. This keeps repeated
+// Prefill -> SaveReport -> Prefill cycles idempotent instead of accumulating
+// duplicate rows with stale counts.
+func appendActieIfAbsent(rows []domain.ActieRow, row domain.ActieRow) []domain.ActieRow {
+	for i := range rows {
+		if actieMatch(rows[i], row) {
+			rows[i] = row
+			return rows
+		}
+	}
+	return append(rows, row)
 }
 
 func setSoftwareHuidig(r *domain.Report, component, version string) {

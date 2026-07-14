@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { Report } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
@@ -139,72 +139,109 @@ export default function ReportTab({ projectId }: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const period = `${quarter} ${year}`
+  const reportKey = `${projectId}::${period}`
+
+  // Kept in sync every render so async callbacks can detect a project/period
+  // switch that happened after they were kicked off, and bail out instead of
+  // clobbering the now-current selection's state with a stale response.
+  const keyRef = useRef(reportKey)
+  keyRef.current = reportKey
+
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(() => {
+    const key = reportKey
     setLoading(true)
     setError(null)
     setExportedPath(null)
     Services.ReportService.GetReport(projectId, period)
       .then(r => {
+        if (keyRef.current !== key) return
         setReport(r)
         setSavedSnapshot(JSON.stringify(r))
       })
-      .catch(e => setError(e instanceof Error ? e.message : String(e)))
-      .finally(() => setLoading(false))
+      .catch(e => {
+        if (keyRef.current !== key) return
+        setError(e instanceof Error ? e.message : String(e))
+      })
+      .finally(() => {
+        if (keyRef.current !== key) return
+        setLoading(false)
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, period])
+  }, [projectId, period, reportKey])
 
   useEffect(() => {
+    if (savedTimerRef.current) {
+      clearTimeout(savedTimerRef.current)
+      savedTimerRef.current = null
+    }
+    setSaved(false)
     load()
   }, [load])
+
+  useEffect(() => {
+    return () => {
+      if (savedTimerRef.current) clearTimeout(savedTimerRef.current)
+    }
+  }, [])
 
   const dirty = report !== null && JSON.stringify(report) !== savedSnapshot
 
   const doPrefill = async () => {
+    const key = reportKey
     setPrefilling(true)
     setError(null)
     try {
       const enriched = await Services.ReportService.Prefill(projectId, period)
+      if (keyRef.current !== key) return
       setReport(enriched)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (keyRef.current === key) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setPrefilling(false)
+      if (keyRef.current === key) setPrefilling(false)
     }
   }
 
   const doSave = async () => {
     if (!report) return
+    const key = reportKey
     setSaving(true)
     setError(null)
     setSaved(false)
     try {
       await Services.ReportService.SaveReport(report)
+      if (keyRef.current !== key) return
       setSavedSnapshot(JSON.stringify(report))
       setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+      savedTimerRef.current = setTimeout(() => {
+        savedTimerRef.current = null
+        if (keyRef.current === key) setSaved(false)
+      }, 2000)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (keyRef.current === key) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setSaving(false)
+      if (keyRef.current === key) setSaving(false)
     }
   }
 
   const doExport = async () => {
+    const key = reportKey
     setExporting(true)
     setError(null)
     setExportedPath(null)
     try {
       if (report) {
         await Services.ReportService.SaveReport(report)
-        setSavedSnapshot(JSON.stringify(report))
+        if (keyRef.current === key) setSavedSnapshot(JSON.stringify(report))
       }
       const path = await Services.ReportService.ExportPDF(projectId, period)
+      if (keyRef.current !== key) return
       if (path) setExportedPath(path)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      if (keyRef.current === key) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      setExporting(false)
+      if (keyRef.current === key) setExporting(false)
     }
   }
 
