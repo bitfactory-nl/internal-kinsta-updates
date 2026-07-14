@@ -152,7 +152,7 @@ export default function App() {
             className="flex-1 text-[13px] font-bold tracking-[-.01em] text-fg pl-1"
             style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           >
-            RDM Sites
+            Kinsta Updater
           </span>
           <IconBtn onClick={refresh} title="Opnieuw scannen" drag>
             {scanning ? (
