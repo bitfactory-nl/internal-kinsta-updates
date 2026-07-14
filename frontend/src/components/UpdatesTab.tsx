@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { UpdateBranch } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import WorkflowsPanel from './WorkflowsPanel'
 
 interface Props {
   projectId: string
@@ -94,6 +95,8 @@ export default function UpdatesTab({ projectId, currentBranch, onBranchCheckedOu
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[960px] px-7 pt-6 pb-[50px]">
+          <WorkflowsPanel projectId={projectId} />
+
           {/* Summary card */}
           <div className="flex items-center gap-4 bg-panel border border-border rounded-xl px-5 py-[18px] mb-6">
             <div className="w-11 h-11 rounded-[11px] bg-amber-soft flex items-center justify-center font-mono font-semibold text-[17px] text-amber shrink-0">
