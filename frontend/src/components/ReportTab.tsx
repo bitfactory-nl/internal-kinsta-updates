@@ -199,7 +199,7 @@ export default function ReportTab({ projectId }: Props) {
     } catch (e) {
       if (keyRef.current === key) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      if (keyRef.current === key) setPrefilling(false)
+      setPrefilling(false)
     }
   }
 
@@ -221,7 +221,7 @@ export default function ReportTab({ projectId }: Props) {
     } catch (e) {
       if (keyRef.current === key) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      if (keyRef.current === key) setSaving(false)
+      setSaving(false)
     }
   }
 
@@ -241,7 +241,7 @@ export default function ReportTab({ projectId }: Props) {
     } catch (e) {
       if (keyRef.current === key) setError(e instanceof Error ? e.message : String(e))
     } finally {
-      if (keyRef.current === key) setExporting(false)
+      setExporting(false)
     }
   }
 
