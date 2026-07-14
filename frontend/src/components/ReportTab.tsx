@@ -195,6 +195,10 @@ export default function ReportTab({ projectId }: Props) {
     setError(null)
     setExportedPath(null)
     try {
+      if (report) {
+        await Services.ReportService.SaveReport(report)
+        setSavedSnapshot(JSON.stringify(report))
+      }
       const path = await Services.ReportService.ExportPDF(projectId, period)
       if (path) setExportedPath(path)
     } catch (e) {
