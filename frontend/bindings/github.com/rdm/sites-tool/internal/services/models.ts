@@ -171,6 +171,16 @@ export class PackageUpdate {
      */
     "type"?: string;
 
+    /**
+     * "applied" | "manual" | "" (onbekend)
+     */
+    "status"?: string;
+
+    /**
+     * toelichting bij "manual"
+     */
+    "reason"?: string;
+
     /** Creates a new PackageUpdate instance. */
     constructor($$source: Partial<PackageUpdate> = {}) {
         if (!("name" in $$source)) {
@@ -558,6 +568,8 @@ export class WPCoreUpdate {
      * "minor" | "major"
      */
     "updateType": string;
+    "status"?: string;
+    "reason"?: string;
 
     /** Creates a new WPCoreUpdate instance. */
     constructor($$source: Partial<WPCoreUpdate> = {}) {

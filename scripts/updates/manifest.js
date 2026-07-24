@@ -1,97 +1,10 @@
 'use strict'
 
-// LET OP: .github/workflows/check-updates.yml bevat een embedded copy van
-// deze functies (een reusable workflow kan dit bestand niet require'n omdat
-// de workspace de klant-repo bevat). Wijzig je hier iets, werk dan ook de
-// workflow bij — de drift-test in manifest.test.js dwingt dit af.
-
-// Split the SSH stdout into its === SECTION === blocks.
-function sections(stdout) {
-  const out = {}
-  let current = null
-  for (const rawLine of String(stdout).split('\n')) {
-    const line = rawLine.replace(/\r$/, '')
-    const header = line.match(/^===\s*(.+?)\s*===$/)
-    if (header) {
-      const name = header[1].toUpperCase()
-      // Ignore the trailing separator line (=====...) which has empty name.
-      if (name && !/^=+$/.test(name)) {
-        current = name
-        out[current] = []
-      } else {
-        current = null
-      }
-      continue
-    }
-    if (current) out[current].push(line)
-  }
-  return out
-}
-
-// Keep only tab-separated data rows, dropping headers and status lines.
-function dataRows(lines, headerFirstCol) {
-  return (lines || [])
-    .filter((l) => l.includes('\t'))
-    .map((l) => l.split('\t'))
-    .filter((cols) => cols[0] && cols[0] !== headerFirstCol)
-}
-
-function parseWpUpdates(stdout) {
-  const s = sections(stdout)
-  const core = dataRows(s['WORDPRESS CORE'], 'version').map((c) => ({
-    version: c[0],
-    updateType: c[1] || '',
-  }))
-  const toPkg = (rows) => rows.map((c) => ({ name: c[0], from: c[1] || '', to: c[2] || '' }))
-  return {
-    core,
-    plugins: toPkg(dataRows(s['PLUGINS'], 'name')),
-    themes: toPkg(dataRows(s['THEMES'], 'name')),
-  }
-}
-
-function parseSemver(v) {
-  const m = String(v).replace(/^[^\d]*/, '').match(/^(\d+)\.(\d+)\.(\d+)/)
-  if (!m) return null
-  return { major: +m[1], minor: +m[2], patch: +m[3] }
-}
-
-function classifyBump(from, to) {
-  const a = parseSemver(from)
-  const b = parseSemver(to)
-  if (!a || !b) return 'minor'
-  if (b.major !== a.major) return 'major'
-  if (b.minor !== a.minor) return 'minor'
-  return 'patch'
-}
-
-function computeNpmUpdates({ current = {}, minor = {}, latest = {} }) {
-  const applied = Object.keys(minor).map((name) => ({
-    name,
-    from: current[name] ?? '',
-    to: minor[name],
-    type: classifyBump(current[name] ?? '', minor[name]),
-  }))
-  const availableMajors = Object.keys(latest)
-    .filter((name) => classifyBump(current[name] ?? '', latest[name]) === 'major')
-    .map((name) => ({ name, from: current[name] ?? '', to: latest[name] }))
-  return { applied, availableMajors }
-}
-
-function buildManifest({ generatedAt, wordpress, npm }) {
-  return {
-    generatedAt,
-    wordpress: {
-      core: wordpress.core || [],
-      plugins: wordpress.plugins || [],
-      themes: wordpress.themes || [],
-    },
-    npm: {
-      applied: (npm && npm.applied) || [],
-      availableMajors: (npm && npm.availableMajors) || [],
-    },
-  }
-}
+// PR-body-renderers. LET OP: de github-script-stap in
+// .github/workflows/check-updates.yml bevat een embedded copy van deze
+// functies (een reusable workflow kan dit bestand niet require'n). De
+// drift-test in manifest.test.js dwingt af dat beide gelijk blijven.
+// De parse/compute-logica leeft in wp-apply-runner.mjs en build-manifest.mjs.
 
 function renderNpmMajorsSection(availableMajors) {
   if (!availableMajors || availableMajors.length === 0) return ''
@@ -106,4 +19,55 @@ function renderNpmMajorsSection(availableMajors) {
   ].join('\n')
 }
 
-module.exports = { parseWpUpdates, classifyBump, computeNpmUpdates, buildManifest, renderNpmMajorsSection }
+function renderManualSection(items) {
+  if (!items || items.length === 0) return ''
+  const lines = items
+    .map((i) => `- \`${i.name}\` ${i.from ? i.from + ' → ' : ''}${i.to} — ${i.reason || 'handmatig'}`)
+    .join('\n')
+  return [
+    '### ⚠️ Handmatig bijwerken — niet automatisch uitgevoerd',
+    '',
+    'Deze updates konden niet veilig automatisch worden toegepast (premium/licentie of niet via wordpress.org verifieerbaar). Voer ze later handmatig uit:',
+    '',
+    lines,
+    '',
+  ].join('\n')
+}
+
+function renderWpAppliedSection(wordpress) {
+  const items = []
+  for (const c of (wordpress && wordpress.core) || []) {
+    if (c.status === 'applied') items.push(`- WordPress core → ${c.version} (${c.updateType})`)
+  }
+  for (const p of (wordpress && wordpress.plugins) || []) {
+    if (p.status === 'applied') items.push(`- \`${p.name}\` ${p.from} → ${p.to}`)
+  }
+  for (const t of (wordpress && wordpress.themes) || []) {
+    if (t.status === 'applied') items.push(`- thema \`${t.name}\` ${t.from} → ${t.to}`)
+  }
+  if (items.length === 0) return ''
+  return [
+    '### WordPress updates — uitgevoerd in deze branch',
+    '',
+    'De bestanden zijn bijgewerkt en zitten in de diff van deze PR. Na deploy kunnen database-migraties nodig zijn.',
+    '',
+    items.join('\n'),
+    '',
+  ].join('\n')
+}
+
+function collectManualWpItems(wordpress) {
+  const out = []
+  for (const c of (wordpress && wordpress.core) || []) {
+    if (c.status === 'manual') out.push({ name: 'WordPress core', from: '', to: c.version, reason: c.reason })
+  }
+  for (const p of (wordpress && wordpress.plugins) || []) {
+    if (p.status === 'manual') out.push(p)
+  }
+  for (const t of (wordpress && wordpress.themes) || []) {
+    if (t.status === 'manual') out.push(t)
+  }
+  return out
+}
+
+module.exports = { renderNpmMajorsSection, renderManualSection, renderWpAppliedSection, collectManualWpItems }

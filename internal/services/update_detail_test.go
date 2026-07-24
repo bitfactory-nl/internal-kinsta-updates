@@ -36,6 +36,27 @@ func TestParseUpdateManifest(t *testing.T) {
 	}
 }
 
+func TestParseUpdateManifestV2Status(t *testing.T) {
+	data := []byte(`{
+	  "wordpress": {
+	    "core": [{"version":"7.0.2","updateType":"major","status":"applied"}],
+	    "plugins": [{"name":"gravityforms","from":"2.10.2","to":"2.10.5","status":"manual","reason":"premium"}],
+	    "themes": []
+	  },
+	  "npm": {"applied": [], "availableMajors": []}
+	}`)
+	d, err := parseUpdateManifest(data)
+	if err != nil {
+		t.Fatalf("parseUpdateManifest: %v", err)
+	}
+	if d.WPCore[0].Status != "applied" {
+		t.Errorf("core status = %q, want applied", d.WPCore[0].Status)
+	}
+	if d.WPPlugins[0].Status != "manual" || d.WPPlugins[0].Reason != "premium" {
+		t.Errorf("plugin = %+v, want manual/premium", d.WPPlugins[0])
+	}
+}
+
 func TestParseWpUpdateLog(t *testing.T) {
 	log := "WordPress update check uitgevoerd op: x\n\n=== WORDPRESS CORE ===\n" +
 		"version\tupdate_type\tpackage_url\n7.0.2\tmajor\thttps://x\n" +

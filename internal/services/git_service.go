@@ -505,16 +505,20 @@ var updateBranchPrefixes = []string{
 
 // PackageUpdate is a single package version change (or availability).
 type PackageUpdate struct {
-	Name string `json:"name"`
-	From string `json:"from"`
-	To   string `json:"to"`
-	Type string `json:"type,omitempty"` // "minor" | "patch" (npm applied)
+	Name   string `json:"name"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Type   string `json:"type,omitempty"`   // "minor" | "patch" (npm applied)
+	Status string `json:"status,omitempty"` // "applied" | "manual" | "" (onbekend)
+	Reason string `json:"reason,omitempty"` // toelichting bij "manual"
 }
 
 // WPCoreUpdate is a single WordPress core version availability.
 type WPCoreUpdate struct {
 	Version    string `json:"version"`
 	UpdateType string `json:"updateType"` // "minor" | "major"
+	Status     string `json:"status,omitempty"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 // UpdateDetail is the fully resolved set of updates inside an update branch.
