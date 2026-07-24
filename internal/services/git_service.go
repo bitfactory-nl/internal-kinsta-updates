@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strconv"
@@ -500,6 +501,193 @@ var updateBranchPrefixes = []string{
 	"automated/wp-updates-",
 	"automated/updates-",
 	"Updates - ",
+}
+
+// PackageUpdate is a single package version change (or availability).
+type PackageUpdate struct {
+	Name   string `json:"name"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Type   string `json:"type,omitempty"`   // "minor" | "patch" (npm applied)
+	Status string `json:"status,omitempty"` // "applied" | "manual" | "" (onbekend)
+	Reason string `json:"reason,omitempty"` // toelichting bij "manual"
+}
+
+// WPCoreUpdate is a single WordPress core version availability.
+type WPCoreUpdate struct {
+	Version    string `json:"version"`
+	UpdateType string `json:"updateType"` // "minor" | "major"
+	Status     string `json:"status,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// UpdateDetail is the fully resolved set of updates inside an update branch.
+type UpdateDetail struct {
+	Source             string          `json:"source"` // "manifest" | "fallback"
+	GeneratedAt        string          `json:"generatedAt,omitempty"`
+	WPCore             []WPCoreUpdate  `json:"wpCore"`
+	WPPlugins          []PackageUpdate `json:"wpPlugins"`
+	WPThemes           []PackageUpdate `json:"wpThemes"`
+	NpmApplied         []PackageUpdate `json:"npmApplied"`
+	NpmAvailableMajors []PackageUpdate `json:"npmAvailableMajors"`
+}
+
+// manifestFile is the on-branch .updates.json shape.
+type manifestFile struct {
+	GeneratedAt string `json:"generatedAt"`
+	Wordpress   struct {
+		Core    []WPCoreUpdate  `json:"core"`
+		Plugins []PackageUpdate `json:"plugins"`
+		Themes  []PackageUpdate `json:"themes"`
+	} `json:"wordpress"`
+	Npm struct {
+		Applied         []PackageUpdate `json:"applied"`
+		AvailableMajors []PackageUpdate `json:"availableMajors"`
+	} `json:"npm"`
+}
+
+func parseUpdateManifest(data []byte) (*UpdateDetail, error) {
+	var m manifestFile
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("parse manifest: %w", err)
+	}
+	return &UpdateDetail{
+		Source:             "manifest",
+		GeneratedAt:        m.GeneratedAt,
+		WPCore:             m.Wordpress.Core,
+		WPPlugins:          m.Wordpress.Plugins,
+		WPThemes:           m.Wordpress.Themes,
+		NpmApplied:         m.Npm.Applied,
+		NpmAvailableMajors: m.Npm.AvailableMajors,
+	}, nil
+}
+
+// parseWpUpdateLog extracts update tables from a .wp-update-log text file.
+func parseWpUpdateLog(log string) (core []WPCoreUpdate, plugins, themes []PackageUpdate) {
+	core, plugins, themes = []WPCoreUpdate{}, []PackageUpdate{}, []PackageUpdate{}
+	section := ""
+	for _, raw := range strings.Split(log, "\n") {
+		line := strings.TrimRight(raw, "\r")
+		switch {
+		case strings.HasPrefix(line, "=== WORDPRESS CORE ==="):
+			section = "core"
+			continue
+		case strings.HasPrefix(line, "=== PLUGINS ==="):
+			section = "plugins"
+			continue
+		case strings.HasPrefix(line, "=== THEMES ==="):
+			section = "themes"
+			continue
+		case strings.HasPrefix(line, "==="):
+			section = ""
+			continue
+		}
+		if section == "" || !strings.Contains(line, "\t") {
+			continue
+		}
+		cols := strings.Split(line, "\t")
+		switch section {
+		case "core":
+			if cols[0] == "version" {
+				continue
+			}
+			c := WPCoreUpdate{Version: cols[0]}
+			if len(cols) > 1 {
+				c.UpdateType = cols[1]
+			}
+			core = append(core, c)
+		case "plugins", "themes":
+			if cols[0] == "name" {
+				continue
+			}
+			p := PackageUpdate{Name: cols[0]}
+			if len(cols) > 1 {
+				p.From = cols[1]
+			}
+			if len(cols) > 2 {
+				p.To = cols[2]
+			}
+			if section == "plugins" {
+				plugins = append(plugins, p)
+			} else {
+				themes = append(themes, p)
+			}
+		}
+	}
+	return core, plugins, themes
+}
+
+// npmAppliedFromPackageJSON diffs two package.json blobs into changed deps.
+func npmAppliedFromPackageJSON(before, after string) []PackageUpdate {
+	deps := func(s string) map[string]string {
+		var p struct {
+			Dependencies    map[string]string `json:"dependencies"`
+			DevDependencies map[string]string `json:"devDependencies"`
+		}
+		_ = json.Unmarshal([]byte(s), &p)
+		out := map[string]string{}
+		for k, v := range p.Dependencies {
+			out[k] = v
+		}
+		for k, v := range p.DevDependencies {
+			out[k] = v
+		}
+		return out
+	}
+	b, a := deps(before), deps(after)
+	names := make([]string, 0, len(a))
+	for name, av := range a {
+		if bv, ok := b[name]; ok && bv != av {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	out := make([]PackageUpdate, 0, len(names))
+	for _, name := range names {
+		out = append(out, PackageUpdate{Name: name, From: b[name], To: a[name]})
+	}
+	return out
+}
+
+// GetUpdateBranchDetail resolves all updates carried by an update branch,
+// preferring the .updates.json manifest and falling back to the text log +
+// package.json diff. Read-only.
+func (s *GitService) GetUpdateBranchDetail(projectID, shortName string) (*UpdateDetail, error) {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return nil, fmt.Errorf("update detail: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+
+	// Resolve a usable ref: prefer the remote copy, fall back to a local branch.
+	ref := "origin/" + shortName
+	if _, err := gitcli.Run(ctx, path, "rev-parse", "--verify", ref); err != nil {
+		ref = shortName
+	}
+
+	// 1. Manifest path.
+	if out, err := gitcli.Run(ctx, path, "show", ref+":.updates.json"); err == nil && out != "" {
+		if d, err := parseUpdateManifest([]byte(out)); err == nil {
+			return d, nil
+		}
+	}
+
+	// 2. Fallback: text log + package.json diff (parent vs ref).
+	d := &UpdateDetail{
+		Source: "fallback", WPCore: []WPCoreUpdate{},
+		WPPlugins: []PackageUpdate{}, WPThemes: []PackageUpdate{},
+		NpmApplied: []PackageUpdate{}, NpmAvailableMajors: []PackageUpdate{},
+	}
+	if log, err := gitcli.Run(ctx, path, "show", ref+":.wp-update-log"); err == nil && log != "" {
+		d.WPCore, d.WPPlugins, d.WPThemes = parseWpUpdateLog(log)
+	}
+	after, errA := gitcli.Run(ctx, path, "show", ref+":package.json")
+	before, errB := gitcli.Run(ctx, path, "show", ref+"~1:package.json")
+	if errA == nil && errB == nil && after != "" && before != "" {
+		d.NpmApplied = npmAppliedFromPackageJSON(before, after)
+	}
+	return d, nil
 }
 
 // GetUpdateBranches returns remote branches matching known update branch patterns, sorted newest first.

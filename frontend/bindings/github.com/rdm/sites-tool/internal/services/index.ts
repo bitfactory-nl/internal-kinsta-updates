@@ -39,10 +39,13 @@ export {
     BatchResult,
     MakeResult,
     MakeTarget,
+    PackageUpdate,
     ProjectWorkflow,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,
     UpdateBranch,
-    VulnFinding
+    UpdateDetail,
+    VulnFinding,
+    WPCoreUpdate
 } from "./models.js";

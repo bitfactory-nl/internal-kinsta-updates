@@ -146,11 +146,22 @@ export function GetTags(projectID: string): $CancellablePromise<domain$0.Tag[]> 
 }
 
 /**
+ * GetUpdateBranchDetail resolves all updates carried by an update branch,
+ * preferring the .updates.json manifest and falling back to the text log +
+ * package.json diff. Read-only.
+ */
+export function GetUpdateBranchDetail(projectID: string, shortName: string): $CancellablePromise<$models.UpdateDetail | null> {
+    return $Call.ByID(3238847531, projectID, shortName).then(($result: any) => {
+        return $$createType17($result);
+    });
+}
+
+/**
  * GetUpdateBranches returns remote branches matching known update branch patterns, sorted newest first.
  */
 export function GetUpdateBranches(projectID: string): $CancellablePromise<$models.UpdateBranch[]> {
     return $Call.ByID(1569232410, projectID).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType19($result);
     });
 }
 
@@ -244,5 +255,7 @@ const $$createType12 = $Create.Array($$createType11);
 const $$createType13 = domain$0.GitStatus.createFrom;
 const $$createType14 = domain$0.Tag.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $models.UpdateBranch.createFrom;
-const $$createType17 = $Create.Array($$createType16);
+const $$createType16 = $models.UpdateDetail.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = $models.UpdateBranch.createFrom;
+const $$createType19 = $Create.Array($$createType18);
