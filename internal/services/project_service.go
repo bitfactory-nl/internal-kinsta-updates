@@ -146,6 +146,18 @@ func (s *ProjectService) List() []domain.Project {
 	return s.projects
 }
 
+// Get returns a project by ID from the last scan.
+func (s *ProjectService) Get(id string) (domain.Project, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, p := range s.projects {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return domain.Project{}, false
+}
+
 // UpdateProjectConfig replaces the Config of a project in-memory (used after saving .rdm.yml).
 func (s *ProjectService) UpdateProjectConfig(id string, cfg domain.ProjectConfig) {
 	s.mu.Lock()

@@ -82,162 +82,163 @@ export default function BranchesTab({ projectId, currentBranch, onBranchChange }
   const isLoading = (key: string) => loadingAction === key
 
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto p-4 gap-4">
-      {/* New branch form */}
-      <div className="bg-black/[0.04] rounded-xl p-3 flex items-center gap-2">
-        <input
-          type="text"
-          value={newName}
-          onChange={e => setNewName(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && createBranch()}
-          placeholder="New branch name…"
-          className="flex-1 bg-black/[0.05] text-sm text-gray-800 placeholder-gray-400
-                     rounded-lg px-3 py-1.5 outline-none focus:ring-1 focus:ring-indigo-500/40
-                     border border-transparent focus:border-indigo-400"
-        />
-        <select
-          value={fromBranch}
-          onChange={e => setFromBranch(e.target.value)}
-          className="bg-black/[0.05] text-xs text-gray-600 rounded-lg px-2 py-1.5 outline-none
-                     border border-black/[0.08] focus:ring-1 focus:ring-indigo-400 max-w-[140px]"
-        >
-          {localBranches.map(b => (
-            <option key={b.name} value={b.name}>{b.name}</option>
-          ))}
-        </select>
-        <button
-          onClick={createBranch}
-          disabled={!newName.trim() || loadingAction !== null}
-          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40
-                     disabled:cursor-not-allowed text-gray-900 text-xs font-medium rounded-lg
-                     transition-colors shrink-0"
-        >
-          {isLoading('create') ? <span className="animate-spin inline-block">↻</span> : 'Create'}
-        </button>
-      </div>
-
-      {(error || actionError) && (
-        <div className="bg-red-100 text-red-600 px-3 py-2 rounded text-xs">
-          {error || actionError}
+    <div className="flex-1 overflow-y-auto">
+      <div className="px-[26px] pt-[22px] pb-[50px] max-w-[1000px]">
+        {/* New branch form */}
+        <div className="flex items-stretch gap-2.5 mb-[26px]">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && createBranch()}
+            placeholder="New branch name…"
+            className="flex-1 bg-panel border border-border rounded-[9px] px-[13px] py-[9px] text-[13px]
+                       text-fg placeholder-fg-faint outline-none focus:border-accent
+                       focus:ring-1 focus:ring-accent/30"
+          />
+          <select
+            value={fromBranch}
+            onChange={e => setFromBranch(e.target.value)}
+            className="bg-panel border border-border rounded-[9px] px-[13px] py-[9px] text-[12.5px]
+                       font-mono font-[450] text-fg-muted outline-none focus:border-accent
+                       focus:ring-1 focus:ring-accent/30 max-w-[200px]"
+          >
+            {localBranches.map(b => (
+              <option key={b.name} value={b.name}>{b.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={createBranch}
+            disabled={!newName.trim() || loadingAction !== null}
+            className="bg-accent text-white text-[12.5px] font-semibold px-[20px] rounded-[9px]
+                       hover:bg-accent-2 transition-colors disabled:opacity-40
+                       disabled:cursor-not-allowed shrink-0"
+          >
+            {isLoading('create') ? <span className="animate-spin inline-block">↻</span> : 'Create'}
+          </button>
         </div>
-      )}
 
-      {loading ? (
-        <div className="flex items-center justify-center py-8 gap-2 text-gray-600 text-sm">
-          <span className="animate-spin inline-block">↻</span>
-          <span>Loading branches…</span>
-        </div>
-      ) : (
-        <>
-          {/* Local branches */}
-          <div>
-            <h3 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider mb-2">
-              Local ({localBranches.length})
-            </h3>
-            <div className="space-y-0.5">
-              {localBranches.map(branch => (
-                <div
-                  key={branch.name}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-black/[0.04] transition-colors"
-                >
-                  {/* Current dot */}
-                  <div className="w-3 shrink-0 flex items-center justify-center">
-                    {branch.isCurrent && (
-                      <span className="w-2 h-2 rounded-full bg-indigo-400 block" />
-                    )}
-                  </div>
+        {(error || actionError) && (
+          <div className="bg-red-soft text-red px-3 py-2 rounded-[9px] text-xs mb-4">
+            {error || actionError}
+          </div>
+        )}
 
-                  {/* Name */}
-                  <span className={`text-sm flex-1 font-mono truncate ${branch.isCurrent ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
-                    {branch.name}
-                  </span>
+        {loading ? (
+          <div className="flex items-center justify-center py-8 gap-2 text-fg-muted text-sm">
+            <span className="animate-spin inline-block">↻</span>
+            <span>Loading branches…</span>
+          </div>
+        ) : (
+          <>
+            {/* Local branches */}
+            <div className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+              Local · {localBranches.length}
+            </div>
+            <div className="bg-panel border border-border rounded-[11px] overflow-hidden mb-[26px]">
+              {localBranches.length === 0 ? (
+                <p className="text-[13px] text-fg-faint italic px-4 py-3">No local branches</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {localBranches.map(branch => (
+                    <div
+                      key={branch.name}
+                      className="flex items-center gap-[11px] px-4 py-3 hover:bg-hover transition-colors"
+                    >
+                      {/* Current dot */}
+                      <span
+                        className={`w-[7px] h-[7px] rounded-full shrink-0 ${
+                          branch.isCurrent ? 'bg-accent' : 'bg-fg-faint opacity-50'
+                        }`}
+                      />
 
-                  {/* Upstream */}
-                  {branch.upstream && (
-                    <span className="text-[10px] text-gray-600 font-mono shrink-0 hidden lg:block">
-                      {branch.upstream}
-                    </span>
-                  )}
-
-                  {/* Actions */}
-                  {!branch.isCurrent && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => checkout(branch.name)}
-                        disabled={loadingAction !== null}
-                        className="text-xs text-gray-600 hover:text-gray-900 hover:bg-black/[0.08]
-                                   px-2 py-0.5 rounded transition-colors"
+                      {/* Name */}
+                      <span
+                        className={`flex-1 min-w-0 text-[13px] font-mono truncate ${
+                          branch.isCurrent ? 'font-semibold text-fg' : 'font-[450] text-fg-muted'
+                        }`}
                       >
-                        {isLoading(`checkout-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Checkout'}
-                      </button>
+                        {branch.name}
+                      </span>
+
+                      {/* Upstream */}
+                      {branch.upstream && (
+                        <span className="text-[11px] font-[450] text-fg-faint font-mono shrink-0 hidden lg:block">
+                          {branch.upstream}
+                        </span>
+                      )}
+
+                      {/* Actions */}
+                      {!branch.isCurrent && (
+                        <div className="flex items-center gap-4 shrink-0 text-[12px] font-medium">
+                          <button
+                            onClick={() => checkout(branch.name)}
+                            disabled={loadingAction !== null}
+                            className="text-accent hover:text-accent-2 disabled:opacity-40 transition-colors"
+                          >
+                            {isLoading(`checkout-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Checkout'}
+                          </button>
+                          <button
+                            onClick={() => merge(branch.name)}
+                            disabled={loadingAction !== null}
+                            className="text-fg-muted hover:text-fg disabled:opacity-40 transition-colors"
+                          >
+                            {isLoading(`merge-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Merge'}
+                          </button>
+                          <button
+                            onClick={() => deleteBranch(branch.name)}
+                            disabled={loadingAction !== null}
+                            className="text-red hover:opacity-80 disabled:opacity-40 transition-opacity"
+                          >
+                            {isLoading(`delete-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Delete'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Remote branches */}
+            <div className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+              Remote · {remoteBranches.length}
+            </div>
+            <div className="bg-panel border border-border rounded-[11px] overflow-hidden">
+              {remoteBranches.length === 0 ? (
+                <p className="text-[13px] text-fg-faint italic px-4 py-3">No remote branches</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {remoteBranches.map(branch => (
+                    <div
+                      key={branch.fullRef}
+                      className="flex items-center gap-[11px] px-4 py-3 hover:bg-hover transition-colors"
+                    >
+                      <span className="w-[7px] h-[7px] rounded-full shrink-0 bg-fg-faint opacity-50" />
+                      <span className="flex-1 min-w-0 text-[13px] font-mono font-[450] truncate text-fg-muted">
+                        {branch.name}
+                      </span>
                       <button
-                        onClick={() => merge(branch.name)}
+                        onClick={() => {
+                          const localName = branch.name.replace(/^[^/]+\//, '')
+                          withAction(`checkout-remote-${branch.name}`, () =>
+                            Services.GitService.CheckoutBranch(projectId, localName)
+                          )
+                        }}
                         disabled={loadingAction !== null}
-                        className="text-xs text-gray-600 hover:text-gray-900 hover:bg-black/[0.08]
-                                   px-2 py-0.5 rounded transition-colors"
+                        className="text-[12px] font-medium text-accent hover:text-accent-2
+                                   disabled:opacity-40 transition-colors shrink-0"
                       >
-                        {isLoading(`merge-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Merge'}
-                      </button>
-                      <button
-                        onClick={() => deleteBranch(branch.name)}
-                        disabled={loadingAction !== null}
-                        className="text-xs text-gray-600 hover:text-red-600 hover:bg-red-500/10
-                                   px-2 py-0.5 rounded transition-colors"
-                      >
-                        {isLoading(`delete-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Delete'}
+                        {isLoading(`checkout-remote-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Checkout as local'}
                       </button>
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-              {localBranches.length === 0 && (
-                <p className="text-xs text-gray-600 italic px-3">No local branches</p>
               )}
             </div>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-black/[0.08]" />
-
-          {/* Remote branches */}
-          <div>
-            <h3 className="text-[11px] font-semibold text-gray-600 uppercase tracking-wider mb-2">
-              Remote ({remoteBranches.length})
-            </h3>
-            <div className="space-y-0.5">
-              {remoteBranches.map(branch => (
-                <div
-                  key={branch.fullRef}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-black/[0.04] transition-colors"
-                >
-                  <div className="w-3 shrink-0" />
-                  <span className="text-sm flex-1 font-mono truncate text-gray-600">
-                    {branch.name}
-                  </span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => {
-                        const localName = branch.name.replace(/^[^/]+\//, '')
-                        withAction(`checkout-remote-${branch.name}`, () =>
-                          Services.GitService.CheckoutBranch(projectId, localName)
-                        )
-                      }}
-                      disabled={loadingAction !== null}
-                      className="text-xs text-gray-600 hover:text-gray-900 hover:bg-black/[0.08]
-                                 px-2 py-0.5 rounded transition-colors"
-                    >
-                      {isLoading(`checkout-remote-${branch.name}`) ? <span className="animate-spin inline-block">↻</span> : 'Checkout as local'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {remoteBranches.length === 0 && (
-                <p className="text-xs text-gray-600 italic px-3">No remote branches</p>
-              )}
-            </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   )
 }

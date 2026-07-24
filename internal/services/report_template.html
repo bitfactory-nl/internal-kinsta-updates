@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Servicecontract rapportage - {{.ClientName}} - {{.Period}}</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #111;
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0;
+  }
+  .cover {
+    background: #EEEC6E;
+    padding: 40px 36px;
+    margin-bottom: 28px;
+    page-break-inside: avoid;
+  }
+  .cover .logo {
+    height: 48px;
+    margin-bottom: 32px;
+    display: block;
+  }
+  .cover h1 {
+    font-size: 26px;
+    margin: 0 0 6px 0;
+    font-weight: 700;
+  }
+  .cover .subtitle {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+  }
+  section {
+    margin-bottom: 26px;
+    page-break-inside: avoid;
+  }
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+    border-bottom: 2px solid #EEEC6E;
+    padding-bottom: 6px;
+    margin: 0 0 10px 0;
+  }
+  p.intro, p.note {
+    margin: 0 0 10px 0;
+    color: #333;
+  }
+  p.note {
+    font-style: italic;
+    font-size: 11px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: #f4f4f4;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  td.status-ok {
+    color: #1a7a3c;
+    font-weight: 600;
+  }
+  .website-line {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #333;
+  }
+  footer {
+    margin-top: 32px;
+    padding-top: 10px;
+    border-top: 1px solid #ddd;
+    font-size: 10px;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+  <div class="cover">
+    {{if .LogoB64}}<img class="logo" src="data:image/png;base64,{{.LogoB64}}" alt="Bitfactory">{{end}}
+    <h1>Servicecontract rapportage</h1>
+    <p class="subtitle">{{.ClientName}} - {{.Period}}</p>
+  </div>
+
+  <section>
+    <h2>Acties en aandachtspunten</h2>
+    <p class="intro">Onderstaande punten zijn een samenvatting uit de onderdelen die genoemd zijn op de volgende pagina's</p>
+    <table>
+      <thead><tr><th>Acties</th><th>Wie</th></tr></thead>
+      <tbody>
+        {{range .Acties}}<tr><td>{{.Actie}}</td><td>{{.Wie}}</td></tr>{{end}}
+      </tbody>
+    </table>
+    {{if .WebsiteName}}<p class="website-line">{{.WebsiteName}} - WordPress-website</p>{{end}}
+  </section>
+
+  <section>
+    <h2>Server, Uptime en TLS-monitoring</h2>
+    <table>
+      <thead><tr><th>Onderdeel</th><th>Status</th><th>Opmerking / conclusie</th></tr></thead>
+      <tbody>
+        {{range .Monitoring}}<tr><td>{{.Onderdeel}}</td><td{{if eq .Status "✔ OK"}} class="status-ok"{{end}}>{{.Status}}</td><td>{{.Opmerking}}</td></tr>{{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Server software &amp; frameworks</h2>
+    <p class="note">Onderstaande upgrades (indien van toepassing) zijn niet inbegrepen in het servicecontract en dienen tijdig te worden ingepland.</p>
+    <table>
+      <thead><tr><th>Component</th><th>Huidige versie</th><th>Ondersteuning tot</th><th>Laatste versie</th><th>Opmerkingen</th></tr></thead>
+      <tbody>
+        {{range .Software}}<tr><td>{{.Component}}</td><td>{{.Huidig}}</td><td>{{.OndersteundTot}}</td><td>{{.Laatste}}</td><td>{{.Opmerking}}</td></tr>{{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Managed software-updates</h2>
+    <table>
+      <thead><tr><th>Dependency managers</th><th>Uitgevoerd</th><th>Opmerking / conclusie</th></tr></thead>
+      <tbody>
+        {{range .DependencyUpdates}}<tr><td>{{.Naam}}</td><td>{{.Uitgevoerd}}</td><td>{{.Opmerking}}</td></tr>{{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <table>
+      <thead><tr><th></th><th>Uitgevoerd</th><th>Opmerking</th></tr></thead>
+      <tbody>
+        {{range .WPUpdates}}<tr><td>{{.Naam}}</td><td>{{.Uitgevoerd}}</td><td>{{.Opmerking}}</td></tr>{{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>AVG check</h2>
+    <table>
+      <thead><tr><th></th><th>Opmerking / conclusie</th></tr></thead>
+      <tbody>
+        {{range .AVG}}<tr><td>{{.Onderwerp}}</td><td>{{.Opmerking}}</td></tr>{{end}}
+      </tbody>
+    </table>
+  </section>
+
+  <footer>{{.ClientName}} &middot; {{.Period}} &middot; Bitfactory</footer>
+</body>
+</html>

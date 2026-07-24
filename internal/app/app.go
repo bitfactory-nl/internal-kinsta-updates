@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/services"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -32,12 +33,24 @@ type Services struct {
 	SSH      *services.SSHService
 	VulnScan *services.VulnScanService
 	Security *services.SecurityService
+	Test     *services.TestService
+	Report   *services.ReportService
 }
 
 func NewServices(cfg Config) *Services {
 	project := services.NewProjectService(cfg.Global.ProjectsRoots)
 	kinsta := services.NewKinstaService(&cfg.Global, project)
 	notify := services.NewNotifyService()
+	security := services.NewSecurityService(&cfg.Global, project)
+
+	runner := browser.NewRunner(services.SidecarScriptPath())
+	runStore := services.NewRunStore(services.DefaultRunHistoryDir())
+	testSvc := services.NewTestService(project, &cfg.Global, runStore, runner)
+
+	pdfRunner := browser.NewPDFRunner(services.PDFScriptPath())
+	reportStore := services.NewReportStore(services.DefaultReportsDir())
+	reportSvc := services.NewReportService(project, kinsta, security, reportStore, pdfRunner)
+
 	return &Services{
 		Project:  project,
 		Git:      services.NewGitService(project),
@@ -51,7 +64,9 @@ func NewServices(cfg Config) *Services {
 		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
 		SSH:      services.NewSSHService(),
 		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
-		Security: services.NewSecurityService(&cfg.Global, project),
+		Security: security,
+		Test:     testSvc,
+		Report:   reportSvc,
 	}
 }
 
@@ -70,5 +85,7 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.SSH),
 		application.NewService(s.VulnScan),
 		application.NewService(s.Security),
+		application.NewService(s.Test),
+		application.NewService(s.Report),
 	}
 }

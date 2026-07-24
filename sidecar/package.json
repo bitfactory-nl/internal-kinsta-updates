@@ -1,0 +1,15 @@
+{
+  "name": "rdm-sites-tool-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Playwright sidecar for the RDM Sites Tool AI visual testing feature",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "install-browser": "playwright install chromium",
+    "smoke": "node runner.mjs < testdata/smoke-request.json"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

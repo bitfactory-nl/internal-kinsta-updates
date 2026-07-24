@@ -55,7 +55,6 @@ jobs:
           fi
 
       - name: Setup Node
-        if: hashFiles('package.json') != ''
         uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c
         with:
           node-version: lts/*
@@ -66,8 +65,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          NCU_LOG=$(mktemp)
-          npx --yes npm-check-updates@latest -u --target minor --color false 2>&1 | tee "$NCU_LOG"
+          # Snapshot huidige versies (dep + devDep) vóór enige wijziging.
+          node -e "const p=require('./package.json');console.log(JSON.stringify({...(p.dependencies||{}),...(p.devDependencies||{})}))" > /tmp/npm-current.json
+          # Read-only passes: welke minor/patch en welke latest (voor majors).
+          npx --yes npm-check-updates@latest --jsonUpgraded --target minor > /tmp/npm-minor.json || echo '{}' > /tmp/npm-minor.json
+          npx --yes npm-check-updates@latest --jsonUpgraded > /tmp/npm-latest.json || echo '{}' > /tmp/npm-latest.json
+          # Pas alleen minor/patch daadwerkelijk toe.
+          # Let op: geen "--color false" — ncu leest het losse woord "false"
+          # als package-filter en vindt dan nooit iets ("No dependencies").
+          npx --yes npm-check-updates@latest -u --target minor
           npm install --package-lock-only --ignore-scripts
           if git diff --quiet -- package.json package-lock.json; then
             echo "has_npm_updates=false" >> "$GITHUB_OUTPUT"
@@ -75,107 +81,473 @@ jobs:
           else
             echo "has_npm_updates=true" >> "$GITHUB_OUTPUT"
             git diff --stat -- package.json package-lock.json
-            NCU_CONTENT=$(cat "$NCU_LOG")
-            {
-              echo 'ncu_output<<BF_NCU_DELIMITER'
-              echo "$NCU_CONTENT"
-              echo 'BF_NCU_DELIMITER'
-            } >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Maak update branch en PR aan
+      - name: Voer WordPress updates uit (branch-only)
+        id: wp_apply
+        if: steps.check_updates.outputs.has_updates == 'true'
+        shell: bash
+        env:
+          SSH_STDOUT: ${{ steps.get_updates.outputs.stdout }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$SSH_STDOUT" > /tmp/wp-updates.txt
+          cat > /tmp/wp-apply-runner.mjs <<'WP_APPLY_RUNNER'
+          #!/usr/bin/env node
+          'use strict'
+          // Zelfstandige runner: voert WordPress-updates uit in de werkboom (branch-only,
+          // geen server-side effecten). Canoniek bestand — check-updates.yml embed exact
+          // dezelfde inhoud via heredoc; de drift-test in manifest.test.js bewaakt dit.
+          // Bevat eigen kopieën van de parse-helpers omdat het script standalone in /tmp
+          // draait (de workflow-workspace bevat de klant-repo, niet deze repo).
+
+          import fs from 'node:fs'
+          import path from 'node:path'
+          import { spawnSync } from 'node:child_process'
+          import { pathToFileURL } from 'node:url'
+
+          export function sections(stdout) {
+            const out = {}
+            let current = null
+            for (const rawLine of String(stdout).split('\n')) {
+              const line = rawLine.replace(/\r$/, '')
+              const header = line.match(/^===\s*(.+?)\s*===$/)
+              if (header) {
+                const name = header[1].toUpperCase()
+                if (name && !/^=+$/.test(name)) {
+                  current = name
+                  out[current] = []
+                } else {
+                  current = null
+                }
+                continue
+              }
+              if (current) out[current].push(line)
+            }
+            return out
+          }
+
+          export function dataRows(lines, headerFirstCol) {
+            return (lines || [])
+              .filter((l) => l.includes('\t'))
+              .map((l) => l.split('\t'))
+              .filter((cols) => cols[0] && cols[0] !== headerFirstCol)
+          }
+
+          export function parseWpUpdates(stdout) {
+            const s = sections(stdout)
+            const core = dataRows(s['WORDPRESS CORE'], 'version').map((c) => ({
+              version: c[0],
+              updateType: c[1] || '',
+              packageUrl: c[2] || '',
+            }))
+            const toPkg = (rows) => rows.map((c) => ({ name: c[0], from: c[1] || '', to: c[2] || '' }))
+            return {
+              core,
+              plugins: toPkg(dataRows(s['PLUGINS'], 'name')),
+              themes: toPkg(dataRows(s['THEMES'], 'name')),
+            }
+          }
+
+          export function sanitizeSlug(name) {
+            return /^[a-z0-9][a-z0-9-]*$/.test(String(name))
+          }
+
+          export function compareVersions(a, b) {
+            const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0)
+            const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0)
+            const len = Math.max(pa.length, pb.length)
+            for (let i = 0; i < len; i++) {
+              const d = (pa[i] || 0) - (pb[i] || 0)
+              if (d !== 0) return d < 0 ? -1 : 1
+            }
+            return 0
+          }
+
+          export function pickCoreUpdate(rows) {
+            let best = null
+            for (const row of rows || []) {
+              if (!row || !row.version) continue
+              if (!best || compareVersions(row.version, best.version) > 0) best = row
+            }
+            return best
+          }
+
+          export function validateDownloadUrl(url) {
+            return /^https:\/\/downloads\.wordpress\.org\//.test(String(url))
+          }
+
+          export function verifyOrgPackage({ slug, updateVersion, apiResponse }) {
+            if (!sanitizeSlug(slug)) return { ok: false, reason: 'ongeldige slug' }
+            if (!apiResponse || apiResponse.error || !apiResponse.version) {
+              return { ok: false, reason: 'premium' }
+            }
+            if (String(apiResponse.version) !== String(updateVersion)) {
+              return { ok: false, reason: 'premium' }
+            }
+            if (!validateDownloadUrl(apiResponse.download_link)) {
+              return { ok: false, reason: 'download mislukt' }
+            }
+            return { ok: true, url: apiResponse.download_link }
+          }
+
+          function sh(cmd, args, cwd) {
+            return spawnSync(cmd, args, { cwd, encoding: 'utf8' })
+          }
+
+          function firstTracked(repoDir, pathspec) {
+            const r = sh('git', ['ls-files', '--', pathspec], repoDir)
+            return (r.stdout || '').split('\n').filter(Boolean)[0] || ''
+          }
+
+          function isTracked(repoDir, relPath) {
+            const r = sh('git', ['ls-files', '--', relPath], repoDir)
+            return (r.stdout || '').trim() !== ''
+          }
+
+          async function downloadZip(url, dest) {
+            const res = await fetch(url, { redirect: 'follow' })
+            if (!res.ok) throw new Error(`download ${url}: HTTP ${res.status}`)
+            fs.writeFileSync(dest, Buffer.from(await res.arrayBuffer()))
+          }
+
+          function unzipTo(zip, dir) {
+            fs.rmSync(dir, { recursive: true, force: true })
+            fs.mkdirSync(dir, { recursive: true })
+            const r = sh('unzip', ['-q', zip, '-d', dir])
+            if (r.status !== 0) throw new Error(`unzip: ${(r.stderr || r.stdout || '').trim()}`)
+          }
+
+          async function fetchOrgInfo(kind, slug) {
+            const action = kind === 'plugins' ? 'plugin_information' : 'theme_information'
+            const url = `https://api.wordpress.org/${kind}/info/1.2/?action=${action}&request[slug]=${encodeURIComponent(slug)}`
+            try {
+              const res = await fetch(url)
+              if (!res.ok) return null
+              return await res.json()
+            } catch {
+              return null
+            }
+          }
+
+          async function applyCore(repoDir, wpRoot, row, haveUnzip) {
+            if (!wpRoot) return { status: 'manual', reason: 'core niet in git' }
+            if (!validateDownloadUrl(row.packageUrl)) return { status: 'manual', reason: 'download mislukt' }
+            if (!haveUnzip) return { status: 'manual', reason: 'unzip ontbreekt' }
+            try {
+              const zip = '/tmp/wp-core.zip'
+              const dir = '/tmp/wp-core'
+              await downloadZip(row.packageUrl, zip)
+              unzipTo(zip, dir)
+              const src = path.join(dir, 'wordpress')
+              if (!fs.existsSync(src)) return { status: 'manual', reason: 'download mislukt' }
+              for (const name of ['wp-admin', 'wp-includes']) {
+                fs.rmSync(path.join(repoDir, wpRoot, name), { recursive: true, force: true })
+                fs.cpSync(path.join(src, name), path.join(repoDir, wpRoot, name), { recursive: true })
+              }
+              // Overige root-bestanden (index.php, wp-*.php, license.txt, readme.html, …).
+              // wp-content is een directory en wordt dus nooit aangeraakt.
+              for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+                if (entry.isDirectory()) continue
+                fs.copyFileSync(path.join(src, entry.name), path.join(repoDir, wpRoot, entry.name))
+              }
+              return { status: 'applied' }
+            } catch (e) {
+              console.error(`core: ${e.message}`)
+              return { status: 'manual', reason: 'download mislukt' }
+            }
+          }
+
+          async function applyPackage(repoDir, kind, baseDir, item, haveUnzip) {
+            const slug = item.name
+            if (!sanitizeSlug(slug)) return { ...item, status: 'manual', reason: 'ongeldige slug' }
+            if (!baseDir) return { ...item, status: 'manual', reason: 'niet in git' }
+            const target = path.posix.join(baseDir, slug)
+            if (!isTracked(repoDir, target)) return { ...item, status: 'manual', reason: 'niet in git' }
+            const info = await fetchOrgInfo(kind, slug)
+            const v = verifyOrgPackage({ slug, updateVersion: item.to, apiResponse: info })
+            if (!v.ok) return { ...item, status: 'manual', reason: v.reason }
+            if (!haveUnzip) return { ...item, status: 'manual', reason: 'unzip ontbreekt' }
+            try {
+              const zip = `/tmp/pkg-${slug}.zip`
+              const dir = `/tmp/pkg-${slug}`
+              await downloadZip(v.url, zip)
+              unzipTo(zip, dir)
+              const src = path.join(dir, slug)
+              if (!fs.existsSync(src)) return { ...item, status: 'manual', reason: 'download mislukt' }
+              fs.rmSync(path.join(repoDir, target), { recursive: true, force: true })
+              fs.cpSync(src, path.join(repoDir, target), { recursive: true })
+              return { ...item, status: 'applied' }
+            } catch (e) {
+              console.error(`${slug}: ${e.message}`)
+              return { ...item, status: 'manual', reason: 'download mislukt' }
+            }
+          }
+
+          export async function main({ repoDir, inputFile, outFile }) {
+            const raw = fs.readFileSync(inputFile, 'utf8')
+            const parsed = parseWpUpdates(raw)
+            const haveUnzip = sh('unzip', ['-v']).status === 0
+            const verFile = firstTracked(repoDir, '*wp-includes/version.php')
+            const wpRoot = verFile ? verFile.replace(/wp-includes\/version\.php$/, '') : ''
+            const probe = firstTracked(repoDir, '*wp-content/plugins/*')
+            const contentBase = probe ? probe.slice(0, probe.indexOf('wp-content/')) : wpRoot
+
+            const result = { core: [], plugins: [], themes: [] }
+            const pick = pickCoreUpdate(parsed.core)
+            for (const row of parsed.core) {
+              const entry = { version: row.version, updateType: row.updateType }
+              if (pick && row.version === pick.version) {
+                Object.assign(entry, await applyCore(repoDir, wpRoot, row, haveUnzip))
+              }
+              result.core.push(entry)
+            }
+            for (const p of parsed.plugins) {
+              result.plugins.push(await applyPackage(repoDir, 'plugins', contentBase ? contentBase + 'wp-content/plugins' : '', p, haveUnzip))
+            }
+            for (const t of parsed.themes) {
+              result.themes.push(await applyPackage(repoDir, 'themes', contentBase ? contentBase + 'wp-content/themes' : '', t, haveUnzip))
+            }
+
+            fs.writeFileSync(outFile, JSON.stringify(result, null, 2) + '\n')
+            const all = [...result.core, ...result.plugins, ...result.themes]
+            const applied = all.filter((x) => x.status === 'applied').length
+            const manual = all.filter((x) => x.status === 'manual').length
+            console.log(`WP-apply: ${applied} uitgevoerd, ${manual} handmatig — details in ${outFile}`)
+          }
+
+          if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+            main({
+              repoDir: process.env.WP_APPLY_REPO || process.cwd(),
+              inputFile: process.env.WP_APPLY_INPUT || '/tmp/wp-updates.txt',
+              outFile: process.env.WP_APPLY_OUT || '/tmp/wp-applied.json',
+            }).catch((e) => {
+              console.error(e)
+              process.exit(1)
+            })
+          }
+          WP_APPLY_RUNNER
+          node /tmp/wp-apply-runner.mjs
+
+      - name: Maak update branch (git)
+        id: make_branch
         if: steps.check_updates.outputs.has_updates == 'true' || steps.check_npm.outputs.has_npm_updates == 'true'
+        shell: bash
+        env:
+          SSH_STDOUT: ${{ steps.get_updates.outputs.stdout }}
+          HAS_WP: ${{ steps.check_updates.outputs.has_updates }}
+          HAS_NPM: ${{ steps.check_npm.outputs.has_npm_updates }}
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +%Y-%m-%dT%H-%M-%S)
+          BRANCH="automated/updates-${DATE}"
+          if [ "$HAS_WP" = "true" ]; then
+            {
+              echo "WordPress update check uitgevoerd op: ${DATE}"
+              echo
+              printf '%s\n' "$SSH_STDOUT"
+              echo
+              echo "Zie .updates.json voor de status per update (applied/manual)."
+            } > .wp-update-log
+          fi
+          cat > /tmp/build-manifest.mjs <<'BUILD_MANIFEST'
+          #!/usr/bin/env node
+          'use strict'
+          // Zelfstandig script: bouwt .updates.json (manifest v2) uit /tmp-inputs.
+          // Canoniek bestand — check-updates.yml embed exact dezelfde inhoud via heredoc;
+          // de drift-test in manifest.test.js bewaakt dit.
+
+          import fs from 'node:fs'
+          import { pathToFileURL } from 'node:url'
+
+          export function parseSemver(v) {
+            const m = String(v).replace(/^[^\d]*/, '').match(/^(\d+)\.(\d+)\.(\d+)/)
+            if (!m) return null
+            return { major: +m[1], minor: +m[2], patch: +m[3] }
+          }
+
+          export function classifyBump(from, to) {
+            const a = parseSemver(from)
+            const b = parseSemver(to)
+            if (!a || !b) return 'minor'
+            if (b.major !== a.major) return 'major'
+            if (b.minor !== a.minor) return 'minor'
+            return 'patch'
+          }
+
+          export function computeNpmUpdates({ current = {}, minor = {}, latest = {} }) {
+            const applied = Object.keys(minor).map((name) => ({
+              name,
+              from: current[name] ?? '',
+              to: minor[name],
+              type: classifyBump(current[name] ?? '', minor[name]),
+            }))
+            const availableMajors = Object.keys(latest)
+              .filter((name) => classifyBump(current[name] ?? '', latest[name]) === 'major')
+              .map((name) => ({ name, from: current[name] ?? '', to: latest[name] }))
+            return { applied, availableMajors }
+          }
+
+          export function buildManifest({ generatedAt, wordpress, npm }) {
+            return {
+              generatedAt,
+              wordpress: {
+                core: wordpress.core || [],
+                plugins: wordpress.plugins || [],
+                themes: wordpress.themes || [],
+              },
+              npm: {
+                applied: (npm && npm.applied) || [],
+                availableMajors: (npm && npm.availableMajors) || [],
+              },
+            }
+          }
+
+          export function main({ generatedAt, wpAppliedFile, npmCurrentFile, npmMinorFile, npmLatestFile, outFile }) {
+            const readJson = (p, fallback) => {
+              try {
+                return JSON.parse(fs.readFileSync(p, 'utf8'))
+              } catch {
+                return fallback
+              }
+            }
+            const wordpress = readJson(wpAppliedFile, { core: [], plugins: [], themes: [] })
+            const npm = computeNpmUpdates({
+              current: readJson(npmCurrentFile, {}),
+              minor: readJson(npmMinorFile, {}),
+              latest: readJson(npmLatestFile, {}),
+            })
+            const manifest = buildManifest({ generatedAt, wordpress, npm })
+            fs.writeFileSync(outFile, JSON.stringify(manifest, null, 2) + '\n')
+            console.log(`Manifest geschreven naar ${outFile}`)
+          }
+
+          if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+            main({
+              generatedAt: process.env.MANIFEST_DATE || new Date().toISOString(),
+              wpAppliedFile: '/tmp/wp-applied.json',
+              npmCurrentFile: '/tmp/npm-current.json',
+              npmMinorFile: '/tmp/npm-minor.json',
+              npmLatestFile: '/tmp/npm-latest.json',
+              outFile: '.updates.json',
+            })
+          }
+          BUILD_MANIFEST
+          MANIFEST_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" node /tmp/build-manifest.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Geen wijzigingen om te committen — geen branch/PR."
+            exit 0
+          fi
+          if [ "$HAS_WP" = "true" ] && [ "$HAS_NPM" = "true" ]; then
+            MSG="chore: WordPress + NPM updates ${DATE}"
+          elif [ "$HAS_WP" = "true" ]; then
+            MSG="chore: WordPress updates ${DATE}"
+          else
+            MSG="chore: NPM minor/patch updates ${DATE}"
+          fi
+          git commit -m "$MSG"
+          git push origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Maak PR aan en ruim oude branches op
+        if: steps.make_branch.outputs.branch != ''
         uses: actions/github-script@v7
         env:
+          BRANCH: ${{ steps.make_branch.outputs.branch }}
           UPDATE_OUTPUT: ${{ steps.get_updates.outputs.stdout }}
-          NCU_OUTPUT: ${{ steps.check_npm.outputs.ncu_output }}
           HAS_WP: ${{ steps.check_updates.outputs.has_updates }}
           HAS_NPM: ${{ steps.check_npm.outputs.has_npm_updates }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const date = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            const branch = `automated/updates-${date}`;
-            const updateOutput = process.env.UPDATE_OUTPUT || 'Geen update informatie beschikbaar';
-            const ncuOutput = process.env.NCU_OUTPUT || '';
+            // === BEGIN manifest render helpers ===
+            // Embedded copy van scripts/updates/manifest.js — de drift-test in
+            // manifest.test.js bewaakt dat deze kopie gelijk blijft.
+            function renderNpmMajorsSection(availableMajors) {
+              if (!availableMajors || availableMajors.length === 0) return ''
+              const lines = availableMajors.map((m) => `- \`${m.name}\` ${m.from} → ${m.to}`).join('\n')
+              return [
+                '### ⚠️ Beschikbare major updates — NIET automatisch uitgevoerd (meerwerk)',
+                '',
+                'Deze npm-majors zijn beschikbaar maar bewust niet toegepast. Handmatig oppakken indien gewenst.',
+                '',
+                lines,
+                '',
+              ].join('\n')
+            }
+            function renderManualSection(items) {
+              if (!items || items.length === 0) return ''
+              const lines = items
+                .map((i) => `- \`${i.name}\` ${i.from ? i.from + ' → ' : ''}${i.to} — ${i.reason || 'handmatig'}`)
+                .join('\n')
+              return [
+                '### ⚠️ Handmatig bijwerken — niet automatisch uitgevoerd',
+                '',
+                'Deze updates konden niet veilig automatisch worden toegepast (premium/licentie of niet via wordpress.org verifieerbaar). Voer ze later handmatig uit:',
+                '',
+                lines,
+                '',
+              ].join('\n')
+            }
+            function renderWpAppliedSection(wordpress) {
+              const items = []
+              for (const c of (wordpress && wordpress.core) || []) {
+                if (c.status === 'applied') items.push(`- WordPress core → ${c.version} (${c.updateType})`)
+              }
+              for (const p of (wordpress && wordpress.plugins) || []) {
+                if (p.status === 'applied') items.push(`- \`${p.name}\` ${p.from} → ${p.to}`)
+              }
+              for (const t of (wordpress && wordpress.themes) || []) {
+                if (t.status === 'applied') items.push(`- thema \`${t.name}\` ${t.from} → ${t.to}`)
+              }
+              if (items.length === 0) return ''
+              return [
+                '### WordPress updates — uitgevoerd in deze branch',
+                '',
+                'De bestanden zijn bijgewerkt en zitten in de diff van deze PR. Na deploy kunnen database-migraties nodig zijn.',
+                '',
+                items.join('\n'),
+                '',
+              ].join('\n')
+            }
+            function collectManualWpItems(wordpress) {
+              const out = []
+              for (const c of (wordpress && wordpress.core) || []) {
+                if (c.status === 'manual') out.push({ name: 'WordPress core', from: '', to: c.version, reason: c.reason })
+              }
+              for (const p of (wordpress && wordpress.plugins) || []) {
+                if (p.status === 'manual') out.push(p)
+              }
+              for (const t of (wordpress && wordpress.themes) || []) {
+                if (t.status === 'manual') out.push(t)
+              }
+              return out
+            }
+            // === EINDE manifest render helpers ===
+            const branch = process.env.BRANCH;
             const hasWp = process.env.HAS_WP === 'true';
             const hasNpm = process.env.HAS_NPM === 'true';
+            const updateOutput = process.env.UPDATE_OUTPUT || '';
+            const manifest = JSON.parse(fs.readFileSync('.updates.json', 'utf8'));
             const defaultBranch = context.payload.repository.default_branch;
-
-            const { data: ref } = await github.rest.git.getRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `heads/${defaultBranch}`
-            });
-            const sha = ref.object.sha;
-
-            const { data: commit } = await github.rest.git.getCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: sha
-            });
-
-            const tree = [];
-
-            if (hasWp) {
-              const { data: blob } = await github.rest.git.createBlob({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                content: `WordPress update check uitgevoerd op: ${date}\n\n${updateOutput}\n\nMerge deze PR om WP-CLI updates uit te voeren op de server.\n`,
-                encoding: 'utf-8'
-              });
-              tree.push({ path: '.wp-update-log', mode: '100644', type: 'blob', sha: blob.sha });
-            }
-
-            if (hasNpm) {
-              for (const file of ['package.json', 'package-lock.json']) {
-                const content = fs.readFileSync(file, 'utf8');
-                const { data: blob } = await github.rest.git.createBlob({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  content,
-                  encoding: 'utf-8'
-                });
-                tree.push({ path: file, mode: '100644', type: 'blob', sha: blob.sha });
-              }
-            }
-
-            const { data: newTree } = await github.rest.git.createTree({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              base_tree: commit.tree.sha,
-              tree
-            });
-
-            const commitMessage = hasWp && hasNpm
-              ? `chore: WordPress + NPM updates ${date}`
-              : hasWp
-                ? `chore: WordPress update check ${date}`
-                : `chore: NPM minor/patch updates ${date}`;
-
-            const { data: newCommit } = await github.rest.git.createCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              message: commitMessage,
-              tree: newTree.sha,
-              parents: [sha]
-            });
-
-            await github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `refs/heads/${branch}`,
-              sha: newCommit.sha
-            });
+            const date = branch.replace('automated/updates-', '');
 
             let body = `## Automatische update check\n\nGegenereerd op ${date}.\n\n`;
+            body += renderWpAppliedSection(manifest.wordpress);
+            body += renderManualSection(collectManualWpItems(manifest.wordpress));
             if (hasWp) {
-              body += `### WordPress updates\n\nMerge deze PR om de updates uit te voeren via de deploy workflow.\n\n\`\`\`\n${updateOutput}\n\`\`\`\n\n`;
+              body += `<details><summary>Ruwe WP-CLI output</summary>\n\n\`\`\`\n${updateOutput}\n\`\`\`\n\n</details>\n\n`;
             }
-            if (hasNpm) {
-              body += `### NPM updates (minor + patch)\n\n\`package.json\` en \`package-lock.json\` zijn bijgewerkt — bekijk de diff in deze PR.\n\n\`\`\`\n${ncuOutput}\n\`\`\`\n\n`;
+            if (hasNpm && manifest.npm.applied.length) {
+              const lines = manifest.npm.applied.map((u) => `- \`${u.name}\` ${u.from} → ${u.to} (${u.type})`).join('\n');
+              body += `### NPM updates (minor + patch)\n\n\`package.json\` en \`package-lock.json\` zijn bijgewerkt.\n\n${lines}\n\n`;
             }
+            body += renderNpmMajorsSection(manifest.npm.availableMajors);
 
             const title = hasWp && hasNpm
               ? `Updates - ${date}`

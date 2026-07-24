@@ -31,6 +31,16 @@ export function BatchStatus(): $CancellablePromise<domain$0.ProjectStatusSummary
 }
 
 /**
+ * Get returns a project by ID from the last scan.
+ */
+export function Get(id: string): $CancellablePromise<[domain$0.Project, boolean]> {
+    return $Call.ByID(2540875416, id).then(($result: any) => {
+        $result[0] = $$createType3($result[0]);
+        return $result;
+    });
+}
+
+/**
  * GetRoots returns the currently configured project roots.
  */
 export function GetRoots(): $CancellablePromise<string[]> {

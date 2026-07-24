@@ -74,4 +74,27 @@ type ProjectConfig struct {
 	AWS           *AWSProjectCfg    `yaml:"aws,omitempty"      json:"aws,omitempty"`
 	VPS           *VPSProjectCfg    `yaml:"vps,omitempty"      json:"vps,omitempty"`
 	SSH           *SSHTarget        `yaml:"ssh,omitempty"      json:"ssh,omitempty"`
+	Testing       *TestingCfg       `yaml:"testing,omitempty"  json:"testing,omitempty"`
+}
+
+// TestingCfg lives under `testing:` in .rdm.yml (committed, no secrets).
+// acc/prod URLs still come from deploy_conf.json; only `local` is set here.
+type TestingCfg struct {
+	Environments map[string]string    `yaml:"environments,omitempty" json:"environments,omitempty"`
+	BasicAuth    map[string]BasicAuth `yaml:"basic_auth,omitempty"   json:"basicAuth,omitempty"`
+	TestAccount  *TestAccount         `yaml:"test_account,omitempty" json:"testAccount,omitempty"`
+}
+
+// BasicAuth holds HTTP basic-auth credentials for one environment.
+// Pass is a keychain: reference, never a literal secret in git.
+type BasicAuth struct {
+	User string `yaml:"user" json:"user"`
+	Pass string `yaml:"pass" json:"pass"`
+}
+
+// TestAccount is a site login used by `login` flow steps.
+// Pass is a keychain: reference.
+type TestAccount struct {
+	User string `yaml:"user" json:"user"`
+	Pass string `yaml:"pass" json:"pass"`
 }

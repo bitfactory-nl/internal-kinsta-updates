@@ -17,8 +17,11 @@ export class AppSettings {
     "kinstaApiKey": string;
     "kinstaCompanyId": string;
     "githubToken": string;
+    "pluginRepo": string;
+    "pluginRepoRef": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
+    "anthropicApiKey": string;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -34,11 +37,20 @@ export class AppSettings {
         if (!("githubToken" in $$source)) {
             this["githubToken"] = "";
         }
+        if (!("pluginRepo" in $$source)) {
+            this["pluginRepo"] = "";
+        }
+        if (!("pluginRepoRef" in $$source)) {
+            this["pluginRepoRef"] = "";
+        }
         if (!("gitDefaultRemote" in $$source)) {
             this["gitDefaultRemote"] = "";
         }
         if (!("gitPruneOnFetch" in $$source)) {
             this["gitPruneOnFetch"] = false;
+        }
+        if (!("anthropicApiKey" in $$source)) {
+            this["anthropicApiKey"] = "";
         }
 
         Object.assign(this, $$source);
@@ -143,6 +155,102 @@ export class MakeTarget {
     static createFrom($$source: any = {}): MakeTarget {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new MakeTarget($$parsedSource as Partial<MakeTarget>);
+    }
+}
+
+/**
+ * PackageUpdate is a single package version change (or availability).
+ */
+export class PackageUpdate {
+    "name": string;
+    "from": string;
+    "to": string;
+
+    /**
+     * "minor" | "patch" (npm applied)
+     */
+    "type"?: string;
+
+    /**
+     * "applied" | "manual" | "" (onbekend)
+     */
+    "status"?: string;
+
+    /**
+     * toelichting bij "manual"
+     */
+    "reason"?: string;
+
+    /** Creates a new PackageUpdate instance. */
+    constructor($$source: Partial<PackageUpdate> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PackageUpdate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PackageUpdate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PackageUpdate($$parsedSource as Partial<PackageUpdate>);
+    }
+}
+
+/**
+ * ProjectWorkflow is een actieve GitHub Actions workflow van een project-repo,
+ * met de status van de meest recente run.
+ */
+export class ProjectWorkflow {
+    "id": number;
+    "name": string;
+    "path": string;
+    "runStatus": string;
+    "runConclusion": string;
+    "runUrl": string;
+    "runAt": string;
+
+    /** Creates a new ProjectWorkflow instance. */
+    constructor($$source: Partial<ProjectWorkflow> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("runStatus" in $$source)) {
+            this["runStatus"] = "";
+        }
+        if (!("runConclusion" in $$source)) {
+            this["runConclusion"] = "";
+        }
+        if (!("runUrl" in $$source)) {
+            this["runUrl"] = "";
+        }
+        if (!("runAt" in $$source)) {
+            this["runAt"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectWorkflow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectWorkflow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ProjectWorkflow($$parsedSource as Partial<ProjectWorkflow>);
     }
 }
 
@@ -335,6 +443,74 @@ export class UpdateBranch {
 }
 
 /**
+ * UpdateDetail is the fully resolved set of updates inside an update branch.
+ */
+export class UpdateDetail {
+    /**
+     * "manifest" | "fallback"
+     */
+    "source": string;
+    "generatedAt"?: string;
+    "wpCore": WPCoreUpdate[];
+    "wpPlugins": PackageUpdate[];
+    "wpThemes": PackageUpdate[];
+    "npmApplied": PackageUpdate[];
+    "npmAvailableMajors": PackageUpdate[];
+
+    /** Creates a new UpdateDetail instance. */
+    constructor($$source: Partial<UpdateDetail> = {}) {
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("wpCore" in $$source)) {
+            this["wpCore"] = [];
+        }
+        if (!("wpPlugins" in $$source)) {
+            this["wpPlugins"] = [];
+        }
+        if (!("wpThemes" in $$source)) {
+            this["wpThemes"] = [];
+        }
+        if (!("npmApplied" in $$source)) {
+            this["npmApplied"] = [];
+        }
+        if (!("npmAvailableMajors" in $$source)) {
+            this["npmAvailableMajors"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateDetail instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateDetail {
+        const $$createField2_0 = $$createType3;
+        const $$createField3_0 = $$createType5;
+        const $$createField4_0 = $$createType5;
+        const $$createField5_0 = $$createType5;
+        const $$createField6_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("wpCore" in $$parsedSource) {
+            $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
+        }
+        if ("wpPlugins" in $$parsedSource) {
+            $$parsedSource["wpPlugins"] = $$createField3_0($$parsedSource["wpPlugins"]);
+        }
+        if ("wpThemes" in $$parsedSource) {
+            $$parsedSource["wpThemes"] = $$createField4_0($$parsedSource["wpThemes"]);
+        }
+        if ("npmApplied" in $$parsedSource) {
+            $$parsedSource["npmApplied"] = $$createField5_0($$parsedSource["npmApplied"]);
+        }
+        if ("npmAvailableMajors" in $$parsedSource) {
+            $$parsedSource["npmAvailableMajors"] = $$createField6_0($$parsedSource["npmAvailableMajors"]);
+        }
+        return new UpdateDetail($$parsedSource as Partial<UpdateDetail>);
+    }
+}
+
+/**
  * VulnFinding is a single vulnerable plugin discovered on a Kinsta environment.
  */
 export class VulnFinding {
@@ -382,6 +558,44 @@ export class VulnFinding {
     }
 }
 
+/**
+ * WPCoreUpdate is a single WordPress core version availability.
+ */
+export class WPCoreUpdate {
+    "version": string;
+
+    /**
+     * "minor" | "major"
+     */
+    "updateType": string;
+    "status"?: string;
+    "reason"?: string;
+
+    /** Creates a new WPCoreUpdate instance. */
+    constructor($$source: Partial<WPCoreUpdate> = {}) {
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("updateType" in $$source)) {
+            this["updateType"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WPCoreUpdate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WPCoreUpdate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WPCoreUpdate($$parsedSource as Partial<WPCoreUpdate>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = SecurityFinding.createFrom;
 const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = WPCoreUpdate.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = PackageUpdate.createFrom;
+const $$createType5 = $Create.Array($$createType4);
