@@ -164,6 +164,13 @@ func (s *WordfenceService) MatchProjects() ([]ProjectVulnReport, error) {
 	for _, p := range s.projects.List() {
 		installed, err := wpplugins.ReadInstalled(p.Path)
 		if err != nil {
+			reports = append(reports, ProjectVulnReport{
+				ProjectID:   p.ID,
+				ProjectName: p.DisplayName,
+				Path:        p.Path,
+				Skipped:     true,
+				SkipReason:  err.Error(),
+			})
 			continue
 		}
 		rep := ProjectVulnReport{ProjectID: p.ID, ProjectName: p.DisplayName, Path: p.Path}
