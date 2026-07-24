@@ -74,6 +74,20 @@ test('buildManifest assembles the manifest shape', () => {
   assert.deepEqual(m.npm.availableMajors, [])
 })
 
+test('workflow embeds the exact same helper functions (drift guard)', () => {
+  const fs = require('node:fs')
+  const path = require('node:path')
+  const norm = (s) => s.split('\n').map((l) => l.trim()).filter(Boolean).join('\n')
+  const wf = norm(fs.readFileSync(path.join(__dirname, '../../.github/workflows/check-updates.yml'), 'utf8'))
+  const src = fs.readFileSync(path.join(__dirname, 'manifest.js'), 'utf8')
+  const names = ['sections', 'dataRows', 'parseWpUpdates', 'parseSemver', 'classifyBump', 'computeNpmUpdates', 'buildManifest', 'renderNpmMajorsSection']
+  for (const name of names) {
+    const m = src.match(new RegExp('^function ' + name + '[\\s\\S]*?^}', 'm'))
+    assert.ok(m, `functie ${name} niet gevonden in manifest.js`)
+    assert.ok(wf.includes(norm(m[0])), `workflow-embedded copy van ${name} wijkt af van manifest.js — synchroniseer check-updates.yml`)
+  }
+})
+
 test('renderNpmMajorsSection lists majors, or empty when none', () => {
   assert.equal(renderNpmMajorsSection([]), '')
   const s = renderNpmMajorsSection([{ name: 'eslint', from: '9.39.2', to: '10.7.0' }])

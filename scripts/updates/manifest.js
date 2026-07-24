@@ -1,5 +1,10 @@
 'use strict'
 
+// LET OP: .github/workflows/check-updates.yml bevat een embedded copy van
+// deze functies (een reusable workflow kan dit bestand niet require'n omdat
+// de workspace de klant-repo bevat). Wijzig je hier iets, werk dan ook de
+// workflow bij — de drift-test in manifest.test.js dwingt dit af.
+
 // Split the SSH stdout into its === SECTION === blocks.
 function sections(stdout) {
   const out = {}
