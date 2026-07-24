@@ -66,8 +66,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          NCU_LOG=$(mktemp)
-          npx --yes npm-check-updates@latest -u --target minor --color false 2>&1 | tee "$NCU_LOG"
+          # Snapshot huidige versies (dep + devDep) vóór enige wijziging.
+          node -e "const p=require('./package.json');console.log(JSON.stringify({...(p.dependencies||{}),...(p.devDependencies||{})}))" > /tmp/npm-current.json
+          # Read-only passes: welke minor/patch en welke latest (voor majors).
+          npx --yes npm-check-updates@latest --jsonUpgraded --target minor > /tmp/npm-minor.json || echo '{}' > /tmp/npm-minor.json
+          npx --yes npm-check-updates@latest --jsonUpgraded > /tmp/npm-latest.json || echo '{}' > /tmp/npm-latest.json
+          # Pas alleen minor/patch daadwerkelijk toe.
+          npx --yes npm-check-updates@latest -u --target minor --color false
           npm install --package-lock-only --ignore-scripts
           if git diff --quiet -- package.json package-lock.json; then
             echo "has_npm_updates=false" >> "$GITHUB_OUTPUT"
@@ -75,12 +80,6 @@ jobs:
           else
             echo "has_npm_updates=true" >> "$GITHUB_OUTPUT"
             git diff --stat -- package.json package-lock.json
-            NCU_CONTENT=$(cat "$NCU_LOG")
-            {
-              echo 'ncu_output<<BF_NCU_DELIMITER'
-              echo "$NCU_CONTENT"
-              echo 'BF_NCU_DELIMITER'
-            } >> "$GITHUB_OUTPUT"
           fi
 
       - name: Maak update branch en PR aan
@@ -88,20 +87,34 @@ jobs:
         uses: actions/github-script@v7
         env:
           UPDATE_OUTPUT: ${{ steps.get_updates.outputs.stdout }}
-          NCU_OUTPUT: ${{ steps.check_npm.outputs.ncu_output }}
           HAS_WP: ${{ steps.check_updates.outputs.has_updates }}
           HAS_NPM: ${{ steps.check_npm.outputs.has_npm_updates }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
+            const {
+              parseWpUpdates, computeNpmUpdates, buildManifest, renderNpmMajorsSection,
+            } = require(`${process.env.GITHUB_WORKSPACE}/scripts/updates/manifest.js`);
             const date = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
             const branch = `automated/updates-${date}`;
             const updateOutput = process.env.UPDATE_OUTPUT || 'Geen update informatie beschikbaar';
-            const ncuOutput = process.env.NCU_OUTPUT || '';
             const hasWp = process.env.HAS_WP === 'true';
             const hasNpm = process.env.HAS_NPM === 'true';
             const defaultBranch = context.payload.repository.default_branch;
+
+            // Build the structured manifest that both this PR body and the
+            // desktop tool read from.
+            const readJson = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return {}; } };
+            const wordpress = hasWp ? parseWpUpdates(updateOutput) : { core: [], plugins: [], themes: [] };
+            const npm = hasNpm
+              ? computeNpmUpdates({
+                  current: readJson('/tmp/npm-current.json'),
+                  minor: readJson('/tmp/npm-minor.json'),
+                  latest: readJson('/tmp/npm-latest.json'),
+                })
+              : { applied: [], availableMajors: [] };
+            const manifest = buildManifest({ generatedAt: new Date().toISOString(), wordpress, npm });
 
             const { data: ref } = await github.rest.git.getRef({
               owner: context.repo.owner,
@@ -141,6 +154,17 @@ jobs:
               }
             }
 
+            // Structured manifest — single source of truth for PR + tool.
+            {
+              const { data: blob } = await github.rest.git.createBlob({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                content: JSON.stringify(manifest, null, 2) + '\n',
+                encoding: 'utf-8'
+              });
+              tree.push({ path: '.updates.json', mode: '100644', type: 'blob', sha: blob.sha });
+            }
+
             const { data: newTree } = await github.rest.git.createTree({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -174,8 +198,12 @@ jobs:
               body += `### WordPress updates\n\nMerge deze PR om de updates uit te voeren via de deploy workflow.\n\n\`\`\`\n${updateOutput}\n\`\`\`\n\n`;
             }
             if (hasNpm) {
-              body += `### NPM updates (minor + patch)\n\n\`package.json\` en \`package-lock.json\` zijn bijgewerkt — bekijk de diff in deze PR.\n\n\`\`\`\n${ncuOutput}\n\`\`\`\n\n`;
+              const appliedLines = manifest.npm.applied
+                .map((u) => `- \`${u.name}\` ${u.from} → ${u.to} (${u.type})`)
+                .join('\n');
+              body += `### NPM updates (minor + patch)\n\n\`package.json\` en \`package-lock.json\` zijn bijgewerkt — bekijk de diff in deze PR.\n\n${appliedLines}\n\n`;
             }
+            body += renderNpmMajorsSection(manifest.npm.availableMajors);
 
             const title = hasWp && hasNpm
               ? `Updates - ${date}`
