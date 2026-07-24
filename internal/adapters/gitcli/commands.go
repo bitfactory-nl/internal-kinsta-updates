@@ -218,6 +218,32 @@ func ContinueRebase(ctx context.Context, dir string) error {
 	return nil
 }
 
+// DefaultBranch returns the repository's default branch. It prefers the remote
+// HEAD (origin/HEAD), falls back to the highest-sorted release/* branch, and
+// finally to the current HEAD branch.
+func DefaultBranch(ctx context.Context, dir string) (string, error) {
+	if out, err := Run(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
+		b := strings.TrimSpace(out)
+		b = strings.TrimPrefix(b, "origin/")
+		if b != "" {
+			return b, nil
+		}
+	}
+	if out, err := Run(ctx, dir, "branch", "--list", "release/*", "--format=%(refname:short)", "--sort=-refname"); err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				return line, nil
+			}
+		}
+	}
+	out, err := Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("default branch: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 // ensure ctxDefault and ctxLong are referenced (used by git_service.go via this package).
 var _ = ctxDefault
 var _ = ctxLong

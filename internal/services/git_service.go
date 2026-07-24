@@ -476,6 +476,17 @@ func (s *GitService) GetFileHistory(projectID, filePath string) ([]domain.Commit
 	return commits, nil
 }
 
+// DefaultBranch returns the repository's default branch for a project.
+func (s *GitService) DefaultBranch(projectID string) (string, error) {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return "", fmt.Errorf("default branch: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	return gitcli.DefaultBranch(ctx, path)
+}
+
 // AbortMerge aborts an in-progress merge.
 func (s *GitService) AbortMerge(projectID string) error {
 	path, err := s.pathFor(projectID)
