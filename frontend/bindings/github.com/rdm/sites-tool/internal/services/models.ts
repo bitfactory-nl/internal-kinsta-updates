@@ -287,6 +287,13 @@ export class ProjectUpdateResult {
     "error": string;
     "plugins": PluginUpdateResult[];
 
+    /**
+     * Stashed is true when ApplyProject performed an auto-stash of local
+     * changes before proceeding. Surfaced so the user knows their WIP was
+     * stashed even if the run ends in "updated", "nothing", or "error".
+     */
+    "stashed": boolean;
+
     /** Creates a new ProjectUpdateResult instance. */
     constructor($$source: Partial<ProjectUpdateResult> = {}) {
         if (!("projectId" in $$source)) {
@@ -306,6 +313,9 @@ export class ProjectUpdateResult {
         }
         if (!("plugins" in $$source)) {
             this["plugins"] = [];
+        }
+        if (!("stashed" in $$source)) {
+            this["stashed"] = false;
         }
 
         Object.assign(this, $$source);

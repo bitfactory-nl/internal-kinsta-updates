@@ -167,9 +167,17 @@ export default function WordfencePage({ onClose }: Props) {
                   {res?.status === 'skipped_no_release' && (
                     <p className="mt-2 text-[12px] text-fg-faint">Overgeslagen: {res.error}</p>
                   )}
+                  {res?.status === 'nothing' && (
+                    <p className="mt-2 text-[12px] text-fg-faint">Geen plugins bijgewerkt.</p>
+                  )}
                   {res?.status === 'error' && <p className="mt-2 text-[12px] text-red">Fout: {res.error}</p>}
                   {res?.status === 'updated' && (
                     <p className="mt-2 text-[12px] text-green">Bijgewerkt op branch <span className="font-mono">{res.branch}</span></p>
+                  )}
+                  {res?.stashed && (
+                    <p className="mt-2 text-[12px] text-amber">
+                      Lokale wijzigingen zijn gestasht — gebruik <span className="font-mono">git stash pop</span> om ze terug te halen.
+                    </p>
                   )}
                 </div>
               )

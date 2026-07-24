@@ -44,6 +44,10 @@ type ProjectUpdateResult struct {
 	Branch      string               `json:"branch"`
 	Error       string               `json:"error"`
 	Plugins     []PluginUpdateResult `json:"plugins"`
+	// Stashed is true when ApplyProject performed an auto-stash of local
+	// changes before proceeding. Surfaced so the user knows their WIP was
+	// stashed even if the run ends in "updated", "nothing", or "error".
+	Stashed bool `json:"stashed"`
 }
 
 type WordfenceUpdateService struct {
@@ -112,11 +116,14 @@ func (s *WordfenceUpdateService) ApplyProject(sel UpdateSelection, autoStash boo
 			res.Error = "stash mislukt: " + err.Error()
 			return res
 		}
+		res.Stashed = true
 	}
 
-	// 3. Create branch from default.
+	// 3. Create (or reuse) the branch from default. Idempotent: a same-day
+	// re-run reuses the existing security/wordfence-<date> branch instead of
+	// failing on "branch already exists".
 	branch := "security/wordfence-" + time.Now().Format("2006-01-02")
-	if err := s.git.CreateBranch(sel.ProjectID, branch, def); err != nil {
+	if err := s.git.CheckoutOrCreateBranch(sel.ProjectID, branch, def); err != nil {
 		res.Status = "error"
 		res.Error = "branch aanmaken mislukt: " + err.Error()
 		return res
@@ -158,7 +165,8 @@ func (s *WordfenceUpdateService) ApplyProject(sel UpdateSelection, autoStash boo
 			res.Plugins = append(res.Plugins, pr)
 			continue
 		}
-		if err := s.git.StageAll(sel.ProjectID); err != nil {
+		pluginRelPath := "public/wp-content/plugins/" + slug
+		if err := s.git.StageFiles(sel.ProjectID, []string{pluginRelPath}); err != nil {
 			pr.Status = "error"
 			pr.Error = err.Error()
 			res.Plugins = append(res.Plugins, pr)

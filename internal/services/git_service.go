@@ -236,6 +236,23 @@ func (s *GitService) CreateBranch(projectID, name, from string) error {
 	return gitcli.CreateBranch(ctx, path, name, from)
 }
 
+// CheckoutOrCreateBranch checks out an existing branch by name, or creates it
+// from "from" if it doesn't exist yet. This makes branch creation idempotent
+// for callers that use a deterministic, potentially-reused branch name (e.g.
+// a same-day security update branch).
+func (s *GitService) CheckoutOrCreateBranch(projectID, name, from string) error {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return fmt.Errorf("git checkout or create branch: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	if gitcli.BranchExists(ctx, path, name) {
+		return gitcli.CheckoutBranch(ctx, path, name)
+	}
+	return gitcli.CreateBranch(ctx, path, name, from)
+}
+
 // DeleteBranch deletes a branch; force=true skips the safety check.
 func (s *GitService) DeleteBranch(projectID, name string, force bool) error {
 	path, err := s.pathFor(projectID)
