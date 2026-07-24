@@ -36,6 +36,16 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(diff / 86400)}d geleden`
 }
 
+interface ManualItem { name: string; from: string; to: string; reason: string }
+
+function collectManual(detail: UpdateDetail): ManualItem[] {
+  return [
+    ...detail.wpCore.filter(c => c.status === 'manual').map(c => ({ name: 'WordPress core', from: '', to: c.version, reason: c.reason ?? '' })),
+    ...detail.wpPlugins.filter(p => p.status === 'manual').map(p => ({ name: p.name, from: p.from, to: p.to, reason: p.reason ?? '' })),
+    ...detail.wpThemes.filter(t => t.status === 'manual').map(t => ({ name: t.name, from: t.from, to: t.to, reason: t.reason ?? '' })),
+  ]
+}
+
 function Section({ title, count, children }: { title: string; count: number; children: ReactNode }) {
   if (count === 0) return null
   return (
@@ -70,16 +80,41 @@ function UpdateDetailPanel({ detail }: { detail: UpdateDetail }) {
           NPM-updates en beschikbare majors verschijnen bij nieuwe branches automatisch.
         </p>
       )}
-      <Section title="WordPress core" count={detail.wpCore.length}>
-        {detail.wpCore.map(c => (
-          <Row key={c.version} label={c.version} badge={c.updateType} badgeClass={c.updateType === 'major' ? 'bg-amber-soft text-amber' : 'bg-green-soft text-green'} />
+      {(() => {
+        const manual = collectManual(detail)
+        if (manual.length === 0) return null
+        return (
+          <div className="mt-3 bg-amber-soft/50 border border-amber/30 rounded-lg px-3 py-2.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber mb-1.5">
+              ⚠️ Handmatig bijwerken <span className="opacity-70">({manual.length})</span>
+            </p>
+            <div className="flex flex-col gap-1">
+              {manual.map(m => (
+                <Row key={m.name} label={`${m.name}  ${m.from ? m.from + ' → ' : '→ '}${m.to}`} badge={m.reason} badgeClass="bg-amber-soft text-amber" />
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+      <Section title="WordPress core" count={detail.wpCore.filter(c => c.status !== 'manual').length}>
+        {detail.wpCore.filter(c => c.status !== 'manual').map(c => (
+          <Row
+            key={c.version}
+            label={c.version}
+            badge={c.status === 'applied' ? `✓ ${c.updateType}` : c.updateType}
+            badgeClass={c.status === 'applied' ? 'bg-green-soft text-green' : c.updateType === 'major' ? 'bg-amber-soft text-amber' : 'bg-green-soft text-green'}
+          />
         ))}
       </Section>
-      <Section title="Plugins" count={detail.wpPlugins.length}>
-        {detail.wpPlugins.map(p => <Row key={p.name} label={`${p.name}  ${p.from} → ${p.to}`} />)}
+      <Section title="Plugins" count={detail.wpPlugins.filter(p => p.status !== 'manual').length}>
+        {detail.wpPlugins.filter(p => p.status !== 'manual').map(p => (
+          <Row key={p.name} label={`${p.name}  ${p.from} → ${p.to}`} badge={p.status === 'applied' ? '✓ uitgevoerd' : undefined} badgeClass="bg-green-soft text-green" />
+        ))}
       </Section>
-      <Section title="Thema's" count={detail.wpThemes.length}>
-        {detail.wpThemes.map(p => <Row key={p.name} label={`${p.name}  ${p.from} → ${p.to}`} />)}
+      <Section title="Thema's" count={detail.wpThemes.filter(t => t.status !== 'manual').length}>
+        {detail.wpThemes.filter(t => t.status !== 'manual').map(p => (
+          <Row key={p.name} label={`${p.name}  ${p.from} → ${p.to}`} badge={p.status === 'applied' ? '✓ uitgevoerd' : undefined} badgeClass="bg-green-soft text-green" />
+        ))}
       </Section>
       <Section title="NPM — uitgevoerd" count={detail.npmApplied.length}>
         {detail.npmApplied.map(p => <Row key={p.name} label={`${p.name}  ${p.from} → ${p.to}`} badge={p.type} />)}
@@ -123,7 +158,23 @@ export default function UpdatesTab({ projectId, currentBranch, onBranchCheckedOu
     setError(null)
     setLoading(true)
     Services.GitService.GetUpdateBranches(projectId)
-      .then(b => setBranches(b ?? []))
+      .then(b => {
+        const list = b ?? []
+        setBranches(list)
+        // Eager: details per branch, zodat de "handmatig"-badge zonder
+        // uitklappen zichtbaar is. Fouten per branch worden stil genegeerd;
+        // toggleExpand blijft als vangnet.
+        return Promise.all(list.map(br =>
+          Services.GitService.GetUpdateBranchDetail(projectId, br.shortName)
+            .then(d => (d ? ([br.shortName, d] as const) : null))
+            .catch(() => null)
+        ))
+      })
+      .then(pairs => {
+        if (pairs) {
+          setDetails(Object.fromEntries(pairs.filter((p): p is readonly [string, UpdateDetail] => p !== null)))
+        }
+      })
       .catch(e => setError(String(e)))
       .finally(() => setLoading(false))
   }
@@ -231,6 +282,17 @@ export default function UpdatesTab({ projectId, currentBranch, onBranchCheckedOu
                         <span className="ml-2">{timeAgo(branch.dateStr)}</span>
                       </p>
                     </div>
+
+                    {/* Handmatig-badge */}
+                    {(() => {
+                      const d = details[branch.shortName]
+                      const n = d ? collectManual(d).length : 0
+                      return n > 0 ? (
+                        <span className="shrink-0 text-[11px] font-semibold text-amber bg-amber-soft px-2.5 py-[4px] rounded-[7px]" title="Updates die handmatig moeten">
+                          ⚠️ {n} handmatig
+                        </span>
+                      ) : null
+                    })()}
 
                     {/* Action */}
                     {isActive ? (
