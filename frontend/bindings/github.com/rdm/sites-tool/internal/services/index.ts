@@ -16,6 +16,8 @@ import * as SecurityService from "./securityservice.js";
 import * as SettingsService from "./settingsservice.js";
 import * as TestService from "./testservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
+import * as WordfenceService from "./wordfenceservice.js";
+import * as WordfenceUpdateService from "./wordfenceupdateservice.js";
 export {
     BatchService,
     EditorService,
@@ -31,21 +33,29 @@ export {
     SecurityService,
     SettingsService,
     TestService,
-    VulnScanService
+    VulnScanService,
+    WordfenceService,
+    WordfenceUpdateService
 };
 
 export {
     AppSettings,
     BatchResult,
+    FeedMeta,
     MakeResult,
     MakeTarget,
     PackageUpdate,
+    PluginUpdateResult,
+    ProjectUpdateResult,
+    ProjectVulnReport,
     ProjectWorkflow,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,
     UpdateBranch,
     UpdateDetail,
+    UpdateSelection,
     VulnFinding,
-    WPCoreUpdate
+    WPCoreUpdate,
+    WordfenceVulnFinding
 } from "./models.js";

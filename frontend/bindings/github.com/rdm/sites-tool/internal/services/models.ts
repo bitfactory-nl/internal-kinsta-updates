@@ -22,6 +22,7 @@ export class AppSettings {
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
     "anthropicApiKey": string;
+    "wordfenceApiKey": string;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -51,6 +52,9 @@ export class AppSettings {
         }
         if (!("anthropicApiKey" in $$source)) {
             this["anthropicApiKey"] = "";
+        }
+        if (!("wordfenceApiKey" in $$source)) {
+            this["wordfenceApiKey"] = "";
         }
 
         Object.assign(this, $$source);
@@ -99,6 +103,31 @@ export class BatchResult {
     static createFrom($$source: any = {}): BatchResult {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new BatchResult($$parsedSource as Partial<BatchResult>);
+    }
+}
+
+export class FeedMeta {
+    "fetchedAt": time$0.Time;
+    "count": number;
+
+    /** Creates a new FeedMeta instance. */
+    constructor($$source: Partial<FeedMeta> = {}) {
+        if (!("fetchedAt" in $$source)) {
+            this["fetchedAt"] = null;
+        }
+        if (!("count" in $$source)) {
+            this["count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FeedMeta instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FeedMeta {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FeedMeta($$parsedSource as Partial<FeedMeta>);
     }
 }
 
@@ -202,6 +231,141 @@ export class PackageUpdate {
     static createFrom($$source: any = {}): PackageUpdate {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new PackageUpdate($$parsedSource as Partial<PackageUpdate>);
+    }
+}
+
+export class PluginUpdateResult {
+    "slug": string;
+    "from": string;
+    "to": string;
+
+    /**
+     * updated | manual | error
+     */
+    "status": string;
+    "error": string;
+
+    /** Creates a new PluginUpdateResult instance. */
+    constructor($$source: Partial<PluginUpdateResult> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PluginUpdateResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PluginUpdateResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PluginUpdateResult($$parsedSource as Partial<PluginUpdateResult>);
+    }
+}
+
+export class ProjectUpdateResult {
+    "projectId": string;
+    "projectName": string;
+
+    /**
+     * updated | needs_stash | skipped_no_release | error | nothing
+     */
+    "status": string;
+    "branch": string;
+    "error": string;
+    "plugins": PluginUpdateResult[];
+
+    /** Creates a new ProjectUpdateResult instance. */
+    constructor($$source: Partial<ProjectUpdateResult> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+        if (!("plugins" in $$source)) {
+            this["plugins"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectUpdateResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectUpdateResult {
+        const $$createField5_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("plugins" in $$parsedSource) {
+            $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
+        }
+        return new ProjectUpdateResult($$parsedSource as Partial<ProjectUpdateResult>);
+    }
+}
+
+export class ProjectVulnReport {
+    "projectId": string;
+    "projectName": string;
+    "path": string;
+    "findings": WordfenceVulnFinding[];
+    "skipped": boolean;
+    "skipReason": string;
+
+    /** Creates a new ProjectVulnReport instance. */
+    constructor($$source: Partial<ProjectVulnReport> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("findings" in $$source)) {
+            this["findings"] = [];
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = false;
+        }
+        if (!("skipReason" in $$source)) {
+            this["skipReason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProjectVulnReport instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ProjectVulnReport {
+        const $$createField3_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("findings" in $$parsedSource) {
+            $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
+        }
+        return new ProjectVulnReport($$parsedSource as Partial<ProjectVulnReport>);
     }
 }
 
@@ -384,7 +548,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType1;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -485,11 +649,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType3;
-        const $$createField3_0 = $$createType5;
-        const $$createField4_0 = $$createType5;
-        const $$createField5_0 = $$createType5;
-        const $$createField6_0 = $$createType5;
+        const $$createField2_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
+        const $$createField4_0 = $$createType9;
+        const $$createField5_0 = $$createType9;
+        const $$createField6_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -507,6 +671,35 @@ export class UpdateDetail {
             $$parsedSource["npmAvailableMajors"] = $$createField6_0($$parsedSource["npmAvailableMajors"]);
         }
         return new UpdateDetail($$parsedSource as Partial<UpdateDetail>);
+    }
+}
+
+export class UpdateSelection {
+    "projectId": string;
+    "slugs": string[];
+
+    /** Creates a new UpdateSelection instance. */
+    constructor($$source: Partial<UpdateSelection> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("slugs" in $$source)) {
+            this["slugs"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UpdateSelection instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UpdateSelection {
+        const $$createField1_0 = $$createType10;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("slugs" in $$parsedSource) {
+            $$parsedSource["slugs"] = $$createField1_0($$parsedSource["slugs"]);
+        }
+        return new UpdateSelection($$parsedSource as Partial<UpdateSelection>);
     }
 }
 
@@ -592,10 +785,74 @@ export class WPCoreUpdate {
     }
 }
 
+/**
+ * WordfenceVulnFinding is a single vulnerability match against an installed
+ * plugin, produced by WordfenceService.MatchProjects. Named distinctly from
+ * VulnFinding (vuln_scan_service.go, Kinsta-environment scan results) to
+ * avoid a package-level identifier collision.
+ */
+export class WordfenceVulnFinding {
+    "slug": string;
+    "installedVersion": string;
+    "latestVersion": string;
+
+    /**
+     * "wporg" | "manual"
+     */
+    "source": string;
+    "cve": string;
+    "severity": string;
+    "title": string;
+    "vulnId": string;
+
+    /** Creates a new WordfenceVulnFinding instance. */
+    constructor($$source: Partial<WordfenceVulnFinding> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("installedVersion" in $$source)) {
+            this["installedVersion"] = "";
+        }
+        if (!("latestVersion" in $$source)) {
+            this["latestVersion"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("cve" in $$source)) {
+            this["cve"] = "";
+        }
+        if (!("severity" in $$source)) {
+            this["severity"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("vulnId" in $$source)) {
+            this["vulnId"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WordfenceVulnFinding instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WordfenceVulnFinding {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WordfenceVulnFinding($$parsedSource as Partial<WordfenceVulnFinding>);
+    }
+}
+
 // Private type creation functions
-const $$createType0 = SecurityFinding.createFrom;
+const $$createType0 = PluginUpdateResult.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = WPCoreUpdate.createFrom;
+const $$createType2 = WordfenceVulnFinding.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = PackageUpdate.createFrom;
+const $$createType4 = SecurityFinding.createFrom;
 const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = WPCoreUpdate.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = PackageUpdate.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($Create.Any);

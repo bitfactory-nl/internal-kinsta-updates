@@ -103,6 +103,69 @@ export class ActieRow {
 }
 
 /**
+ * AffectedSoftware is one affected plugin/theme entry with a version range.
+ */
+export class AffectedSoftware {
+    /**
+     * plugin | theme | core
+     */
+    "type": string;
+    "slug": string;
+
+    /**
+     * "*" or version; "" = unbounded
+     */
+    "affectedFrom": string;
+    "fromInclusive": boolean;
+
+    /**
+     * "*" or version; "" = unbounded
+     */
+    "affectedTo": string;
+    "toInclusive": boolean;
+    "patchedVersions": string[];
+
+    /** Creates a new AffectedSoftware instance. */
+    constructor($$source: Partial<AffectedSoftware> = {}) {
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("affectedFrom" in $$source)) {
+            this["affectedFrom"] = "";
+        }
+        if (!("fromInclusive" in $$source)) {
+            this["fromInclusive"] = false;
+        }
+        if (!("affectedTo" in $$source)) {
+            this["affectedTo"] = "";
+        }
+        if (!("toInclusive" in $$source)) {
+            this["toInclusive"] = false;
+        }
+        if (!("patchedVersions" in $$source)) {
+            this["patchedVersions"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AffectedSoftware instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AffectedSoftware {
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("patchedVersions" in $$parsedSource) {
+            $$parsedSource["patchedVersions"] = $$createField6_0($$parsedSource["patchedVersions"]);
+        }
+        return new AffectedSoftware($$parsedSource as Partial<AffectedSoftware>);
+    }
+}
+
+/**
  * BasicAuth holds HTTP basic-auth credentials for one environment.
  * Pass is a keychain: reference, never a literal secret in git.
  */
@@ -163,7 +226,7 @@ export class BlameLine {
      * Creates a new BlameLine instance from a string or object.
      */
     static createFrom($$source: any = {}): BlameLine {
-        const $$createField2_0 = $$createType0;
+        const $$createField2_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("author" in $$parsedSource) {
             $$parsedSource["author"] = $$createField2_0($$parsedSource["author"]);
@@ -270,10 +333,10 @@ export class Commit {
      * Creates a new Commit instance from a string or object.
      */
     static createFrom($$source: any = {}): Commit {
-        const $$createField2_0 = $$createType0;
-        const $$createField3_0 = $$createType0;
-        const $$createField6_0 = $$createType1;
-        const $$createField7_0 = $$createType1;
+        const $$createField2_0 = $$createType1;
+        const $$createField3_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("author" in $$parsedSource) {
             $$parsedSource["author"] = $$createField2_0($$parsedSource["author"]);
@@ -668,8 +731,8 @@ export class GitStatus {
     static createFrom($$source: any = {}): GitStatus {
         const $$createField4_0 = $$createType11;
         const $$createField5_0 = $$createType11;
-        const $$createField6_0 = $$createType1;
-        const $$createField7_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("staged" in $$parsedSource) {
             $$parsedSource["staged"] = $$createField4_0($$parsedSource["staged"]);
@@ -739,8 +802,8 @@ export class GraphCommit {
      * Creates a new GraphCommit instance from a string or object.
      */
     static createFrom($$source: any = {}): GraphCommit {
-        const $$createField5_0 = $$createType1;
-        const $$createField6_0 = $$createType1;
+        const $$createField5_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
         const $$createField9_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("parents" in $$parsedSource) {
@@ -1640,7 +1703,7 @@ export class TestRun {
      * Creates a new TestRun instance from a string or object.
      */
     static createFrom($$source: any = {}): TestRun {
-        const $$createField5_0 = $$createType1;
+        const $$createField5_0 = $$createType0;
         const $$createField7_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
@@ -1759,9 +1822,61 @@ export class VPSProjectCfg {
     }
 }
 
+/**
+ * Vulnerability is one Wordfence vulnerability record (plugin-relevant subset).
+ */
+export class Vulnerability {
+    "id": string;
+    "title": string;
+    "cve": string;
+    "cvssScore": number;
+    "severity": string;
+    "published": time$0.Time;
+    "software": AffectedSoftware[];
+
+    /** Creates a new Vulnerability instance. */
+    constructor($$source: Partial<Vulnerability> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("cve" in $$source)) {
+            this["cve"] = "";
+        }
+        if (!("cvssScore" in $$source)) {
+            this["cvssScore"] = 0;
+        }
+        if (!("severity" in $$source)) {
+            this["severity"] = "";
+        }
+        if (!("published" in $$source)) {
+            this["published"] = null;
+        }
+        if (!("software" in $$source)) {
+            this["software"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Vulnerability instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Vulnerability {
+        const $$createField6_0 = $$createType50;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("software" in $$parsedSource) {
+            $$parsedSource["software"] = $$createField6_0($$parsedSource["software"]);
+        }
+        return new Vulnerability($$parsedSource as Partial<Vulnerability>);
+    }
+}
+
 // Private type creation functions
-const $$createType0 = Person.createFrom;
-const $$createType1 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = Person.createFrom;
 const $$createType2 = DeployLinks.createFrom;
 const $$createType3 = $Create.Map($Create.Any, $Create.Any);
 const $$createType4 = DiffLine.createFrom;
@@ -1809,3 +1924,5 @@ const $$createType45 = BasicAuth.createFrom;
 const $$createType46 = $Create.Map($Create.Any, $$createType45);
 const $$createType47 = TestAccount.createFrom;
 const $$createType48 = $Create.Nullable($$createType47);
+const $$createType49 = AffectedSoftware.createFrom;
+const $$createType50 = $Create.Array($$createType49);

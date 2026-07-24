@@ -47,6 +47,13 @@ export function CreateBranch(projectID: string, name: string, $from: string): $C
 }
 
 /**
+ * DefaultBranch returns the repository's default branch for a project.
+ */
+export function DefaultBranch(projectID: string): $CancellablePromise<string> {
+    return $Call.ByID(1124220794, projectID);
+}
+
+/**
  * DeleteBranch deletes a branch; force=true skips the safety check.
  */
 export function DeleteBranch(projectID: string, name: string, force: boolean): $CancellablePromise<void> {
