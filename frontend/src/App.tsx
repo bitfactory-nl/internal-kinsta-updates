@@ -5,6 +5,7 @@ import ProjectDetail from './components/ProjectDetail'
 import BatchTab from './components/BatchTab'
 import SearchPanel from './components/SearchPanel'
 import SettingsPage from './components/SettingsPage'
+import WordfencePage from './components/WordfencePage'
 import ErrorBoundary from './components/ErrorBoundary'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
@@ -87,6 +88,7 @@ export default function App() {
   const [showBatch, setShowBatch] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showWordfence, setShowWordfence] = useState(false)
 
   const doScan = useCallback(async (currentRoots: string[]) => {
     if (currentRoots.length === 0) return
@@ -159,11 +161,14 @@ export default function App() {
               <span className="animate-spin inline-block">↻</span>
             ) : '↻'}
           </IconBtn>
-          <IconBtn onClick={() => { setShowSearch(s => !s); setShowBatch(false) }} title="Zoeken in alle repos" drag>
+          <IconBtn onClick={() => { setShowSearch(s => !s); setShowBatch(false); setShowWordfence(false) }} title="Zoeken in alle repos" drag>
             ⌕
           </IconBtn>
-          <IconBtn onClick={() => { setShowBatch(b => !b); setShowSearch(false) }} title="Batch operaties" drag>
+          <IconBtn onClick={() => { setShowBatch(b => !b); setShowSearch(false); setShowWordfence(false) }} title="Batch operaties" drag>
             ⊞
+          </IconBtn>
+          <IconBtn onClick={() => { setShowWordfence(w => !w); setShowSearch(false); setShowBatch(false) }} title="Wordfence kwetsbaarheden" drag>
+            🛡
           </IconBtn>
           <IconBtn onClick={addFolder} title="Folder toevoegen" drag>
             +
@@ -243,7 +248,7 @@ export default function App() {
               : ''}
           </p>
           <button
-            onClick={() => { setShowSettings(s => !s); setShowSearch(false); setShowBatch(false) }}
+            onClick={() => { setShowSettings(s => !s); setShowSearch(false); setShowBatch(false); setShowWordfence(false) }}
             title="Instellingen"
             className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sm
               ${showSettings ? 'bg-hover text-fg' : 'text-fg-muted hover:text-fg hover:bg-hover'}`}
@@ -285,6 +290,10 @@ export default function App() {
           </div>
           <BatchTab />
         </div>
+      ) : showWordfence ? (
+        <ErrorBoundary label="Wordfence error">
+          <WordfencePage onClose={() => setShowWordfence(false)} />
+        </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">
           <ProjectDetail project={selected} onRefresh={refresh} />
