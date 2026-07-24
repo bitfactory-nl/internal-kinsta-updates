@@ -72,7 +72,9 @@ jobs:
           npx --yes npm-check-updates@latest --jsonUpgraded --target minor > /tmp/npm-minor.json || echo '{}' > /tmp/npm-minor.json
           npx --yes npm-check-updates@latest --jsonUpgraded > /tmp/npm-latest.json || echo '{}' > /tmp/npm-latest.json
           # Pas alleen minor/patch daadwerkelijk toe.
-          npx --yes npm-check-updates@latest -u --target minor --color false
+          # Let op: geen "--color false" — ncu leest het losse woord "false"
+          # als package-filter en vindt dan nooit iets ("No dependencies").
+          npx --yes npm-check-updates@latest -u --target minor
           npm install --package-lock-only --ignore-scripts
           if git diff --quiet -- package.json package-lock.json; then
             echo "has_npm_updates=false" >> "$GITHUB_OUTPUT"

@@ -64,6 +64,12 @@ function UpdateDetailPanel({ detail }: { detail: UpdateDetail }) {
   if (empty) return <p className="text-fg-faint text-xs italic py-2">Geen update-details in deze branch.</p>
   return (
     <div>
+      {detail.source === 'fallback' && (
+        <p className="text-[11px] text-fg-faint mt-2">
+          ℹ️ Deze branch is gemaakt vóór het update-manifest — hieronder staat alleen wat in de branch zelf zit.
+          NPM-updates en beschikbare majors verschijnen bij nieuwe branches automatisch.
+        </p>
+      )}
       <Section title="WordPress core" count={detail.wpCore.length}>
         {detail.wpCore.map(c => (
           <Row key={c.version} label={c.version} badge={c.updateType} badgeClass={c.updateType === 'major' ? 'bg-amber-soft text-amber' : 'bg-green-soft text-green'} />
@@ -81,9 +87,6 @@ function UpdateDetailPanel({ detail }: { detail: UpdateDetail }) {
       <Section title="⚠️ NPM majors — niet uitgevoerd (meerwerk)" count={detail.npmAvailableMajors.length}>
         {detail.npmAvailableMajors.map(p => <Row key={p.name} label={`${p.name}  ${p.from} → ${p.to}`} badge="major" badgeClass="bg-amber-soft text-amber" />)}
       </Section>
-      {detail.source === 'fallback' && detail.npmAvailableMajors.length === 0 && (
-        <p className="text-[11px] text-fg-faint italic mt-3">Majors-info niet beschikbaar voor deze (oudere) branch.</p>
-      )}
     </div>
   )
 }
