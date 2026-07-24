@@ -78,3 +78,26 @@ func TestExtractZipReplaceRejectsTraversal(t *testing.T) {
 		t.Errorf("pre-existing plugin file should NOT be deleted on rejected traversal: %v", err)
 	}
 }
+
+func TestExtractZipReplaceMissingSlugDirKeepsTarget(t *testing.T) {
+	root := t.TempDir()
+	pluginsDir := filepath.Join(root, "plugins")
+	existing := filepath.Join(pluginsDir, "cf7")
+	if err := os.MkdirAll(existing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keepFile := filepath.Join(existing, "keep.php")
+	if err := os.WriteFile(keepFile, []byte("<?php // keep me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Zip whose top-level folder does NOT match the "cf7" slug.
+	zipData := makeZip(t, "wrong-folder", "foo.php", "<?php // unrelated")
+
+	if err := extractZipReplace(zipData, pluginsDir, "cf7"); err == nil {
+		t.Error("expected error when extracted archive has no matching slug dir")
+	}
+	if _, err := os.Stat(keepFile); err != nil {
+		t.Errorf("pre-existing plugin file should NOT be deleted when staged slug dir is missing: %v", err)
+	}
+}

@@ -250,6 +250,9 @@ func extractZipReplace(zipData []byte, pluginsDir, slug string) error {
 	// Only now, with the new content fully staged, replace the old plugin dir.
 	target := filepath.Join(pluginsDir, slug)
 	stagedSlugDir := filepath.Join(temp, slug)
+	if info, err := os.Stat(stagedSlugDir); err != nil || !info.IsDir() {
+		return fmt.Errorf("extracted archive has no %q directory", slug)
+	}
 	if err := os.RemoveAll(target); err != nil {
 		return fmt.Errorf("remove old plugin: %w", err)
 	}
