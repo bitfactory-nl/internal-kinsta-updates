@@ -34,3 +34,65 @@ func TestLatestVersion(t *testing.T) {
 		t.Errorf("want ErrNotFound, got %v", err)
 	}
 }
+
+func TestLatestVersionNotFoundVariants(t *testing.T) {
+	// Test ErrNotFound with HTTP 404
+	srvNotFound := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`not found`))
+	}))
+	defer srvNotFound.Close()
+
+	c := NewClient()
+	c.BaseURL = srvNotFound.URL
+
+	if _, _, err := c.LatestVersion(context.Background(), "any-slug"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("404 case: want ErrNotFound, got %v", err)
+	}
+
+	// Test ErrNotFound with HTTP 200 but empty body
+	srvEmpty := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte{})
+	}))
+	defer srvEmpty.Close()
+
+	c.BaseURL = srvEmpty.URL
+
+	if _, _, err := c.LatestVersion(context.Background(), "any-slug"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("empty body case: want ErrNotFound, got %v", err)
+	}
+}
+
+func TestDownload(t *testing.T) {
+	// Simulate a zip file with PK magic bytes
+	zipBytes := []byte{0x50, 0x4b, 0x03, 0x04} // PK zip magic bytes + dummy content
+	zipBytes = append(zipBytes, []byte("dummy zip content")...)
+
+	// Test success: 200 with zip bytes
+	srvSuccess := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(zipBytes)
+	}))
+	defer srvSuccess.Close()
+
+	c := NewClient()
+	got, err := c.Download(context.Background(), srvSuccess.URL)
+	if err != nil {
+		t.Fatalf("Download success: %v", err)
+	}
+	if string(got) != string(zipBytes) {
+		t.Errorf("got bytes %v, want %v", got, zipBytes)
+	}
+
+	// Test failure: 500 status
+	srvError := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`error`))
+	}))
+	defer srvError.Close()
+
+	if _, err := c.Download(context.Background(), srvError.URL); err == nil {
+		t.Error("Download 500: want error, got nil")
+	}
+}
