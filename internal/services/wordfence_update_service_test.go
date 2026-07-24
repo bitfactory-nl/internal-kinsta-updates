@@ -56,6 +56,16 @@ func TestExtractZipReplaceRejectsTraversal(t *testing.T) {
 	if err := os.MkdirAll(pluginsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	// Pre-existing plugin dir that must survive a rejected (unsafe) zip.
+	existing := filepath.Join(pluginsDir, "evil")
+	if err := os.MkdirAll(existing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	keepFile := filepath.Join(existing, "keep.php")
+	if err := os.WriteFile(keepFile, []byte("<?php // keep me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 	f, _ := zw.Create("../evil.php")
@@ -63,5 +73,8 @@ func TestExtractZipReplaceRejectsTraversal(t *testing.T) {
 	_ = zw.Close()
 	if err := extractZipReplace(buf.Bytes(), pluginsDir, "evil"); err == nil {
 		t.Error("expected error on path traversal")
+	}
+	if _, err := os.Stat(keepFile); err != nil {
+		t.Errorf("pre-existing plugin file should NOT be deleted on rejected traversal: %v", err)
 	}
 }

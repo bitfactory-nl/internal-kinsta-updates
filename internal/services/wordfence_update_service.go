@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -133,8 +134,13 @@ func (s *WordfenceUpdateService) ApplyProject(sel UpdateSelection, autoStash boo
 
 		ver, url, err := s.wporg.LatestVersion(ctx, slug)
 		if err != nil {
-			pr.Status = "manual"
-			pr.Error = "niet op wp.org"
+			if errors.Is(err, wporg.ErrNotFound) {
+				pr.Status = "manual"
+				pr.Error = "niet op wp.org"
+			} else {
+				pr.Status = "error"
+				pr.Error = err.Error()
+			}
 			res.Plugins = append(res.Plugins, pr)
 			continue
 		}
@@ -195,17 +201,19 @@ func currentVersion(pluginsDir, slug string) string {
 	return ""
 }
 
-// extractZipReplace removes plugins/<slug> and extracts the plugin zip into it.
-// wp.org zips contain a top-level <slug>/ directory.
+// extractZipReplace extracts the plugin zip into a staging directory,
+// validating every entry against path traversal before touching disk, and
+// only replaces plugins/<slug> once the staged content is fully written.
+// This avoids deleting the existing plugin directory when extraction fails
+// partway through (e.g. zip-slip or an I/O error). wp.org zips contain a
+// top-level <slug>/ directory.
 func extractZipReplace(zipData []byte, pluginsDir, slug string) error {
 	zr, err := zip.NewReader(bytes.NewReader(zipData), int64(len(zipData)))
 	if err != nil {
 		return fmt.Errorf("open zip: %w", err)
 	}
-	target := filepath.Join(pluginsDir, slug)
-	if err := os.RemoveAll(target); err != nil {
-		return fmt.Errorf("remove old plugin: %w", err)
-	}
+
+	// Pass 1: validate every entry's destination before writing anything.
 	cleanBase := filepath.Clean(pluginsDir) + string(os.PathSeparator)
 	for _, f := range zr.File {
 		dest := filepath.Join(pluginsDir, f.Name)
@@ -213,31 +221,60 @@ func extractZipReplace(zipData []byte, pluginsDir, slug string) error {
 			filepath.Clean(dest) != filepath.Clean(pluginsDir) {
 			return fmt.Errorf("unsafe path in zip: %s", f.Name)
 		}
+	}
+
+	// Pass 2: extract into a sibling temp dir, so the current plugin dir
+	// stays intact until the new content is fully staged.
+	temp, err := os.MkdirTemp(pluginsDir, "."+slug+".tmp-extract-")
+	if err != nil {
+		return fmt.Errorf("create temp extract dir: %w", err)
+	}
+	defer os.RemoveAll(temp)
+
+	for _, f := range zr.File {
+		dest := filepath.Join(temp, f.Name)
 		if f.FileInfo().IsDir() {
 			if err := os.MkdirAll(dest, 0o755); err != nil {
-				return err
+				return fmt.Errorf("extract: %w", err)
 			}
 			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
+			return fmt.Errorf("extract: %w", err)
 		}
-		rc, err := f.Open()
-		if err != nil {
-			return err
+		if err := extractZipEntry(f, dest); err != nil {
+			return fmt.Errorf("extract %s: %w", f.Name, err)
 		}
-		out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
-		if err != nil {
-			rc.Close()
-			return err
-		}
-		if _, err := io.Copy(out, rc); err != nil {
-			out.Close()
-			rc.Close()
-			return err
-		}
-		out.Close()
-		rc.Close()
+	}
+
+	// Only now, with the new content fully staged, replace the old plugin dir.
+	target := filepath.Join(pluginsDir, slug)
+	stagedSlugDir := filepath.Join(temp, slug)
+	if err := os.RemoveAll(target); err != nil {
+		return fmt.Errorf("remove old plugin: %w", err)
+	}
+	if err := os.Rename(stagedSlugDir, target); err != nil {
+		return fmt.Errorf("move staged plugin into place: %w", err)
+	}
+	return nil
+}
+
+// extractZipEntry copies a single zip file entry to dest on disk.
+func extractZipEntry(f *zip.File, dest string) error {
+	rc, err := f.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, rc); err != nil {
+		return err
 	}
 	return nil
 }
