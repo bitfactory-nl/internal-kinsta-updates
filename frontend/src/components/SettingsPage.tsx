@@ -14,6 +14,7 @@ export default function SettingsPage({ onClose }: Props) {
   const [showApiKey, setShowApiKey] = useState(false)
   const [showGithubToken, setShowGithubToken] = useState(false)
   const [showAnthropicKey, setShowAnthropicKey] = useState(false)
+  const [showWordfenceKey, setShowWordfenceKey] = useState(false)
 
   useEffect(() => {
     Services.SettingsService.Get().then(s => setSettings(s)).catch(() => {})
@@ -108,6 +109,31 @@ export default function SettingsPage({ onClose }: Props) {
               </p>
             </div>
           </div>
+        </section>
+
+        {/* Wordfence */}
+        <section>
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+            Wordfence
+          </h3>
+          <div className="flex items-center gap-3">
+            <label className="text-[12.5px] text-fg-muted w-28 shrink-0">API Key</label>
+            <input
+              type={showWordfenceKey ? 'text' : 'password'}
+              className={inputClass}
+              placeholder="wfi_…"
+              value={settings.wordfenceApiKey}
+              onChange={e => update('wordfenceApiKey', e.target.value)}
+            />
+            <button
+              type="button"
+              className="text-fg-muted hover:text-fg text-xs"
+              onClick={() => setShowWordfenceKey(v => !v)}
+            >{showWordfenceKey ? 'Verberg' : 'Toon'}</button>
+          </div>
+          <p className="text-[11px] text-fg-faint mt-1.5">
+            Wordfence Intelligence → API-key voor de <span className="text-fg">production</span> vulnerability-feed.
+          </p>
         </section>
 
         {/* GitHub */}
