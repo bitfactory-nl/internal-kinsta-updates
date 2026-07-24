@@ -116,24 +116,33 @@ export default function SettingsPage({ onClose }: Props) {
           <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
             Wordfence
           </h3>
-          <div className="flex items-center gap-3">
-            <label className="text-[12.5px] text-fg-muted w-28 shrink-0">API Key</label>
-            <input
-              type={showWordfenceKey ? 'text' : 'password'}
-              className={inputClass}
-              placeholder="wfi_…"
-              value={settings.wordfenceApiKey}
-              onChange={e => update('wordfenceApiKey', e.target.value)}
-            />
-            <button
-              type="button"
-              className="text-fg-muted hover:text-fg text-xs"
-              onClick={() => setShowWordfenceKey(v => !v)}
-            >{showWordfenceKey ? 'Verberg' : 'Toon'}</button>
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">API Key</label>
+              <div className="flex-1 flex items-center gap-2">
+                <input
+                  type={showWordfenceKey ? 'text' : 'password'}
+                  value={settings.wordfenceApiKey}
+                  onChange={e => update('wordfenceApiKey', e.target.value)}
+                  placeholder="wfi_…"
+                  className={inputClass}
+                />
+                <button
+                  onClick={() => setShowWordfenceKey(v => !v)}
+                  className="text-fg-muted hover:text-fg text-xs shrink-0 transition-colors px-1"
+                  title={showWordfenceKey ? 'Verbergen' : 'Tonen'}
+                >
+                  {showWordfenceKey ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-2.5">
+              <p className="text-[11.5px] text-fg-muted">
+                Wordfence Intelligence → API-key voor de{' '}
+                <span className="text-fg">production</span> vulnerability-feed.
+              </p>
+            </div>
           </div>
-          <p className="text-[11px] text-fg-faint mt-1.5">
-            Wordfence Intelligence → API-key voor de <span className="text-fg">production</span> vulnerability-feed.
-          </p>
         </section>
 
         {/* GitHub */}
