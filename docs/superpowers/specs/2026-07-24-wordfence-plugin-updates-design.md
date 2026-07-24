@@ -15,7 +15,7 @@ worktree niet schoon is.
 
 | Onderwerp | Keuze |
 |-----------|-------|
-| Pluginbron | Lokale repos: `wp-content/plugins/*/`, versie uit plugin-header |
+| Pluginbron | Lokale repos: `public/wp-content/plugins/*/`, versie uit plugin-header |
 | Update-mechanisme | Download laatste stabiele versie van wp.org, vervang bestanden, commit |
 | Betaalde/onbekende plugins | Niet automatisch updaten; markeren als "handmatig" |
 | Branch-basis | Default branch van de repo (conventie: `release/*`); anders overslaan met waarschuwing |
@@ -58,9 +58,10 @@ Hergebruikt bestaand `ResolveSecret` / `keychain:`-patroon.
 
 - `internal/adapters/wpplugins/reader.go`
   - `ReadInstalled(projectPath) ([]InstalledPlugin, error)` — zoekt
-    `wp-content/plugins/*/` (op elke diepte binnen de repo; eerste match telt),
+    `public/wp-content/plugins/*/` (alle projecten hebben een `public/`-root),
     slug = mapnaam, versie uit `Version:`-header in het hoofd-PHP-bestand,
-    fallback `Stable tag:` in `readme.txt`.
+    fallback `Stable tag:` in `readme.txt`. Project zonder die map → geen plugins,
+    wordt overgeslagen.
 
 **Services:**
 
@@ -82,7 +83,7 @@ Hergebruikt bestaand `ResolveSecret` / `keychain:`-patroon.
     2. `GetStatus` — dirty worktree → status `needs_stash` (pauzeert dit project).
     3. `CreateBranch("security/wordfence-YYYY-MM-DD", from=defaultBranch)`.
     4. Per plugin: download laatste zip van wp.org, unzip, vervang
-       `wp-content/plugins/{slug}`, `git add`, commit
+       `public/wp-content/plugins/{slug}`, `git add`, commit
        `fix(security): update {slug} {oud}→{nieuw} (Wordfence)`.
     5. Rapporteer per plugin/project.
   - `StashAndContinue(projectID)` — `StashSave` daarna verdergaan.
