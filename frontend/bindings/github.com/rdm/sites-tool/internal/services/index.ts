@@ -4,6 +4,7 @@
 import * as BatchService from "./batchservice.js";
 import * as EditorService from "./editorservice.js";
 import * as GitService from "./gitservice.js";
+import * as InventoryService from "./inventoryservice.js";
 import * as KinstaService from "./kinstaservice.js";
 import * as MakeService from "./makeservice.js";
 import * as NotifyService from "./notifyservice.js";
@@ -22,6 +23,7 @@ export {
     BatchService,
     EditorService,
     GitService,
+    InventoryService,
     KinstaService,
     MakeService,
     NotifyService,
@@ -42,6 +44,8 @@ export {
     AppSettings,
     BatchResult,
     FeedMeta,
+    InventoryItem,
+    InventoryProjectRef,
     MakeResult,
     MakeTarget,
     PackageUpdate,
@@ -56,6 +60,7 @@ export {
     UpdateDetail,
     UpdateSelection,
     VulnFinding,
+    WPCoreReport,
     WPCoreUpdate,
     WordfenceVulnFinding
 } from "./models.js";

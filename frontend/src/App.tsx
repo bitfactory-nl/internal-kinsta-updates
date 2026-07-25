@@ -6,10 +6,15 @@ import BatchTab from './components/BatchTab'
 import SearchPanel from './components/SearchPanel'
 import SettingsPage from './components/SettingsPage'
 import WordfencePage from './components/WordfencePage'
+import InventoryPage from './components/InventoryPage'
+import WordPressPage from './components/WordPressPage'
 import ErrorBoundary from './components/ErrorBoundary'
-import { RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon } from './components/icons'
+import {
+  RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
+  PackageIcon, PaletteIcon, GlobeIcon,
+} from './components/icons'
 
-type View = 'projects' | 'search' | 'batch' | 'cve' | 'settings'
+type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'settings'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children, drag = false }: {
@@ -200,6 +205,24 @@ export default function App() {
             active={view === 'cve'}
             onClick={() => setView('cve')}
           />
+          <NavItem
+            icon={<PackageIcon size={15} />}
+            label="Plugins"
+            active={view === 'plugins'}
+            onClick={() => setView('plugins')}
+          />
+          <NavItem
+            icon={<PaletteIcon size={15} />}
+            label="Thema's"
+            active={view === 'themes'}
+            onClick={() => setView('themes')}
+          />
+          <NavItem
+            icon={<GlobeIcon size={15} />}
+            label="WordPress"
+            active={view === 'wordpress'}
+            onClick={() => setView('wordpress')}
+          />
         </nav>
 
         <div className="flex-1" />
@@ -332,6 +355,18 @@ export default function App() {
       ) : view === 'cve' ? (
         <ErrorBoundary label="CVE error">
           <WordfencePage onClose={() => setView('projects')} />
+        </ErrorBoundary>
+      ) : view === 'plugins' ? (
+        <ErrorBoundary label="Plugins error">
+          <InventoryPage key="plugins" kind="plugins" />
+        </ErrorBoundary>
+      ) : view === 'themes' ? (
+        <ErrorBoundary label="Thema's error">
+          <InventoryPage key="themes" kind="themes" />
+        </ErrorBoundary>
+      ) : view === 'wordpress' ? (
+        <ErrorBoundary label="WordPress error">
+          <WordPressPage />
         </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">

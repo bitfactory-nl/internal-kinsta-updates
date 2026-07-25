@@ -96,3 +96,50 @@ func TestDownload(t *testing.T) {
 		t.Error("Download 500: want error, got nil")
 	}
 }
+
+func TestLatestThemeVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/themes/info/1.1/" && r.URL.Query().Get("request[slug]") == "twentytwentyfour" {
+			_, _ = w.Write([]byte(`{"name":"Twenty Twenty-Four","version":"1.1"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`false`))
+	}))
+	defer srv.Close()
+
+	c := NewClient()
+	c.BaseURL = srv.URL
+
+	ver, err := c.LatestThemeVersion(context.Background(), "twentytwentyfour")
+	if err != nil {
+		t.Fatalf("LatestThemeVersion: %v", err)
+	}
+	if ver != "1.1" {
+		t.Errorf("got %q", ver)
+	}
+	if _, err := c.LatestThemeVersion(context.Background(), "custom-child"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("want ErrNotFound, got %v", err)
+	}
+}
+
+func TestLatestCoreVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/core/version-check/1.7/" {
+			_, _ = w.Write([]byte(`{"offers":[{"current":"6.5.3"}]}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := NewClient()
+	c.BaseURL = srv.URL
+
+	ver, err := c.LatestCoreVersion(context.Background())
+	if err != nil {
+		t.Fatalf("LatestCoreVersion: %v", err)
+	}
+	if ver != "6.5.3" {
+		t.Errorf("got %q", ver)
+	}
+}

@@ -132,6 +132,90 @@ export class FeedMeta {
 }
 
 /**
+ * InventoryItem is one plugin or theme aggregated across all projects.
+ */
+export class InventoryItem {
+    "slug": string;
+    "latestVersion": string;
+
+    /**
+     * wporg | manual
+     */
+    "source": string;
+    "outdatedCount": number;
+    "projects": InventoryProjectRef[];
+
+    /** Creates a new InventoryItem instance. */
+    constructor($$source: Partial<InventoryItem> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("latestVersion" in $$source)) {
+            this["latestVersion"] = "";
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
+        }
+        if (!("outdatedCount" in $$source)) {
+            this["outdatedCount"] = 0;
+        }
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InventoryItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InventoryItem {
+        const $$createField4_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField4_0($$parsedSource["projects"]);
+        }
+        return new InventoryItem($$parsedSource as Partial<InventoryItem>);
+    }
+}
+
+/**
+ * InventoryProjectRef is one project's installed version of an item.
+ */
+export class InventoryProjectRef {
+    "projectId": string;
+    "projectName": string;
+    "version": string;
+    "outdated": boolean;
+
+    /** Creates a new InventoryProjectRef instance. */
+    constructor($$source: Partial<InventoryProjectRef> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("outdated" in $$source)) {
+            this["outdated"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InventoryProjectRef instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InventoryProjectRef {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InventoryProjectRef($$parsedSource as Partial<InventoryProjectRef>);
+    }
+}
+
+/**
  * MakeResult holds the stdout/stderr output of a make invocation.
  */
 export class MakeResult {
@@ -325,7 +409,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType1;
+        const $$createField5_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -370,7 +454,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType3;
+        const $$createField3_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -558,7 +642,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType5;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -659,11 +743,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType7;
-        const $$createField3_0 = $$createType9;
-        const $$createField4_0 = $$createType9;
-        const $$createField5_0 = $$createType9;
-        const $$createField6_0 = $$createType9;
+        const $$createField2_0 = $$createType9;
+        const $$createField3_0 = $$createType11;
+        const $$createField4_0 = $$createType11;
+        const $$createField5_0 = $$createType11;
+        const $$createField6_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -704,7 +788,7 @@ export class UpdateSelection {
      * Creates a new UpdateSelection instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateSelection {
-        const $$createField1_0 = $$createType10;
+        const $$createField1_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("slugs" in $$parsedSource) {
             $$parsedSource["slugs"] = $$createField1_0($$parsedSource["slugs"]);
@@ -758,6 +842,38 @@ export class VulnFinding {
     static createFrom($$source: any = {}): VulnFinding {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new VulnFinding($$parsedSource as Partial<VulnFinding>);
+    }
+}
+
+/**
+ * WPCoreReport lists each project's WordPress core version.
+ */
+export class WPCoreReport {
+    "latestVersion": string;
+    "projects": InventoryProjectRef[];
+
+    /** Creates a new WPCoreReport instance. */
+    constructor($$source: Partial<WPCoreReport> = {}) {
+        if (!("latestVersion" in $$source)) {
+            this["latestVersion"] = "";
+        }
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WPCoreReport instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WPCoreReport {
+        const $$createField1_0 = $$createType1;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
+        }
+        return new WPCoreReport($$parsedSource as Partial<WPCoreReport>);
     }
 }
 
@@ -855,14 +971,16 @@ export class WordfenceVulnFinding {
 }
 
 // Private type creation functions
-const $$createType0 = PluginUpdateResult.createFrom;
+const $$createType0 = InventoryProjectRef.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = WordfenceVulnFinding.createFrom;
+const $$createType2 = PluginUpdateResult.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = SecurityFinding.createFrom;
+const $$createType4 = WordfenceVulnFinding.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = WPCoreUpdate.createFrom;
+const $$createType6 = SecurityFinding.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = PackageUpdate.createFrom;
+const $$createType8 = WPCoreUpdate.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $Create.Array($Create.Any);
+const $$createType10 = PackageUpdate.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $Create.Array($Create.Any);

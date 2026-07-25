@@ -38,6 +38,7 @@ type Services struct {
 
 	Wordfence       *services.WordfenceService
 	WordfenceUpdate *services.WordfenceUpdateService
+	Inventory       *services.InventoryService
 }
 
 func NewServices(cfg Config) *Services {
@@ -77,6 +78,7 @@ func NewServices(cfg Config) *Services {
 
 		Wordfence:       wordfence,
 		WordfenceUpdate: wordfenceUpdate,
+		Inventory:       services.NewInventoryService(project),
 	}
 }
 
@@ -99,5 +101,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Report),
 		application.NewService(s.Wordfence),
 		application.NewService(s.WordfenceUpdate),
+		application.NewService(s.Inventory),
 	}
 }

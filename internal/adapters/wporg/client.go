@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"time"
 )
 
@@ -58,6 +59,72 @@ func (c *Client) LatestVersion(ctx context.Context, slug string) (string, string
 		return "", "", ErrNotFound
 	}
 	return info.Version, info.DownloadLink, nil
+}
+
+// LatestThemeVersion returns the latest version of a wp.org theme.
+// Unknown slugs (custom/premium themes) yield ErrNotFound.
+func (c *Client) LatestThemeVersion(ctx context.Context, slug string) (string, error) {
+	reqURL := fmt.Sprintf("%s/themes/info/1.1/?action=theme_information&request[slug]=%s",
+		c.BaseURL, neturl.QueryEscape(slug))
+	body, status, err := c.get(ctx, reqURL)
+	if err != nil {
+		return "", fmt.Errorf("wporg theme info: %w", err)
+	}
+	// The themes API answers `false` (and older variants `null`) for unknown slugs.
+	if status == http.StatusNotFound || string(body) == "false" || string(body) == "null" || len(body) == 0 {
+		return "", ErrNotFound
+	}
+	var info struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(body, &info); err != nil {
+		return "", fmt.Errorf("wporg theme info parse: %w", err)
+	}
+	if info.Version == "" {
+		return "", ErrNotFound
+	}
+	return info.Version, nil
+}
+
+// LatestCoreVersion returns the current WordPress core version.
+func (c *Client) LatestCoreVersion(ctx context.Context) (string, error) {
+	body, status, err := c.get(ctx, c.BaseURL+"/core/version-check/1.7/")
+	if err != nil {
+		return "", fmt.Errorf("wporg core version: %w", err)
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("wporg core version: status %d", status)
+	}
+	var resp struct {
+		Offers []struct {
+			Current string `json:"current"`
+		} `json:"offers"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("wporg core version parse: %w", err)
+	}
+	if len(resp.Offers) == 0 || resp.Offers[0].Current == "" {
+		return "", fmt.Errorf("wporg core version: geen offers in antwoord")
+	}
+	return resp.Offers[0].Current, nil
+}
+
+// get performs a GET and returns the body and status code.
+func (c *Client) get(ctx context.Context, url string) ([]byte, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+	return body, resp.StatusCode, nil
 }
 
 // Download fetches the plugin zip bytes.
