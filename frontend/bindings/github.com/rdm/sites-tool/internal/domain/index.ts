@@ -5,6 +5,7 @@ export {
     AVGRow,
     AWSProjectCfg,
     ActieRow,
+    AffectedSoftware,
     BasicAuth,
     BlameLine,
     Branch,
@@ -52,5 +53,6 @@ export {
     TestRun,
     TestingCfg,
     UpdateRow,
-    VPSProjectCfg
+    VPSProjectCfg,
+    Vulnerability
 } from "./models.js";

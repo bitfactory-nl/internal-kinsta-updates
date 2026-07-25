@@ -17,6 +17,7 @@ type AppSettings struct {
 	GitDefaultRemote string `json:"gitDefaultRemote"`
 	GitPruneOnFetch  bool   `json:"gitPruneOnFetch"`
 	AnthropicAPIKey  string `json:"anthropicApiKey"`
+	WordfenceAPIKey  string `json:"wordfenceApiKey"`
 }
 
 type SettingsService struct {
@@ -39,6 +40,7 @@ func (s *SettingsService) Get() AppSettings {
 		GitDefaultRemote: s.cfg.Git.DefaultRemote,
 		GitPruneOnFetch:  s.cfg.Git.PruneOnFetch,
 		AnthropicAPIKey:  s.cfg.AI.APIKey,
+		WordfenceAPIKey:  s.cfg.Wordfence.APIKey,
 	}
 }
 
@@ -60,5 +62,6 @@ func (s *SettingsService) Save(settings AppSettings) error {
 	}
 	s.cfg.Git.PruneOnFetch = settings.GitPruneOnFetch
 	s.cfg.AI.APIKey = settings.AnthropicAPIKey
+	s.cfg.Wordfence.APIKey = settings.WordfenceAPIKey
 	return config.SaveGlobal(*s.cfg)
 }

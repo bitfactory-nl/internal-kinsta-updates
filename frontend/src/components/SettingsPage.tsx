@@ -14,6 +14,7 @@ export default function SettingsPage({ onClose }: Props) {
   const [showApiKey, setShowApiKey] = useState(false)
   const [showGithubToken, setShowGithubToken] = useState(false)
   const [showAnthropicKey, setShowAnthropicKey] = useState(false)
+  const [showWordfenceKey, setShowWordfenceKey] = useState(false)
 
   useEffect(() => {
     Services.SettingsService.Get().then(s => setSettings(s)).catch(() => {})
@@ -105,6 +106,40 @@ export default function SettingsPage({ onClose }: Props) {
               <p className="text-[11.5px] text-fg-muted">
                 De API key en Company ID zijn te vinden in het{' '}
                 <span className="text-fg">Kinsta dashboard → My Info → API Keys</span>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Wordfence */}
+        <section>
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+            Wordfence
+          </h3>
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">API Key</label>
+              <div className="flex-1 flex items-center gap-2">
+                <input
+                  type={showWordfenceKey ? 'text' : 'password'}
+                  value={settings.wordfenceApiKey}
+                  onChange={e => update('wordfenceApiKey', e.target.value)}
+                  placeholder="wfi_…"
+                  className={inputClass}
+                />
+                <button
+                  onClick={() => setShowWordfenceKey(v => !v)}
+                  className="text-fg-muted hover:text-fg text-xs shrink-0 transition-colors px-1"
+                  title={showWordfenceKey ? 'Verbergen' : 'Tonen'}
+                >
+                  {showWordfenceKey ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+            <div className="px-4 py-2.5">
+              <p className="text-[11.5px] text-fg-muted">
+                Wordfence Intelligence → API-key voor de{' '}
+                <span className="text-fg">production</span> vulnerability-feed.
               </p>
             </div>
           </div>

@@ -4,6 +4,7 @@
 import * as BatchService from "./batchservice.js";
 import * as EditorService from "./editorservice.js";
 import * as GitService from "./gitservice.js";
+import * as InventoryService from "./inventoryservice.js";
 import * as KinstaService from "./kinstaservice.js";
 import * as MakeService from "./makeservice.js";
 import * as NotifyService from "./notifyservice.js";
@@ -16,10 +17,13 @@ import * as SecurityService from "./securityservice.js";
 import * as SettingsService from "./settingsservice.js";
 import * as TestService from "./testservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
+import * as WordfenceService from "./wordfenceservice.js";
+import * as WordfenceUpdateService from "./wordfenceupdateservice.js";
 export {
     BatchService,
     EditorService,
     GitService,
+    InventoryService,
     KinstaService,
     MakeService,
     NotifyService,
@@ -31,21 +35,33 @@ export {
     SecurityService,
     SettingsService,
     TestService,
-    VulnScanService
+    VulnScanService,
+    WordfenceService,
+    WordfenceUpdateService
 };
 
 export {
     AppSettings,
     BatchResult,
+    FeedMeta,
+    FetchAllResult,
+    InventoryItem,
+    InventoryProjectRef,
     MakeResult,
     MakeTarget,
     PackageUpdate,
+    PluginUpdateResult,
+    ProjectUpdateResult,
+    ProjectVulnReport,
     ProjectWorkflow,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,
     UpdateBranch,
     UpdateDetail,
+    UpdateSelection,
     VulnFinding,
-    WPCoreUpdate
+    WPCoreReport,
+    WPCoreUpdate,
+    WordfenceVulnFinding
 } from "./models.js";

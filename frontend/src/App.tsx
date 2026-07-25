@@ -5,7 +5,16 @@ import ProjectDetail from './components/ProjectDetail'
 import BatchTab from './components/BatchTab'
 import SearchPanel from './components/SearchPanel'
 import SettingsPage from './components/SettingsPage'
+import WordfencePage from './components/WordfencePage'
+import InventoryPage from './components/InventoryPage'
+import WordPressPage from './components/WordPressPage'
 import ErrorBoundary from './components/ErrorBoundary'
+import {
+  RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
+  PackageIcon, PaletteIcon, GlobeIcon,
+} from './components/icons'
+
+type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'settings'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children, drag = false }: {
@@ -20,6 +29,25 @@ function IconBtn({ onClick, title, children, drag = false }: {
                  hover:text-fg hover:bg-hover transition-colors text-sm select-none"
     >
       {children}
+    </button>
+  )
+}
+
+// ─── nav menu item ─────────────────────────────────────────────────────────
+function NavItem({ icon, label, active, onClick }: {
+  icon: React.ReactNode; label: string; active: boolean; onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px]
+        font-medium transition-colors select-none
+        ${active
+          ? 'bg-sel text-fg shadow-[inset_0_0_0_1px_var(--border-strong)]'
+          : 'text-fg-muted hover:text-fg hover:bg-hover'}`}
+    >
+      <span className="shrink-0 flex items-center">{icon}</span>
+      <span className="truncate">{label}</span>
     </button>
   )
 }
@@ -63,7 +91,7 @@ function ProjectRow({ s, active, onClick }: {
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-12">
-      <span className="text-3xl opacity-20 select-none">📁</span>
+      <span className="text-fg-faint opacity-60 select-none"><FolderIcon size={28} /></span>
       <p className="text-sm text-fg-muted font-medium">Geen projecten</p>
       <p className="text-xs text-fg-faint">Voeg een folder toe om te beginnen</p>
       <button
@@ -84,9 +112,7 @@ export default function App() {
   const [scanning, setScanning] = useState(false)
   const [search, setSearch] = useState('')
   const [roots, setRoots] = useState<string[]>([])
-  const [showBatch, setShowBatch] = useState(false)
-  const [showSearch, setShowSearch] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
+  const [view, setView] = useState<View>('projects')
 
   const doScan = useCallback(async (currentRoots: string[]) => {
     if (currentRoots.length === 0) return
@@ -140,151 +166,208 @@ export default function App() {
   return (
     <div className="flex w-full h-screen overflow-hidden bg-bg text-fg font-sans">
 
-      {/* ── Sidebar ── */}
-      <div className="w-[262px] shrink-0 flex flex-col bg-sidebar border-r border-border">
+      {/* ── Nav sidebar ── */}
+      <div className="w-[200px] shrink-0 flex flex-col bg-sidebar border-r border-border">
 
-        {/* title bar — draggable */}
+        {/* title bar — draggable, leaves room for traffic lights */}
         <div
-          className="h-[52px] flex items-center px-3 gap-1 shrink-0 pl-[76px] border-b border-border"
+          className="h-[52px] flex items-center pl-[76px] pr-3 shrink-0 border-b border-border"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
-          <span
-            className="flex-1 text-[13px] font-bold tracking-[-.01em] text-fg pl-1"
-            style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          >
+          <span className="text-[13px] font-bold tracking-[-.01em] text-fg whitespace-nowrap">
             Kinsta Updater
           </span>
-          <IconBtn onClick={refresh} title="Opnieuw scannen" drag>
-            {scanning ? (
-              <span className="animate-spin inline-block">↻</span>
-            ) : '↻'}
-          </IconBtn>
-          <IconBtn onClick={() => { setShowSearch(s => !s); setShowBatch(false) }} title="Zoeken in alle repos" drag>
-            ⌕
-          </IconBtn>
-          <IconBtn onClick={() => { setShowBatch(b => !b); setShowSearch(false) }} title="Batch operaties" drag>
-            ⊞
-          </IconBtn>
-          <IconBtn onClick={addFolder} title="Folder toevoegen" drag>
-            +
-          </IconBtn>
         </div>
 
-        {/* configured roots */}
-        <div className="px-3.5 pt-3.5 pb-2">
-          {roots.map(r => (
-            <div key={r} className="flex items-center gap-1 group">
-              <span
-                className="text-[10px] font-semibold tracking-[.08em] text-fg-faint uppercase truncate flex-1"
-                title={r}
-              >
-                {homePath(r)}
-              </span>
-              <button
-                onClick={() => removeFolder(r)}
-                className="text-[10px] text-transparent group-hover:text-fg-muted
-                           hover:!text-red transition-colors shrink-0"
-                title="Verwijder folder"
-              >✕</button>
-            </div>
-          ))}
-          <button
-            onClick={addFolder}
-            className="mt-1 text-xs font-medium text-accent hover:text-accent-2 transition-colors whitespace-nowrap"
-          >
-            + Folder toevoegen
-          </button>
-        </div>
+        {/* menu */}
+        <nav className="px-2 pt-2.5 space-y-0.5">
+          <NavItem
+            icon={<FolderIcon size={15} />}
+            label="Projecten"
+            active={view === 'projects'}
+            onClick={() => setView('projects')}
+          />
+          <NavItem
+            icon={<SearchIcon size={15} />}
+            label="Zoeken"
+            active={view === 'search'}
+            onClick={() => setView('search')}
+          />
+          <NavItem
+            icon={<GridIcon size={15} />}
+            label="Batch operaties"
+            active={view === 'batch'}
+            onClick={() => setView('batch')}
+          />
+          <NavItem
+            icon={<ShieldIcon size={15} />}
+            label="CVE kwetsbaarheden"
+            active={view === 'cve'}
+            onClick={() => setView('cve')}
+          />
+          <NavItem
+            icon={<PackageIcon size={15} />}
+            label="Plugins"
+            active={view === 'plugins'}
+            onClick={() => setView('plugins')}
+          />
+          <NavItem
+            icon={<PaletteIcon size={15} />}
+            label="Thema's"
+            active={view === 'themes'}
+            onClick={() => setView('themes')}
+          />
+          <NavItem
+            icon={<GlobeIcon size={15} />}
+            label="WordPress"
+            active={view === 'wordpress'}
+            onClick={() => setView('wordpress')}
+          />
+        </nav>
 
-        {/* search */}
-        {summaries.length > 0 && (
-          <div className="px-3 pb-2.5">
-            <input
-              type="search"
-              placeholder="Zoeken…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-panel text-[12.5px] text-fg placeholder-fg-faint
-                         rounded-lg px-3 py-[7px] outline-none border border-border
-                         focus:border-accent focus:ring-1 focus:ring-accent/30"
-            />
-          </div>
-        )}
+        <div className="flex-1" />
 
-        {/* project list */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-0.5 py-0.5">
-          {roots.length === 0 ? (
-            <EmptyState onAdd={addFolder} />
-          ) : scanning && summaries.length === 0 ? (
-            <div className="flex items-center justify-center py-12 gap-2 text-fg-muted text-sm">
-              <span className="animate-spin">↻</span> Scannen…
-            </div>
-          ) : filtered.length === 0 ? (
-            <p className="text-xs text-fg-faint text-center py-8">
-              {search ? 'Geen resultaten' : 'Geen projecten gevonden'}
-            </p>
-          ) : (
-            filtered.map(s => (
-              <ProjectRow
-                key={s.projectId}
-                s={s}
-                active={selected?.id === s.projectId}
-                onClick={() => selectProject(s.projectId)}
-              />
-            ))
-          )}
-        </div>
-
-        {/* footer */}
-        <div className="h-[38px] px-3.5 border-t border-border shrink-0 flex items-center gap-2">
-          <p className="text-[11px] text-fg-faint flex-1">
-            {summaries.length > 0
-              ? `${summaries.length} project${summaries.length !== 1 ? 'en' : ''}${search && filtered.length !== summaries.length ? ` · ${filtered.length} zichtbaar` : ''}`
-              : ''}
-          </p>
-          <button
-            onClick={() => { setShowSettings(s => !s); setShowSearch(false); setShowBatch(false) }}
-            title="Instellingen"
-            className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sm
-              ${showSettings ? 'bg-hover text-fg' : 'text-fg-muted hover:text-fg hover:bg-hover'}`}
-          >
-            ⚙
-          </button>
+        {/* footer: settings */}
+        <div className="px-2 py-2 border-t border-border">
+          <NavItem
+            icon={<GearIcon size={15} />}
+            label="Instellingen"
+            active={view === 'settings'}
+            onClick={() => setView('settings')}
+          />
         </div>
       </div>
 
+      {/* ── Sub-sidebar: projects ── */}
+      {view === 'projects' && (
+        <div className="w-[262px] shrink-0 flex flex-col bg-sidebar border-r border-border">
+
+          {/* header — draggable */}
+          <div
+            className="h-[52px] flex items-center px-3.5 gap-1 shrink-0 border-b border-border"
+            style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+          >
+            <span className="flex-1 text-[13px] font-bold tracking-[-.01em] text-fg">
+              Projecten
+            </span>
+            <IconBtn onClick={refresh} title="Opnieuw scannen" drag>
+              <span className={`inline-flex ${scanning ? 'animate-spin' : ''}`}>
+                <RefreshIcon size={15} />
+              </span>
+            </IconBtn>
+            <IconBtn onClick={addFolder} title="Folder toevoegen" drag>
+              <PlusIcon size={15} />
+            </IconBtn>
+          </div>
+
+          {/* configured roots */}
+          <div className="px-3.5 pt-3 pb-2">
+            {roots.map(r => (
+              <div key={r} className="flex items-center gap-1 group">
+                <span
+                  className="text-[10px] font-semibold tracking-[.08em] text-fg-faint uppercase truncate flex-1"
+                  title={r}
+                >
+                  {homePath(r)}
+                </span>
+                <button
+                  onClick={() => removeFolder(r)}
+                  className="text-[10px] text-transparent group-hover:text-fg-muted
+                             hover:!text-red transition-colors shrink-0"
+                  title="Verwijder folder"
+                >✕</button>
+              </div>
+            ))}
+          </div>
+
+          {/* filter */}
+          {summaries.length > 0 && (
+            <div className="px-3 pb-2.5">
+              <input
+                type="search"
+                placeholder="Filter projecten…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-panel text-[12.5px] text-fg placeholder-fg-faint
+                           rounded-lg px-3 py-[7px] outline-none border border-border
+                           focus:border-accent focus:ring-1 focus:ring-accent/30"
+              />
+            </div>
+          )}
+
+          {/* project list */}
+          <div className="flex-1 overflow-y-auto px-2 space-y-0.5 py-0.5">
+            {roots.length === 0 ? (
+              <EmptyState onAdd={addFolder} />
+            ) : scanning && summaries.length === 0 ? (
+              <div className="flex items-center justify-center py-12 gap-2 text-fg-muted text-sm">
+                <span className="animate-spin inline-flex"><RefreshIcon size={14} /></span> Scannen…
+              </div>
+            ) : filtered.length === 0 ? (
+              <p className="text-xs text-fg-faint text-center py-8">
+                {search ? 'Geen resultaten' : 'Geen projecten gevonden'}
+              </p>
+            ) : (
+              filtered.map(s => (
+                <ProjectRow
+                  key={s.projectId}
+                  s={s}
+                  active={selected?.id === s.projectId}
+                  onClick={() => selectProject(s.projectId)}
+                />
+              ))
+            )}
+          </div>
+
+          {/* footer */}
+          <div className="h-[38px] px-3.5 border-t border-border shrink-0 flex items-center">
+            <p className="text-[11px] text-fg-faint flex-1">
+              {summaries.length > 0
+                ? `${summaries.length} project${summaries.length !== 1 ? 'en' : ''}${search && filtered.length !== summaries.length ? ` · ${filtered.length} zichtbaar` : ''}`
+                : ''}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ── Detail panel ── */}
-      {showSettings ? (
+      {view === 'settings' ? (
         <ErrorBoundary label="Settings error">
-          <SettingsPage onClose={() => setShowSettings(false)} />
+          <SettingsPage onClose={() => setView('projects')} />
         </ErrorBoundary>
-      ) : showSearch ? (
+      ) : view === 'search' ? (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="h-[56px] px-[22px] border-b border-border bg-panel shrink-0 flex items-center gap-2">
             <h2 className="text-[15px] font-bold tracking-[-.01em] text-fg flex-1">Zoeken</h2>
-            <button
-              onClick={() => setShowSearch(false)}
-              className="text-fg-muted hover:text-fg text-sm transition-colors"
-              title="Sluiten"
-            >✕</button>
           </div>
           <SearchPanel onSelectProject={(id) => {
-            setShowSearch(false)
+            setView('projects')
             selectProject(id)
           }} />
         </div>
-      ) : showBatch ? (
+      ) : view === 'batch' ? (
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="h-[56px] px-[22px] border-b border-border bg-panel shrink-0 flex items-center gap-2">
             <h2 className="text-[15px] font-bold tracking-[-.01em] text-fg flex-1">Batch Operaties</h2>
-            <button
-              onClick={() => setShowBatch(false)}
-              className="text-fg-muted hover:text-fg text-sm transition-colors"
-              title="Sluiten"
-            >✕</button>
           </div>
           <BatchTab />
         </div>
+      ) : view === 'cve' ? (
+        <ErrorBoundary label="CVE error">
+          <WordfencePage onClose={() => setView('projects')} />
+        </ErrorBoundary>
+      ) : view === 'plugins' ? (
+        <ErrorBoundary label="Plugins error">
+          <InventoryPage key="plugins" kind="plugins" />
+        </ErrorBoundary>
+      ) : view === 'themes' ? (
+        <ErrorBoundary label="Thema's error">
+          <InventoryPage key="themes" kind="themes" />
+        </ErrorBoundary>
+      ) : view === 'wordpress' ? (
+        <ErrorBoundary label="WordPress error">
+          <WordPressPage />
+        </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">
           <ProjectDetail project={selected} onRefresh={refresh} />

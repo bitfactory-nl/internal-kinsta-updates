@@ -35,6 +35,10 @@ type Services struct {
 	Security *services.SecurityService
 	Test     *services.TestService
 	Report   *services.ReportService
+
+	Wordfence       *services.WordfenceService
+	WordfenceUpdate *services.WordfenceUpdateService
+	Inventory       *services.InventoryService
 }
 
 func NewServices(cfg Config) *Services {
@@ -51,9 +55,13 @@ func NewServices(cfg Config) *Services {
 	reportStore := services.NewReportStore(services.DefaultReportsDir())
 	reportSvc := services.NewReportService(project, kinsta, security, reportStore, pdfRunner)
 
+	git := services.NewGitService(project)
+	wordfence := services.NewWordfenceService(&cfg.Global, project)
+	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
+
 	return &Services{
 		Project:  project,
-		Git:      services.NewGitService(project),
+		Git:      git,
 		Editor:   services.NewEditorService(&cfg.Global),
 		Kinsta:   kinsta,
 		Batch:    services.NewBatchService(project),
@@ -67,6 +75,10 @@ func NewServices(cfg Config) *Services {
 		Security: security,
 		Test:     testSvc,
 		Report:   reportSvc,
+
+		Wordfence:       wordfence,
+		WordfenceUpdate: wordfenceUpdate,
+		Inventory:       services.NewInventoryService(project),
 	}
 }
 
@@ -87,5 +99,8 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Security),
 		application.NewService(s.Test),
 		application.NewService(s.Report),
+		application.NewService(s.Wordfence),
+		application.NewService(s.WordfenceUpdate),
+		application.NewService(s.Inventory),
 	}
 }

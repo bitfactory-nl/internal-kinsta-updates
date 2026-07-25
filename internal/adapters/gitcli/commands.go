@@ -125,6 +125,15 @@ func CreateBranch(ctx context.Context, dir, name, from string) error {
 	return nil
 }
 
+// BranchExists reports whether a local branch with the given name exists.
+// Implemented via `git show-ref --verify --quiet`, which exits 0 when the
+// ref exists; Run treats a non-zero exit as an error, so err == nil here
+// means the branch is present.
+func BranchExists(ctx context.Context, dir, name string) bool {
+	_, err := Run(ctx, dir, "show-ref", "--verify", "--quiet", "refs/heads/"+name)
+	return err == nil
+}
+
 // DeleteBranch deletes a branch; force=true uses -D, otherwise -d.
 func DeleteBranch(ctx context.Context, dir, name string, force bool) error {
 	flag := "-d"
@@ -216,6 +225,32 @@ func ContinueRebase(ctx context.Context, dir string) error {
 		return fmt.Errorf("git rebase --continue: %w", err)
 	}
 	return nil
+}
+
+// DefaultBranch returns the repository's default branch. It prefers the remote
+// HEAD (origin/HEAD), falls back to the highest-sorted release/* branch, and
+// finally to the current HEAD branch.
+func DefaultBranch(ctx context.Context, dir string) (string, error) {
+	if out, err := Run(ctx, dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"); err == nil {
+		b := strings.TrimSpace(out)
+		b = strings.TrimPrefix(b, "origin/")
+		if b != "" {
+			return b, nil
+		}
+	}
+	if out, err := Run(ctx, dir, "branch", "--list", "release/*", "--format=%(refname:short)", "--sort=-refname"); err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+			line = strings.TrimSpace(line)
+			if line != "" {
+				return line, nil
+			}
+		}
+	}
+	out, err := Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("default branch: %w", err)
+	}
+	return strings.TrimSpace(out), nil
 }
 
 // ensure ctxDefault and ctxLong are referenced (used by git_service.go via this package).

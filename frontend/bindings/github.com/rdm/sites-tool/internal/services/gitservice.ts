@@ -33,6 +33,16 @@ export function CheckoutBranch(projectID: string, name: string): $CancellablePro
 }
 
 /**
+ * CheckoutOrCreateBranch checks out an existing branch by name, or creates it
+ * from "from" if it doesn't exist yet. This makes branch creation idempotent
+ * for callers that use a deterministic, potentially-reused branch name (e.g.
+ * a same-day security update branch).
+ */
+export function CheckoutOrCreateBranch(projectID: string, name: string, $from: string): $CancellablePromise<void> {
+    return $Call.ByID(1995213296, projectID, name, $from);
+}
+
+/**
  * Commit creates a commit with the given message, optionally amending.
  */
 export function Commit(projectID: string, message: string, amend: boolean): $CancellablePromise<void> {
@@ -44,6 +54,13 @@ export function Commit(projectID: string, message: string, amend: boolean): $Can
  */
 export function CreateBranch(projectID: string, name: string, $from: string): $CancellablePromise<void> {
     return $Call.ByID(2232817977, projectID, name, $from);
+}
+
+/**
+ * DefaultBranch returns the repository's default branch for a project.
+ */
+export function DefaultBranch(projectID: string): $CancellablePromise<string> {
+    return $Call.ByID(1124220794, projectID);
 }
 
 /**

@@ -2,13 +2,14 @@ package config
 
 // Global is loaded from ~/.config/rdm/config.yml
 type Global struct {
-	ProjectsRoots []string      `yaml:"projects_roots"`
-	Editor        string        `yaml:"editor"` // cursor | vscode | phpstorm
-	Kinsta        KinstaGlobal  `yaml:"kinsta"`
-	PluginRepo    PluginRepo    `yaml:"plugin_repo"`
-	Notifications Notifications `yaml:"notifications"`
-	Git           GitGlobal     `yaml:"git"`
-	AI            AIGlobal      `yaml:"ai"`
+	ProjectsRoots []string        `yaml:"projects_roots"`
+	Editor        string          `yaml:"editor"` // cursor | vscode | phpstorm
+	Kinsta        KinstaGlobal    `yaml:"kinsta"`
+	PluginRepo    PluginRepo      `yaml:"plugin_repo"`
+	Notifications Notifications   `yaml:"notifications"`
+	Git           GitGlobal       `yaml:"git"`
+	AI            AIGlobal        `yaml:"ai"`
+	Wordfence     WordfenceGlobal `yaml:"wordfence"`
 }
 
 type KinstaGlobal struct {
@@ -34,4 +35,8 @@ type GitGlobal struct {
 
 type AIGlobal struct {
 	APIKey string `yaml:"api_key"` // keychain:rdm.anthropic.apiKey or literal (dev only)
+}
+
+type WordfenceGlobal struct {
+	APIKey string `yaml:"api_key"` // keychain:rdm.wordfence.apiKey or literal (dev)
 }
