@@ -10,9 +10,28 @@ import { ShieldIcon, RefreshIcon, CloseIcon } from './icons'
 
 interface Props { onClose: () => void }
 
+type Tab = 'feed' | 'projects'
+
 const SHOW_LIMIT = 50
 
+function TabBtn({ active, onClick, children }: {
+  active: boolean; onClick: () => void; children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-1 py-2.5 -mb-px text-[12.5px] font-medium border-b-2 transition-colors select-none
+        ${active
+          ? 'border-accent text-fg'
+          : 'border-transparent text-fg-muted hover:text-fg'}`}
+    >
+      {children}
+    </button>
+  )
+}
+
 export default function WordfencePage({ onClose }: Props) {
+  const [tab, setTab] = useState<Tab>('feed')
   const [vulns, setVulns] = useState<Vulnerability[]>([])
   const [limit, setLimit] = useState(SHOW_LIMIT)
   const [meta, setMeta] = useState<FeedMeta | null>(null)
@@ -85,6 +104,12 @@ export default function WordfencePage({ onClose }: Props) {
     }
   }
 
+  // Opening the projects tab runs the comparison automatically the first time.
+  const openProjectsTab = () => {
+    setTab('projects')
+    if (!reports && !busy && vulns.length > 0) void compare()
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-bg">
       {/* ── toolbar ── */}
@@ -102,11 +127,6 @@ export default function WordfencePage({ onClose }: Props) {
             </p>
           )}
         </div>
-        <button onClick={compare} disabled={busy || vulns.length === 0}
-          className="px-3 py-1.5 bg-panel border border-border rounded-lg text-[12.5px] font-medium
-                     text-fg hover:bg-hover disabled:opacity-50 transition-colors shrink-0">
-          Vergelijk met projecten
-        </button>
         <button onClick={refresh} disabled={busy}
           className="px-3 py-1.5 bg-accent hover:bg-accent-2 text-white text-[12.5px] font-semibold
                      rounded-lg disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5">
@@ -123,13 +143,26 @@ export default function WordfencePage({ onClose }: Props) {
         </button>
       </div>
 
+      {/* ── tabs ── */}
+      <div className="px-6 bg-panel border-b border-border shrink-0 flex items-center gap-5">
+        <TabBtn active={tab === 'feed'} onClick={() => setTab('feed')}>
+          CVE-feed{vulns.length > 0 ? ` (${vulns.length})` : ''}
+        </TabBtn>
+        <TabBtn active={tab === 'projects'} onClick={openProjectsTab}>
+          Getroffen projecten{reports ? ` (${reports.length})` : ''}
+        </TabBtn>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
         {error && <p className="text-[12.5px] text-red">{error}</p>}
 
+        {tab === 'feed' ? (
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase">CVE-feed</h3>
-          </div>
+          {vulns.length === 0 && !busy && (
+            <p className="text-[12.5px] text-fg-faint">
+              Nog geen feed opgehaald — klik op Vernieuwen.
+            </p>
+          )}
           <ul className="space-y-1">
             {vulns.slice(0, limit).map(v => (
               <li key={v.id} className="text-[12.5px] text-fg-muted border-b border-border/50 py-1">
@@ -144,18 +177,31 @@ export default function WordfencePage({ onClose }: Props) {
               className="mt-2 text-[12px] text-accent hover:underline">Meer laden ({vulns.length - limit})</button>
           )}
         </div>
-
-        {reports && (
+        ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase">Getroffen projecten</h3>
-              <button onClick={updateSelected} disabled={busy}
+            <div className="flex items-center gap-2">
+              <button onClick={compare} disabled={busy || vulns.length === 0}
+                className="px-3 py-1.5 bg-panel border border-border rounded-lg text-[12.5px] font-medium
+                           text-fg hover:bg-hover disabled:opacity-50 transition-colors">
+                Opnieuw vergelijken
+              </button>
+              <button onClick={updateSelected} disabled={busy || !reports || reports.length === 0}
                 className="ml-auto px-3 py-1.5 bg-accent hover:bg-accent-2 text-white text-[13px] font-semibold rounded-lg disabled:opacity-50">
                 Update geselecteerde
               </button>
             </div>
-            {reports.length === 0 && <p className="text-[12.5px] text-fg-faint">Geen kwetsbare plugins gevonden.</p>}
-            {reports.map(r => {
+            {!reports && busy && (
+              <p className="text-[12.5px] text-fg-faint">Vergelijken met projecten…</p>
+            )}
+            {!reports && !busy && (
+              <p className="text-[12.5px] text-fg-faint">
+                {vulns.length === 0
+                  ? 'Haal eerst de CVE-feed op via Vernieuwen.'
+                  : 'Nog niet vergeleken — klik op "Opnieuw vergelijken".'}
+              </p>
+            )}
+            {reports?.length === 0 && <p className="text-[12.5px] text-fg-faint">Geen kwetsbare plugins gevonden.</p>}
+            {reports?.map(r => {
               const res = results[r.projectId]
               return (
                 <div key={r.projectId} className="border border-border rounded-lg p-3">
@@ -207,3 +253,5 @@ export default function WordfencePage({ onClose }: Props) {
     </div>
   )
 }
+
+
