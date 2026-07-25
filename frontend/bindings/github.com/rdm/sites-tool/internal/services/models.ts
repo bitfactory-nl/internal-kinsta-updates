@@ -188,6 +188,12 @@ export class InventoryProjectRef {
     "version": string;
     "outdated": boolean;
 
+    /**
+     * Ref is the git ref the version was read from (e.g. origin/release/1.0.x),
+     * or "werkmap" when the working tree was used as fallback.
+     */
+    "ref": string;
+
     /** Creates a new InventoryProjectRef instance. */
     constructor($$source: Partial<InventoryProjectRef> = {}) {
         if (!("projectId" in $$source)) {
@@ -201,6 +207,9 @@ export class InventoryProjectRef {
         }
         if (!("outdated" in $$source)) {
             this["outdated"] = false;
+        }
+        if (!("ref" in $$source)) {
+            this["ref"] = "";
         }
 
         Object.assign(this, $$source);

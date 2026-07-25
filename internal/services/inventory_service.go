@@ -7,9 +7,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rdm/sites-tool/internal/adapters/gitcli"
 	"github.com/rdm/sites-tool/internal/adapters/wpplugins"
 	"github.com/rdm/sites-tool/internal/adapters/wporg"
 )
+
+// workingTreeRef labels entries read from the working directory because the
+// project has no usable git default branch.
+const workingTreeRef = "werkmap"
 
 // inventoryCacheTTL bounds how often wp.org is asked for the same slug.
 const inventoryCacheTTL = 6 * time.Hour
@@ -30,6 +35,9 @@ type InventoryProjectRef struct {
 	ProjectName string `json:"projectName"`
 	Version     string `json:"version"`
 	Outdated    bool   `json:"outdated"`
+	// Ref is the git ref the version was read from (e.g. origin/release/1.0.x),
+	// or "werkmap" when the working tree was used as fallback.
+	Ref string `json:"ref"`
 }
 
 // InventoryItem is one plugin or theme aggregated across all projects.
@@ -71,19 +79,10 @@ func NewInventoryService(projects *ProjectService) *InventoryService {
 }
 
 // Plugins returns every plugin found in any project, with per-project
-// installed versions and the latest wp.org version.
+// installed versions (read from the project's default branch) and the latest
+// wp.org version.
 func (s *InventoryService) Plugins() ([]InventoryItem, error) {
-	items := s.collect(func(path string) []installedRef {
-		installed, err := wpplugins.ReadInstalled(path)
-		if err != nil {
-			return nil
-		}
-		refs := make([]installedRef, 0, len(installed))
-		for _, ip := range installed {
-			refs = append(refs, installedRef{slug: ip.Slug, version: ip.Version})
-		}
-		return refs
-	})
+	items := s.collect(s.readPlugins)
 	s.resolveLatest(items, "plugin", func(ctx context.Context, slug string) (string, error) {
 		v, _, err := s.wporg.LatestVersion(ctx, slug)
 		return v, err
@@ -92,19 +91,10 @@ func (s *InventoryService) Plugins() ([]InventoryItem, error) {
 }
 
 // Themes returns every theme found in any project, with per-project
-// installed versions and the latest wp.org version.
+// installed versions (read from the project's default branch) and the latest
+// wp.org version.
 func (s *InventoryService) Themes() ([]InventoryItem, error) {
-	items := s.collect(func(path string) []installedRef {
-		installed, err := wpplugins.ReadThemes(path)
-		if err != nil {
-			return nil
-		}
-		refs := make([]installedRef, 0, len(installed))
-		for _, th := range installed {
-			refs = append(refs, installedRef{slug: th.Slug, version: th.Version})
-		}
-		return refs
-	})
+	items := s.collect(s.readThemes)
 	s.resolveLatest(items, "theme", s.wporg.LatestThemeVersion)
 	return finishItems(items), nil
 }
@@ -126,15 +116,28 @@ func (s *InventoryService) WordPress() (WPCoreReport, error) {
 	report.LatestVersion = latest
 
 	for _, p := range s.projects.List() {
-		v, err := wpplugins.ReadWPVersion(p.Path)
-		if err != nil {
-			continue // not a WordPress project
+		ref := s.projectRef(p.Path)
+		var v string
+		if ref != "" {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			data, err := gitcli.ShowFile(ctx, p.Path, ref, "public/wp-includes/version.php")
+			cancel()
+			if err == nil {
+				v = wpplugins.ParseWPVersion(data)
+			}
+		} else {
+			ref = workingTreeRef
+			v, _ = wpplugins.ReadWPVersion(p.Path)
+		}
+		if v == "" {
+			continue // not a WordPress project (on this ref)
 		}
 		report.Projects = append(report.Projects, InventoryProjectRef{
 			ProjectID:   p.ID,
 			ProjectName: p.DisplayName,
 			Version:     v,
 			Outdated:    latest != "" && compareVersions(v, latest) < 0,
+			Ref:         ref,
 		})
 	}
 	sort.Slice(report.Projects, func(i, j int) bool {
@@ -148,11 +151,37 @@ type installedRef struct {
 	version string
 }
 
-// collect walks all projects and groups installed items by slug.
-func (s *InventoryService) collect(read func(path string) []installedRef) map[string]*InventoryItem {
+// projectRef resolves the git ref to read a project's files from: the
+// remote-tracking default branch (origin/release/…) when available, else the
+// local default branch. An empty result means "use the working tree".
+func (s *InventoryService) projectRef(path string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	def, err := gitcli.DefaultBranch(ctx, path)
+	if err != nil || def == "" {
+		return ""
+	}
+	if gitcli.RefExists(ctx, path, "origin/"+def) {
+		return "origin/" + def
+	}
+	if gitcli.RefExists(ctx, path, def) {
+		return def
+	}
+	return ""
+}
+
+// collect walks all projects and groups installed items by slug. Items are
+// read from each project's default branch; projects without a usable git ref
+// fall back to the working tree.
+func (s *InventoryService) collect(read func(path, gitRef string) []installedRef) map[string]*InventoryItem {
 	items := make(map[string]*InventoryItem)
 	for _, p := range s.projects.List() {
-		for _, ref := range read(p.Path) {
+		gitRef := s.projectRef(p.Path)
+		label := gitRef
+		if label == "" {
+			label = workingTreeRef
+		}
+		for _, ref := range read(p.Path, gitRef) {
 			it, ok := items[ref.slug]
 			if !ok {
 				it = &InventoryItem{Slug: ref.slug}
@@ -162,10 +191,129 @@ func (s *InventoryService) collect(read func(path string) []installedRef) map[st
 				ProjectID:   p.ID,
 				ProjectName: p.DisplayName,
 				Version:     ref.version,
+				Ref:         label,
 			})
 		}
 	}
 	return items
+}
+
+// readPlugins lists plugins with versions at gitRef ("" = working tree).
+func (s *InventoryService) readPlugins(path, gitRef string) []installedRef {
+	if gitRef == "" {
+		installed, err := wpplugins.ReadInstalled(path)
+		if err != nil {
+			return nil
+		}
+		refs := make([]installedRef, 0, len(installed))
+		for _, ip := range installed {
+			refs = append(refs, installedRef{slug: ip.Slug, version: ip.Version})
+		}
+		return refs
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	slugs, err := gitcli.LsTreeDirs(ctx, path, gitRef, "public/wp-content/plugins")
+	if err != nil || len(slugs) == 0 {
+		return nil
+	}
+
+	// One grep for all plugin main-file Version: headers, one for readme
+	// Stable tags — instead of a git show per file.
+	versions := map[string]string{}
+	lines, _ := gitcli.GrepTree(ctx, path, gitRef, `^[[:space:]/*]*Version:[[:space:]]*`,
+		":(glob)public/wp-content/plugins/*/*.php")
+	for _, l := range lines {
+		p, match, ok := strings.Cut(l, ":")
+		if !ok {
+			continue
+		}
+		slug := pathSegment(p, 3)
+		if slug == "" || versions[slug] != "" {
+			continue
+		}
+		if v := wpplugins.ParseVersionHeader([]byte(match)); v != "" {
+			versions[slug] = v
+		}
+	}
+	stable, _ := gitcli.GrepTree(ctx, path, gitRef, `^[[:space:]]*Stable tag:[[:space:]]*`,
+		":(glob)public/wp-content/plugins/*/readme.txt")
+	for _, l := range stable {
+		p, match, ok := strings.Cut(l, ":")
+		if !ok {
+			continue
+		}
+		slug := pathSegment(p, 3)
+		if slug == "" || versions[slug] != "" {
+			continue
+		}
+		if v := wpplugins.ParseStableTag([]byte(match)); v != "" {
+			versions[slug] = v
+		}
+	}
+
+	refs := make([]installedRef, 0, len(slugs))
+	for _, slug := range slugs {
+		refs = append(refs, installedRef{slug: slug, version: versions[slug]})
+	}
+	return refs
+}
+
+// readThemes lists themes with versions at gitRef ("" = working tree).
+func (s *InventoryService) readThemes(path, gitRef string) []installedRef {
+	if gitRef == "" {
+		installed, err := wpplugins.ReadThemes(path)
+		if err != nil {
+			return nil
+		}
+		refs := make([]installedRef, 0, len(installed))
+		for _, th := range installed {
+			refs = append(refs, installedRef{slug: th.Slug, version: th.Version})
+		}
+		return refs
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	slugs, err := gitcli.LsTreeDirs(ctx, path, gitRef, "public/wp-content/themes")
+	if err != nil || len(slugs) == 0 {
+		return nil
+	}
+
+	versions := map[string]string{}
+	lines, _ := gitcli.GrepTree(ctx, path, gitRef, `^[[:space:]/*]*Version:[[:space:]]*`,
+		":(glob)public/wp-content/themes/*/style.css")
+	for _, l := range lines {
+		p, match, ok := strings.Cut(l, ":")
+		if !ok {
+			continue
+		}
+		slug := pathSegment(p, 3)
+		if slug == "" || versions[slug] != "" {
+			continue
+		}
+		if v := wpplugins.ParseVersionHeader([]byte(match)); v != "" {
+			versions[slug] = v
+		}
+	}
+
+	refs := make([]installedRef, 0, len(slugs))
+	for _, slug := range slugs {
+		refs = append(refs, installedRef{slug: slug, version: versions[slug]})
+	}
+	return refs
+}
+
+// pathSegment returns the n-th (0-based) segment of a slash-separated path.
+func pathSegment(p string, n int) string {
+	parts := strings.Split(p, "/")
+	if n < len(parts) {
+		return parts[n]
+	}
+	return ""
 }
 
 // resolveLatest fills LatestVersion/Source for every item, using the cache

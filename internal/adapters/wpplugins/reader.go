@@ -20,6 +20,23 @@ var (
 	stableTagRe     = regexp.MustCompile(`(?im)^\s*Stable tag:\s*(.+?)\s*$`)
 )
 
+// ParseVersionHeader extracts a `Version:` header value from file contents,
+// as found in plugin main files and theme style.css headers.
+func ParseVersionHeader(data []byte) string {
+	if m := headerVersionRe.FindSubmatch(data); m != nil {
+		return strings.TrimSpace(string(m[1]))
+	}
+	return ""
+}
+
+// ParseStableTag extracts the `Stable tag:` value from readme.txt contents.
+func ParseStableTag(data []byte) string {
+	if m := stableTagRe.FindSubmatch(data); m != nil {
+		return strings.TrimSpace(string(m[1]))
+	}
+	return ""
+}
+
 // PluginsDir is the fixed location of plugins within a project checkout.
 func PluginsDir(projectPath string) string {
 	return filepath.Join(projectPath, "public", "wp-content", "plugins")

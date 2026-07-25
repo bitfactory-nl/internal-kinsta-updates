@@ -51,6 +51,14 @@ func ReadThemes(projectPath string) ([]InstalledTheme, error) {
 
 var wpVersionRe = regexp.MustCompile(`\$wp_version\s*=\s*'([^']+)'`)
 
+// ParseWPVersion extracts the $wp_version value from version.php contents.
+func ParseWPVersion(data []byte) string {
+	if m := wpVersionRe.FindSubmatch(data); m != nil {
+		return string(m[1])
+	}
+	return ""
+}
+
 // ReadWPVersion reads the WordPress core version from
 // public/wp-includes/version.php. A project without that file is not a
 // WordPress checkout; the error lets callers skip it.
@@ -59,8 +67,8 @@ func ReadWPVersion(projectPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if m := wpVersionRe.FindSubmatch(data); m != nil {
-		return string(m[1]), nil
+	if v := ParseWPVersion(data); v != "" {
+		return v, nil
 	}
 	return "", fmt.Errorf("wp_version niet gevonden in version.php")
 }

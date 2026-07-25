@@ -62,6 +62,7 @@ export default function InventoryPage({ kind }: Props) {
             <p className="text-[11px] text-fg-faint leading-tight truncate">
               {items.length} {kind === 'plugins' ? 'plugins' : "thema's"}
               {outdatedTotal > 0 && <> · <span className="text-amber">{outdatedTotal} verouderd</span></>}
+              {' · vergeleken met de default branch per project'}
             </p>
           )}
         </div>
@@ -132,7 +133,11 @@ export default function InventoryPage({ kind }: Props) {
                     {it.projects.map(p => (
                       <li key={p.projectId + p.version}
                           className="flex items-center gap-2 px-3 py-1.5 pl-9 text-[12px] border-b border-border/40 last:border-b-0">
-                        <span className="text-fg truncate flex-1">{p.projectName}</span>
+                        <span className="text-fg truncate">{p.projectName}</span>
+                        <span className="font-mono text-[10.5px] text-fg-faint truncate flex-1"
+                              title={`Versie gelezen van ${p.ref}`}>
+                          ⑂ {p.ref}
+                        </span>
                         <span className={`font-mono ${p.outdated ? 'text-amber' : 'text-fg-muted'}`}>
                           {p.version || '?'}
                         </span>

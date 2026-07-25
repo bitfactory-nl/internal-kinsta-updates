@@ -17,7 +17,8 @@ import * as $models from "./models.js";
 
 /**
  * Plugins returns every plugin found in any project, with per-project
- * installed versions and the latest wp.org version.
+ * installed versions (read from the project's default branch) and the latest
+ * wp.org version.
  */
 export function Plugins(): $CancellablePromise<$models.InventoryItem[]> {
     return $Call.ByID(1052601419).then(($result: any) => {
@@ -27,7 +28,8 @@ export function Plugins(): $CancellablePromise<$models.InventoryItem[]> {
 
 /**
  * Themes returns every theme found in any project, with per-project
- * installed versions and the latest wp.org version.
+ * installed versions (read from the project's default branch) and the latest
+ * wp.org version.
  */
 export function Themes(): $CancellablePromise<$models.InventoryItem[]> {
     return $Call.ByID(2379887539).then(($result: any) => {

@@ -44,6 +44,7 @@ export default function WordPressPage() {
                 ? <>laatste versie <span className="font-mono text-fg">{report.latestVersion}</span></>
                 : 'laatste versie onbekend'}
               {outdated > 0 && <> · <span className="text-amber">{outdated} verouderd</span></>}
+              {' · vergeleken met de default branch per project'}
             </p>
           )}
         </div>
@@ -83,7 +84,11 @@ export default function WordPressPage() {
             {shown.map(p => (
               <div key={p.projectId}
                    className="flex items-center gap-2 px-3 py-2 text-[12.5px] border-b border-border/40 last:border-b-0">
-                <span className="text-fg truncate flex-1">{p.projectName}</span>
+                <span className="text-fg truncate">{p.projectName}</span>
+                <span className="font-mono text-[10.5px] text-fg-faint truncate flex-1"
+                      title={`Versie gelezen van ${p.ref}`}>
+                  ⑂ {p.ref}
+                </span>
                 <span className={`font-mono ${p.outdated ? 'text-amber' : 'text-fg-muted'}`}>
                   {p.version}
                 </span>

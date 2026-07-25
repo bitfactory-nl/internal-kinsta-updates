@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -144,5 +145,55 @@ func TestInventoryWordPress(t *testing.T) {
 	}
 	if !report.Projects[0].Outdated || report.Projects[1].Outdated {
 		t.Errorf("outdated flags wrong: %+v", report.Projects)
+	}
+}
+
+// TestInventoryReadsFromDefaultBranch proves versions come from the git
+// default branch, not the checked-out working tree.
+func TestInventoryReadsFromDefaultBranch(t *testing.T) {
+	root := t.TempDir()
+	writePlugin(t, root, "contact-form-7", "5.8")
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("config", "user.email", "t@t.nl")
+	run("config", "user.name", "t")
+	run("checkout", "-q", "-b", "release/1.0.x")
+	run("add", "-A")
+	run("commit", "-q", "-m", "init")
+
+	// Working tree diverges: bump to 5.9 without committing.
+	writePlugin(t, root, "contact-form-7", "5.9")
+
+	svc := newTestInventory(
+		fakeInventoryLister{list: []domain.Project{
+			{ID: "a", Path: root, DisplayName: "Site A"},
+		}},
+		fakeInventoryResolver{plugins: map[string]string{"contact-form-7": "5.9"}},
+	)
+
+	items, err := svc.Plugins()
+	if err != nil {
+		t.Fatalf("Plugins: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("want 1 item, got %d", len(items))
+	}
+	p := items[0].Projects[0]
+	if p.Version != "5.8" {
+		t.Errorf("version = %q, want committed 5.8 (not working tree 5.9)", p.Version)
+	}
+	if p.Ref != "release/1.0.x" {
+		t.Errorf("ref = %q, want release/1.0.x", p.Ref)
+	}
+	if !p.Outdated {
+		t.Error("5.8 < latest 5.9 should be outdated")
 	}
 }
