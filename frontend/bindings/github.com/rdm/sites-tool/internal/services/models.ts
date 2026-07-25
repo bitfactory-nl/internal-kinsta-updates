@@ -132,6 +132,38 @@ export class FeedMeta {
 }
 
 /**
+ * FetchAllResult summarizes a git fetch across all project repositories.
+ */
+export class FetchAllResult {
+    "fetched": number;
+    "errors": string[];
+
+    /** Creates a new FetchAllResult instance. */
+    constructor($$source: Partial<FetchAllResult> = {}) {
+        if (!("fetched" in $$source)) {
+            this["fetched"] = 0;
+        }
+        if (!("errors" in $$source)) {
+            this["errors"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FetchAllResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FetchAllResult {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("errors" in $$parsedSource) {
+            $$parsedSource["errors"] = $$createField1_0($$parsedSource["errors"]);
+        }
+        return new FetchAllResult($$parsedSource as Partial<FetchAllResult>);
+    }
+}
+
+/**
  * InventoryItem is one plugin or theme aggregated across all projects.
  */
 export class InventoryItem {
@@ -170,7 +202,7 @@ export class InventoryItem {
      * Creates a new InventoryItem instance from a string or object.
      */
     static createFrom($$source: any = {}): InventoryItem {
-        const $$createField4_0 = $$createType1;
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField4_0($$parsedSource["projects"]);
@@ -418,7 +450,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType3;
+        const $$createField5_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -463,7 +495,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType5;
+        const $$createField3_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -651,7 +683,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType7;
+        const $$createField4_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -752,11 +784,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType9;
-        const $$createField3_0 = $$createType11;
-        const $$createField4_0 = $$createType11;
-        const $$createField5_0 = $$createType11;
-        const $$createField6_0 = $$createType11;
+        const $$createField2_0 = $$createType10;
+        const $$createField3_0 = $$createType12;
+        const $$createField4_0 = $$createType12;
+        const $$createField5_0 = $$createType12;
+        const $$createField6_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -797,7 +829,7 @@ export class UpdateSelection {
      * Creates a new UpdateSelection instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateSelection {
-        const $$createField1_0 = $$createType12;
+        const $$createField1_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("slugs" in $$parsedSource) {
             $$parsedSource["slugs"] = $$createField1_0($$parsedSource["slugs"]);
@@ -877,7 +909,7 @@ export class WPCoreReport {
      * Creates a new WPCoreReport instance from a string or object.
      */
     static createFrom($$source: any = {}): WPCoreReport {
-        const $$createField1_0 = $$createType1;
+        const $$createField1_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
@@ -980,16 +1012,16 @@ export class WordfenceVulnFinding {
 }
 
 // Private type creation functions
-const $$createType0 = InventoryProjectRef.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = PluginUpdateResult.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = WordfenceVulnFinding.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = SecurityFinding.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = WPCoreUpdate.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = PackageUpdate.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = $Create.Array($Create.Any);
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = InventoryProjectRef.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = PluginUpdateResult.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = WordfenceVulnFinding.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = SecurityFinding.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = WPCoreUpdate.createFrom;
+const $$createType10 = $Create.Array($$createType9);
+const $$createType11 = PackageUpdate.createFrom;
+const $$createType12 = $Create.Array($$createType11);

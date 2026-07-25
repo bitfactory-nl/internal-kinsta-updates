@@ -16,13 +16,23 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as $models from "./models.js";
 
 /**
+ * FetchAll runs git fetch in every project repository so the
+ * origin/<default-branch> refs reflect the current remote state.
+ */
+export function FetchAll(): $CancellablePromise<$models.FetchAllResult> {
+    return $Call.ByID(3773232406).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
+/**
  * Plugins returns every plugin found in any project, with per-project
  * installed versions (read from the project's default branch) and the latest
  * wp.org version.
  */
 export function Plugins(): $CancellablePromise<$models.InventoryItem[]> {
     return $Call.ByID(1052601419).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -33,7 +43,7 @@ export function Plugins(): $CancellablePromise<$models.InventoryItem[]> {
  */
 export function Themes(): $CancellablePromise<$models.InventoryItem[]> {
     return $Call.ByID(2379887539).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -42,11 +52,12 @@ export function Themes(): $CancellablePromise<$models.InventoryItem[]> {
  */
 export function WordPress(): $CancellablePromise<$models.WPCoreReport> {
     return $Call.ByID(3839459420).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.InventoryItem.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = $models.WPCoreReport.createFrom;
+const $$createType0 = $models.FetchAllResult.createFrom;
+const $$createType1 = $models.InventoryItem.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.WPCoreReport.createFrom;

@@ -1,13 +1,15 @@
 import { useEffect, useState, useCallback } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { WPCoreReport } from '../../bindings/github.com/rdm/sites-tool/internal/services'
-import { GlobeIcon, RefreshIcon } from './icons'
+import { GlobeIcon, RefreshIcon, CloudDownloadIcon } from './icons'
 
 export default function WordPressPage() {
   const [report, setReport] = useState<WPCoreReport | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState('')
+  const [fetching, setFetching] = useState(false)
+  const [fetchNote, setFetchNote] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setBusy(true); setError(null)
@@ -21,6 +23,20 @@ export default function WordPressPage() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  const fetchAll = async () => {
+    setFetching(true); setError(null); setFetchNote(null)
+    try {
+      const res = await Services.InventoryService.FetchAll()
+      setFetchNote(`${res.fetched} repo${res.fetched !== 1 ? "'s" : ''} gefetcht${res.errors.length ? ` · ${res.errors.length} mislukt` : ''}`)
+      if (res.errors.length) setError(res.errors.join('\n'))
+      await load()
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setFetching(false)
+    }
+  }
 
   const outdated = report?.projects.filter(p => p.outdated).length ?? 0
 
@@ -56,7 +72,16 @@ export default function WordPressPage() {
           className="w-[200px] bg-bg text-[12.5px] text-fg placeholder-fg-faint rounded-lg px-3 py-[6px]
                      outline-none border border-border focus:border-accent focus:ring-1 focus:ring-accent/30"
         />
-        <button onClick={() => void load()} disabled={busy}
+        <button onClick={() => void fetchAll()} disabled={fetching || busy}
+          title="git fetch in alle project-repo's, zodat origin/… de actuele remote-stand heeft"
+          className="px-3 py-1.5 bg-panel border border-border rounded-lg text-[12.5px] font-medium
+                     text-fg hover:bg-hover disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5">
+          <span className={`inline-flex ${fetching ? 'animate-spin' : ''}`}>
+            <CloudDownloadIcon size={13} />
+          </span>
+          {fetching ? 'Fetchen…' : 'Fetch alles'}
+        </button>
+        <button onClick={() => void load()} disabled={busy || fetching}
           className="px-3 py-1.5 bg-accent hover:bg-accent-2 text-white text-[12.5px] font-semibold
                      rounded-lg disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5">
           <span className={`inline-flex ${busy ? 'animate-spin' : ''}`}>
@@ -68,7 +93,8 @@ export default function WordPressPage() {
 
       {/* ── list ── */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
-        {error && <p className="text-[12.5px] text-red mb-3">{error}</p>}
+        {error && <p className="text-[12.5px] text-red mb-3 whitespace-pre-line">{error}</p>}
+        {fetchNote && <p className="text-[12px] text-fg-faint mb-3">{fetchNote}</p>}
 
         {!report && busy && (
           <p className="text-[12.5px] text-fg-faint">Versies lezen uit alle projecten…</p>

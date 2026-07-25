@@ -44,6 +44,7 @@ export {
     AppSettings,
     BatchResult,
     FeedMeta,
+    FetchAllResult,
     InventoryItem,
     InventoryProjectRef,
     MakeResult,

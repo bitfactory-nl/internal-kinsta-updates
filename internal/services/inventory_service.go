@@ -146,6 +146,49 @@ func (s *InventoryService) WordPress() (WPCoreReport, error) {
 	return report, nil
 }
 
+// FetchAllResult summarizes a git fetch across all project repositories.
+type FetchAllResult struct {
+	Fetched int      `json:"fetched"`
+	Errors  []string `json:"errors"`
+}
+
+// fetchWorkers bounds concurrent git fetches (network + ssh agent load).
+const fetchWorkers = 4
+
+// FetchAll runs git fetch in every project repository so the
+// origin/<default-branch> refs reflect the current remote state.
+func (s *InventoryService) FetchAll() (FetchAllResult, error) {
+	res := FetchAllResult{Errors: []string{}}
+	sem := make(chan struct{}, fetchWorkers)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for _, p := range s.projects.List() {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(id, name, path string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			if !gitcli.RefExists(ctx, path, "HEAD") {
+				return // not a git repo (or empty): nothing to fetch
+			}
+			if err := gitcli.Fetch(ctx, path); err != nil {
+				mu.Lock()
+				res.Errors = append(res.Errors, name+": "+err.Error())
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			res.Fetched++
+			mu.Unlock()
+		}(p.ID, p.DisplayName, p.Path)
+	}
+	wg.Wait()
+	sort.Strings(res.Errors)
+	return res, nil
+}
+
 type installedRef struct {
 	slug    string
 	version string

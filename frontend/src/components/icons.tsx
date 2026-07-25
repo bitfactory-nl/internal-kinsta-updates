@@ -129,6 +129,16 @@ export function ChevronIcon({ open, ...props }: IconProps & { open?: boolean }) 
   )
 }
 
+export function CloudDownloadIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 13v8" />
+      <path d="m8 17 4 4 4-4" />
+      <path d="M4.4 15.3A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.4 8.3" />
+    </Svg>
+  )
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <Svg {...props}>
