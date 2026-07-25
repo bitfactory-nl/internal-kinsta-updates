@@ -4,21 +4,39 @@ package wordfence
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
 
 type rawVuln struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	CVE       string `json:"cve"`
-	CVSS      struct {
-		Score  string `json:"score"`
-		Rating string `json:"rating"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	CVE   string `json:"cve"`
+	CVSS  struct {
+		Score  flexFloat `json:"score"`
+		Rating string    `json:"rating"`
 	} `json:"cvss"`
 	Published string        `json:"published"`
 	Software  []rawSoftware `json:"software"`
+}
+
+// flexFloat unmarshals a CVSS score that the Wordfence feed may send as a JSON
+// number (e.g. 7.5), a quoted string ("7.5"), or null. Parsing is best-effort:
+// an unrecognized value leaves the score at zero rather than failing the whole
+// feed, matching how the other display-only fields are treated.
+type flexFloat float64
+
+func (f *flexFloat) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(strings.TrimSpace(string(b)), `"`)
+	if s == "" || s == "null" {
+		return nil
+	}
+	if v, err := strconv.ParseFloat(s, 64); err == nil {
+		*f = flexFloat(v)
+	}
+	return nil
 }
 
 type rawSoftware struct {
@@ -52,9 +70,7 @@ func ParseFeed(data []byte) ([]domain.Vulnerability, error) {
 			CVE:      rv.CVE,
 			Severity: rv.CVSS.Rating,
 		}
-		if f, err := strconv.ParseFloat(rv.CVSS.Score, 64); err == nil {
-			v.CVSSScore = f
-		}
+		v.CVSSScore = float64(rv.CVSS.Score)
 		if t, err := time.Parse(time.RFC3339, rv.Published); err == nil {
 			v.Published = t
 		}
