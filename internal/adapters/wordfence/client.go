@@ -39,7 +39,16 @@ func (c *Client) Fetch(ctx context.Context) ([]byte, error) {
 		return nil, fmt.Errorf("wordfence fetch: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
+	switch {
+	case resp.StatusCode == http.StatusTooManyRequests:
+		msg := "wordfence fetch: rate-limited (429) — de feed mag maar beperkt opgehaald worden, probeer het later opnieuw"
+		if ra := resp.Header.Get("Retry-After"); ra != "" {
+			msg += fmt.Sprintf(" (Retry-After: %s)", ra)
+		}
+		return nil, fmt.Errorf("%s", msg)
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return nil, fmt.Errorf("wordfence fetch: status %d — controleer de API-key in Instellingen → Wordfence", resp.StatusCode)
+	case resp.StatusCode != http.StatusOK:
 		return nil, fmt.Errorf("wordfence fetch: status %d", resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
