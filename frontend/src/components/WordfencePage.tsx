@@ -6,6 +6,7 @@ import type {
   ProjectUpdateResult,
 } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { Vulnerability } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import { ShieldIcon, RefreshIcon, CloseIcon } from './icons'
 
 interface Props { onClose: () => void }
 
@@ -86,30 +87,48 @@ export default function WordfencePage({ onClose }: Props) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-bg">
-      <div className="h-14 px-6 bg-panel border-b border-border shrink-0 flex items-center gap-3">
-        <h2 className="text-[15px] font-bold text-fg flex-1">Wordfence kwetsbaarheden</h2>
+      {/* ── toolbar ── */}
+      <div className="h-14 px-[22px] bg-panel border-b border-border shrink-0 flex items-center gap-3">
+        <span className="w-8 h-8 flex items-center justify-center rounded-lg bg-hover text-fg-muted shrink-0">
+          <ShieldIcon size={16} />
+        </span>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-[15px] font-bold tracking-[-.01em] text-fg leading-tight truncate">
+            CVE kwetsbaarheden
+          </h2>
+          {meta && meta.count > 0 && (
+            <p className="text-[11px] text-fg-faint leading-tight truncate">
+              {meta.count} CVE&apos;s · bijgewerkt {new Date(meta.fetchedAt).toLocaleString()}
+            </p>
+          )}
+        </div>
+        <button onClick={compare} disabled={busy || vulns.length === 0}
+          className="px-3 py-1.5 bg-panel border border-border rounded-lg text-[12.5px] font-medium
+                     text-fg hover:bg-hover disabled:opacity-50 transition-colors shrink-0">
+          Vergelijk met projecten
+        </button>
         <button onClick={refresh} disabled={busy}
-          className="px-3 py-1.5 bg-accent hover:bg-accent-2 text-white text-[13px] font-semibold rounded-lg disabled:opacity-50">
+          className="px-3 py-1.5 bg-accent hover:bg-accent-2 text-white text-[12.5px] font-semibold
+                     rounded-lg disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5">
+          <span className={`inline-flex ${busy ? 'animate-spin' : ''}`}>
+            <RefreshIcon size={13} />
+          </span>
           {busy ? 'Bezig…' : 'Vernieuwen'}
         </button>
-        <button onClick={onClose} className="text-fg-muted hover:text-fg text-lg leading-none" title="Sluiten">✕</button>
+        <button onClick={onClose}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-fg-muted
+                     hover:text-fg hover:bg-hover transition-colors shrink-0"
+          title="Sluiten">
+          <CloseIcon size={15} />
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
         {error && <p className="text-[12.5px] text-red">{error}</p>}
-        {meta && (
-          <p className="text-[11px] text-fg-faint">
-            {meta.count} kwetsbaarheden · laatst opgehaald {meta.fetchedAt ? new Date(meta.fetchedAt).toLocaleString() : '—'}
-          </p>
-        )}
 
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase">Feed</h3>
-            <button onClick={compare} disabled={busy || vulns.length === 0}
-              className="ml-auto px-3 py-1 bg-panel border border-border rounded-lg text-[12px] hover:bg-hover disabled:opacity-50">
-              Vergelijk met projecten
-            </button>
+            <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase">CVE-feed</h3>
           </div>
           <ul className="space-y-1">
             {vulns.slice(0, limit).map(v => (

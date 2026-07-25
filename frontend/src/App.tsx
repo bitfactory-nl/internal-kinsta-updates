@@ -7,6 +7,7 @@ import SearchPanel from './components/SearchPanel'
 import SettingsPage from './components/SettingsPage'
 import WordfencePage from './components/WordfencePage'
 import ErrorBoundary from './components/ErrorBoundary'
+import { RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon } from './components/icons'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children, drag = false }: {
@@ -157,21 +158,21 @@ export default function App() {
             Kinsta Updater
           </span>
           <IconBtn onClick={refresh} title="Opnieuw scannen" drag>
-            {scanning ? (
-              <span className="animate-spin inline-block">↻</span>
-            ) : '↻'}
+            <span className={`inline-flex ${scanning ? 'animate-spin' : ''}`}>
+              <RefreshIcon size={15} />
+            </span>
           </IconBtn>
           <IconBtn onClick={() => { setShowSearch(s => !s); setShowBatch(false); setShowWordfence(false) }} title="Zoeken in alle repos" drag>
-            ⌕
+            <SearchIcon size={15} />
           </IconBtn>
           <IconBtn onClick={() => { setShowBatch(b => !b); setShowSearch(false); setShowWordfence(false) }} title="Batch operaties" drag>
-            ⊞
+            <GridIcon size={15} />
           </IconBtn>
-          <IconBtn onClick={() => { setShowWordfence(w => !w); setShowSearch(false); setShowBatch(false) }} title="Wordfence kwetsbaarheden" drag>
-            🛡
+          <IconBtn onClick={() => { setShowWordfence(w => !w); setShowSearch(false); setShowBatch(false) }} title="CVE kwetsbaarheden" drag>
+            <ShieldIcon size={15} />
           </IconBtn>
           <IconBtn onClick={addFolder} title="Folder toevoegen" drag>
-            +
+            <PlusIcon size={15} />
           </IconBtn>
         </div>
 
@@ -253,7 +254,7 @@ export default function App() {
             className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sm
               ${showSettings ? 'bg-hover text-fg' : 'text-fg-muted hover:text-fg hover:bg-hover'}`}
           >
-            ⚙
+            <GearIcon size={15} />
           </button>
         </div>
       </div>
@@ -291,7 +292,7 @@ export default function App() {
           <BatchTab />
         </div>
       ) : showWordfence ? (
-        <ErrorBoundary label="Wordfence error">
+        <ErrorBoundary label="CVE error">
           <WordfencePage onClose={() => setShowWordfence(false)} />
         </ErrorBoundary>
       ) : selected ? (
