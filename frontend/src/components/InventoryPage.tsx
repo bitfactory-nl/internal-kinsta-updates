@@ -41,8 +41,11 @@ export default function InventoryPage({ kind }: Props) {
     })
   }
 
+  const q = filter.trim().toLowerCase()
   const shown = (items ?? []).filter(it =>
-    !filter || it.slug.toLowerCase().includes(filter.toLowerCase())
+    !q ||
+    it.slug.toLowerCase().includes(q) ||
+    it.projects.some(p => p.projectName.toLowerCase().includes(q))
   )
   const outdatedTotal = (items ?? []).reduce((n, it) => n + it.outdatedCount, 0)
 
@@ -64,7 +67,7 @@ export default function InventoryPage({ kind }: Props) {
         </div>
         <input
           type="search"
-          placeholder="Filter…"
+          placeholder={kind === 'plugins' ? 'Zoek plugin of project…' : 'Zoek thema of project…'}
           value={filter}
           onChange={e => setFilter(e.target.value)}
           className="w-[200px] bg-bg text-[12.5px] text-fg placeholder-fg-faint rounded-lg px-3 py-[6px]
