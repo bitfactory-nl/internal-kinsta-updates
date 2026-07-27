@@ -245,7 +245,7 @@ export default function ReportTab({ projectId }: Props) {
     }
   }
 
-  const updateField = (field: 'clientName' | 'websiteName', value: string) => {
+  const updateField = (field: 'clientName' | 'websiteName' | 'opmerkingen', value: string) => {
     if (!report) return
     setReport(new Report({ ...report, [field]: value }))
   }
@@ -411,6 +411,16 @@ export default function ReportTab({ projectId }: Props) {
                 ]}
                 empty={{ onderwerp: '', opmerking: '' }}
                 onChange={rows => setReport(new Report({ ...report, avg: rows }))}
+              />
+            </SectionCard>
+
+            <SectionCard title="Overige opmerkingen">
+              <textarea
+                value={report.opmerkingen}
+                onChange={e => updateField('opmerkingen', e.target.value)}
+                rows={5}
+                placeholder="Vrije ruimte voor extra informatie van de developer/updater…"
+                className="w-full bg-panel border border-border rounded-[9px] px-3 py-2 text-[13px] text-fg outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 resize-y"
               />
             </SectionCard>
           </>
