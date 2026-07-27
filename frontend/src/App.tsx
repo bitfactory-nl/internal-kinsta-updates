@@ -111,6 +111,7 @@ export default function App() {
   const [selected, setSelected] = useState<Project | null>(null)
   const [scanning, setScanning] = useState(false)
   const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [roots, setRoots] = useState<string[]>([])
   const [view, setView] = useState<View>('projects')
 
@@ -154,12 +155,22 @@ export default function App() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  const filtered = search
-    ? summaries.filter(s =>
-        s.displayName.toLowerCase().includes(search.toLowerCase()) ||
-        (s.branch ?? '').toLowerCase().includes(search.toLowerCase())
-      )
-    : summaries
+  // distinct deploy types (from deploy_conf.json), with per-type counts
+  const typeCounts = summaries.reduce<Record<string, number>>((acc, s) => {
+    const t = s.deployType || 'overig'
+    acc[t] = (acc[t] ?? 0) + 1
+    return acc
+  }, {})
+  const deployTypes = Object.keys(typeCounts).sort()
+
+  const filtered = summaries.filter(s => {
+    if (typeFilter && (s.deployType || 'overig') !== typeFilter) return false
+    if (!search) return true
+    return (
+      s.displayName.toLowerCase().includes(search.toLowerCase()) ||
+      (s.branch ?? '').toLowerCase().includes(search.toLowerCase())
+    )
+  })
 
   const homePath = (p: string) => p.replace(/^\/Users\/[^/]+/, '~')
 
@@ -295,6 +306,34 @@ export default function App() {
             </div>
           )}
 
+          {/* type filter chips */}
+          {deployTypes.length > 1 && (
+            <div className="px-3 pb-2.5 flex flex-wrap gap-1">
+              <button
+                onClick={() => setTypeFilter(null)}
+                className={`px-2 py-[3px] rounded-full text-[10.5px] font-medium border transition-colors
+                  ${typeFilter === null
+                    ? 'bg-accent-soft border-accent/40 text-accent'
+                    : 'bg-panel border-border text-fg-muted hover:text-fg hover:bg-hover'}`}
+              >
+                Alle ({summaries.length})
+              </button>
+              {deployTypes.map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTypeFilter(prev => prev === t ? null : t)}
+                  title={`Filter op type ${t}`}
+                  className={`px-2 py-[3px] rounded-full text-[10.5px] font-medium border transition-colors font-mono
+                    ${typeFilter === t
+                      ? 'bg-accent-soft border-accent/40 text-accent'
+                      : 'bg-panel border-border text-fg-muted hover:text-fg hover:bg-hover'}`}
+                >
+                  {t} ({typeCounts[t]})
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* project list */}
           <div className="flex-1 overflow-y-auto px-2 space-y-0.5 py-0.5">
             {roots.length === 0 ? (
@@ -305,7 +344,7 @@ export default function App() {
               </div>
             ) : filtered.length === 0 ? (
               <p className="text-xs text-fg-faint text-center py-8">
-                {search ? 'Geen resultaten' : 'Geen projecten gevonden'}
+                {search || typeFilter ? 'Geen resultaten' : 'Geen projecten gevonden'}
               </p>
             ) : (
               filtered.map(s => (
@@ -323,7 +362,7 @@ export default function App() {
           <div className="h-[38px] px-3.5 border-t border-border shrink-0 flex items-center">
             <p className="text-[11px] text-fg-faint flex-1">
               {summaries.length > 0
-                ? `${summaries.length} project${summaries.length !== 1 ? 'en' : ''}${search && filtered.length !== summaries.length ? ` · ${filtered.length} zichtbaar` : ''}`
+                ? `${summaries.length} project${summaries.length !== 1 ? 'en' : ''}${(search || typeFilter) && filtered.length !== summaries.length ? ` · ${filtered.length} zichtbaar` : ''}`
                 : ''}
             </p>
           </div>

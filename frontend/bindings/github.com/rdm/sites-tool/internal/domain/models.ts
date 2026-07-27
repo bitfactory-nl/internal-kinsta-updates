@@ -1191,6 +1191,11 @@ export class ProjectStatusSummary {
     "dirty": boolean;
     "isRepo": boolean;
 
+    /**
+     * DeployType is the `type` from deploy_conf.json (e.g. wordpress_kinsta).
+     */
+    "deployType": string;
+
     /** Creates a new ProjectStatusSummary instance. */
     constructor($$source: Partial<ProjectStatusSummary> = {}) {
         if (!("projectId" in $$source)) {
@@ -1213,6 +1218,9 @@ export class ProjectStatusSummary {
         }
         if (!("isRepo" in $$source)) {
             this["isRepo"] = false;
+        }
+        if (!("deployType" in $$source)) {
+            this["deployType"] = "";
         }
 
         Object.assign(this, $$source);

@@ -120,6 +120,8 @@ type ProjectStatusSummary struct {
 	Behind      int       `json:"behind"`
 	Dirty       bool      `json:"dirty"`
 	IsRepo      bool      `json:"isRepo"`
+	// DeployType is the `type` from deploy_conf.json (e.g. wordpress_kinsta).
+	DeployType string `json:"deployType"`
 }
 
 type GraphCommit struct {
