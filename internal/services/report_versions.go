@@ -13,25 +13,24 @@ import (
 	"github.com/rdm/sites-tool/internal/domain"
 )
 
-// normalizeVersion strips vendor-ruis van een versietag: "php8.3" -> "8.3",
-// "24.16.0-bf3" -> "24.16.0", "v20.1" -> "20.1". Tags met een niet
-// geresolvede variabele ("${TAG_NODE}") leveren "" op.
+// reVersionToken pakt het eerste numerieke versiedeel uit een string.
+var reVersionToken = regexp.MustCompile(`[0-9]+(?:\.[0-9]+)*`)
+
+// normalizeVersion strips vendor-ruis van een versietag én van handmatige
+// invoer: "php8.3" -> "8.3", "24.16.0-bf3" -> "24.16.0", "PHP 8.3.32" ->
+// "8.3.32", "8.3 (Kinsta prod)" -> "8.3". Tags met een niet geresolvede
+// variabele ("${TAG_NODE}") of zonder cijfers ("latest") leveren "" op.
 func normalizeVersion(raw string) string {
 	v := strings.TrimSpace(strings.ToLower(raw))
 	if v == "" || strings.Contains(v, "$") {
 		return ""
 	}
-	v = strings.TrimPrefix(v, "php")
-	v = strings.TrimPrefix(v, "v")
-	if i := strings.Index(v, "-"); i >= 0 {
-		v = v[:i]
-	}
-	return v
+	return reVersionToken.FindString(v)
 }
 
 var (
 	rePHPFrom  = regexp.MustCompile(`(?m)^\s*FROM\s+\S*php:([^\s]+)`)
-	reNodeImg  = regexp.MustCompile(`(?m)image:\s*\S*node:([^\s"']+)`)
+	reNodeImg  = regexp.MustCompile(`(?m)^\s*image:\s*\S*node:([^\s"']+)`)
 	reNodeFrom = regexp.MustCompile(`(?m)^\s*FROM\s+\S*node:([^\s]+)`)
 )
 

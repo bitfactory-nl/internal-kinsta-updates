@@ -129,6 +129,7 @@ func migrateSoftwareRows(rows []domain.SoftwareRow) []domain.SoftwareRow {
 			out = append(out, row)
 			if !heeftLokaal {
 				out = append(out, domain.SoftwareRow{Component: compPHPLocal})
+				heeftLokaal = true
 			}
 			continue
 		}
@@ -324,15 +325,17 @@ func (s *ReportService) prefillEOL(r *domain.Report) {
 	if s.eol == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	now := time.Now()
 	for i := range r.Software {
 		product, ok := eolProducts[r.Software[i].Component]
 		if !ok {
 			continue
 		}
+		// Eigen timeout per lookup: een traag product mag het budget van de
+		// volgende rijen niet opeten (de client cachet per product).
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		cycles, err := s.eol.Cycles(ctx, product)
+		cancel()
 		if err != nil {
 			continue
 		}

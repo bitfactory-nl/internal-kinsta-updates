@@ -133,6 +133,18 @@ func TestMigrateSoftwareRowsSplitsPHP(t *testing.T) {
 	if len(again) != 3 || again[1].Component != compPHPLocal {
 		t.Errorf("migratie is niet idempotent: %+v", again)
 	}
+
+	// Dubbele legacy "PHP"-rijen: maximaal één "PHP (lokaal)" invoegen.
+	dubbel := migrateSoftwareRows([]domain.SoftwareRow{{Component: "PHP"}, {Component: "PHP"}})
+	lokaal := 0
+	for _, row := range dubbel {
+		if row.Component == compPHPLocal {
+			lokaal++
+		}
+	}
+	if lokaal != 1 {
+		t.Errorf("dubbele PHP-rijen: %d lokaal-rijen ingevoegd, want 1: %+v", lokaal, dubbel)
+	}
 }
 
 func TestGetReportReturnsStoredDraft(t *testing.T) {

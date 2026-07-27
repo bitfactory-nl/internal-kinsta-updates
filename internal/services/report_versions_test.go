@@ -16,6 +16,10 @@ func TestNormalizeVersion(t *testing.T) {
 		{"  22.17 ", "22.17"},
 		{"${TAG_NODE}", ""},
 		{"", ""},
+		// Handmatige invoer in de "Huidig"-cel (vrij tekstveld):
+		{"PHP 8.3.32", "8.3.32"},
+		{"8.3 (Kinsta prod)", "8.3"},
+		{"latest", ""},
 	}
 	for _, tt := range tests {
 		if got := normalizeVersion(tt.in); got != tt.want {
@@ -48,6 +52,11 @@ func TestNodeFromComposeAndDockerfile(t *testing.T) {
 	variable := "services:\n  node:\n    image: europe-docker.pkg.dev/bitfactory-nl/service-node/node:${TAG_NODE}\n"
 	if got := nodeFromCompose([]byte(variable)); got != "" {
 		t.Errorf("nodeFromCompose(variabele) = %q, want \"\"", got)
+	}
+	// Een uitgecommentarieerde oude tag boven de actieve regel mag niet winnen.
+	commented := "services:\n  node:\n    # image: europe-docker.pkg.dev/bitfactory-nl/service-node/node:20.11.0  # oud\n    image: europe-docker.pkg.dev/bitfactory-nl/service-node/node:24.16.0-bf3\n"
+	if got := nodeFromCompose([]byte(commented)); got != "24.16.0" {
+		t.Errorf("nodeFromCompose(commentaar) = %q, want 24.16.0", got)
 	}
 	dockerfile := "FROM europe-docker.pkg.dev/bitfactory-nl/service-node/node:20.12.2 AS frontend\n"
 	if got := nodeFromDockerfile([]byte(dockerfile)); got != "20.12.2" {
