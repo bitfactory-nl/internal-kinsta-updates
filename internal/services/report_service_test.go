@@ -98,8 +98,37 @@ func TestGetReportSkeletonWhenNoDraftStored(t *testing.T) {
 			t.Fatalf("expected default OK status, got %+v", row)
 		}
 	}
-	if len(r.Software) != 4 || len(r.DependencyUpdates) != 2 || len(r.WPUpdates) != 2 {
+	if len(r.Software) != 5 || len(r.DependencyUpdates) != 2 || len(r.WPUpdates) != 2 {
 		t.Fatalf("unexpected default row counts: %+v", r)
+	}
+	wantComponents := []string{compPHPProd, compPHPLocal, compMariaDB, compNode, compWordPress}
+	for i, want := range wantComponents {
+		if r.Software[i].Component != want {
+			t.Fatalf("software rij %d = %q, want %q", i, r.Software[i].Component, want)
+		}
+	}
+}
+
+func TestMigrateSoftwareRowsSplitsPHP(t *testing.T) {
+	oud := []domain.SoftwareRow{
+		{Component: "PHP", Huidig: "8.2", Opmerking: "handmatig"},
+		{Component: "MariaDB"},
+	}
+	rows := migrateSoftwareRows(oud)
+	if len(rows) != 3 {
+		t.Fatalf("len = %d, want 3", len(rows))
+	}
+	if rows[0].Component != compPHPProd || rows[0].Huidig != "8.2" || rows[0].Opmerking != "handmatig" {
+		t.Errorf("rij 0 = %+v, want hernoemde PHP-rij met behoud van waarden", rows[0])
+	}
+	if rows[1].Component != compPHPLocal {
+		t.Errorf("rij 1 = %+v, want ingevoegde PHP (lokaal)", rows[1])
+	}
+
+	// Idempotent: nogmaals migreren verandert niets.
+	again := migrateSoftwareRows(rows)
+	if len(again) != 3 || again[1].Component != compPHPLocal {
+		t.Errorf("migratie is niet idempotent: %+v", again)
 	}
 }
 
@@ -158,15 +187,15 @@ func TestPrefillFillsSoftwareVersionsAndUpdateCounts(t *testing.T) {
 
 	var php, wp string
 	for _, row := range r.Software {
-		if row.Component == "PHP" {
+		if row.Component == compPHPProd {
 			php = row.Huidig
 		}
-		if row.Component == "WordPress" {
+		if row.Component == compWordPress {
 			wp = row.Huidig
 		}
 	}
-	if php != "php8.3" {
-		t.Fatalf("expected PHP version from prod env, got %q", php)
+	if php != "8.3" {
+		t.Fatalf("expected genormaliseerde PHP version from prod env, got %q", php)
 	}
 	if wp != "6.5.2" {
 		t.Fatalf("expected WordPress version from prod env (not staging), got %q", wp)

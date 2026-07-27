@@ -16,6 +16,16 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
+// Componentnamen in de "Server software & frameworks"-tabel. De prefill
+// matcht op deze exacte strings.
+const (
+	compPHPProd   = "PHP (productie)"
+	compPHPLocal  = "PHP (lokaal)"
+	compMariaDB   = "MariaDB"
+	compNode      = "Node"
+	compWordPress = "WordPress"
+)
+
 // reportProjects is the subset of *ProjectService ReportService needs (test seam).
 type reportProjects interface {
 	Get(id string) (domain.Project, bool)
@@ -89,7 +99,33 @@ func (s *ReportService) GetReport(projectID, period string) (domain.Report, erro
 	if stored.ProjectID == "" {
 		return skeletonReport(p, projectID, period), nil
 	}
+	stored.Software = migrateSoftwareRows(stored.Software)
 	return stored, nil
+}
+
+// migrateSoftwareRows werkt drafts van vóór de PHP-splitsing bij: de rij
+// "PHP" wordt "PHP (productie)" en "PHP (lokaal)" wordt direct erna
+// ingevoegd. Idempotent; geeft een nieuwe slice terug.
+func migrateSoftwareRows(rows []domain.SoftwareRow) []domain.SoftwareRow {
+	heeftLokaal := false
+	for _, row := range rows {
+		if row.Component == compPHPLocal {
+			heeftLokaal = true
+		}
+	}
+	out := make([]domain.SoftwareRow, 0, len(rows)+1)
+	for _, row := range rows {
+		if row.Component == "PHP" {
+			row.Component = compPHPProd
+			out = append(out, row)
+			if !heeftLokaal {
+				out = append(out, domain.SoftwareRow{Component: compPHPLocal})
+			}
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 // skeletonReport builds a fresh draft with the default rows described in the
@@ -106,10 +142,11 @@ func skeletonReport(p domain.Project, projectID, period string) domain.Report {
 			{Onderdeel: "TLS-certificaat", Status: "✔ OK"},
 		},
 		Software: []domain.SoftwareRow{
-			{Component: "PHP"},
-			{Component: "MariaDB"},
-			{Component: "Node"},
-			{Component: "WordPress"},
+			{Component: compPHPProd},
+			{Component: compPHPLocal},
+			{Component: compMariaDB},
+			{Component: compNode},
+			{Component: compWordPress},
 		},
 		DependencyUpdates: []domain.UpdateRow{
 			{Naam: "Composer - PHP packages"},
@@ -197,8 +234,8 @@ func (s *ReportService) prefillFromKinsta(r *domain.Report, p domain.Project) {
 			if e.ID != envID {
 				continue
 			}
-			setSoftwareHuidig(r, "PHP", e.ContainerInfo.PHPEngineVersion)
-			setSoftwareHuidig(r, "WordPress", e.WordPressVersion)
+			setSoftwareHuidig(r, compPHPProd, normalizeVersion(e.ContainerInfo.PHPEngineVersion))
+			setSoftwareHuidig(r, compWordPress, e.WordPressVersion)
 			break
 		}
 	}
