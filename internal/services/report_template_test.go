@@ -46,3 +46,22 @@ func TestRenderReportHTMLEmptyReportNoError(t *testing.T) {
 		t.Fatalf("render empty report: %v", err)
 	}
 }
+
+func TestRenderReportHTMLOpmerkingen(t *testing.T) {
+	r := domain.Report{ProjectID: "p", Period: "Q3 2026", Opmerkingen: "Regel één\nRegel twee"}
+	html, err := renderReportHTML(r, "")
+	if err != nil {
+		t.Fatalf("renderReportHTML: %v", err)
+	}
+	if !strings.Contains(html, "Overige opmerkingen") || !strings.Contains(html, "Regel één") {
+		t.Errorf("opmerkingen-sectie ontbreekt in html")
+	}
+
+	leeg, err := renderReportHTML(domain.Report{ProjectID: "p", Period: "Q3 2026"}, "")
+	if err != nil {
+		t.Fatalf("renderReportHTML leeg: %v", err)
+	}
+	if strings.Contains(leeg, "Overige opmerkingen") {
+		t.Errorf("lege opmerkingen moeten geen sectie renderen")
+	}
+}
