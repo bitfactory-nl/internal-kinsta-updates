@@ -122,6 +122,28 @@ func TestLatestThemeVersion(t *testing.T) {
 	}
 }
 
+func TestCoreDownloadURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{"gewone versie", "6.5.3", "https://wordpress.org/wordpress-6.5.3-no-content.zip"},
+		{"leading v wordt getrimd", "v6.5.3", "https://wordpress.org/wordpress-6.5.3-no-content.zip"},
+		{"omringende whitespace wordt getrimd", "  6.5.3  ", "https://wordpress.org/wordpress-6.5.3-no-content.zip"},
+		{"whitespace en leading v samen", " v6.5.3 ", "https://wordpress.org/wordpress-6.5.3-no-content.zip"},
+		{"lege string geeft lege string", "", ""},
+		{"whitespace-only geeft lege string", "   ", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CoreDownloadURL(tt.version); got != tt.want {
+				t.Errorf("CoreDownloadURL(%q) = %q, want %q", tt.version, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestLatestCoreVersion(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/core/version-check/1.7/" {
