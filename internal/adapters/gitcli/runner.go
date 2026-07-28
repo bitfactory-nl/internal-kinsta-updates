@@ -20,7 +20,11 @@ import (
 func newGitCmd(ctx context.Context, dir string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks"}, args...)...)
 	cmd.Dir = dir
-	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	// Eigen procesgroep: git spawnt kind-processen (git-remote-http, ssh,
+	// hook-scripts). Het cancel-signaal moet de hele boom bereiken, anders
+	// blijven die na een timeout als wezen doordraaien.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
 	cmd.WaitDelay = 2 * time.Second
 	return cmd
 }
