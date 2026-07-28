@@ -1846,9 +1846,13 @@ export class Vulnerability {
     "id": string;
     "title": string;
     "cve": string;
+    "cveLink": string;
     "cvssScore": number;
+    "cvssVector": string;
     "severity": string;
+    "researchers": string[];
     "published": time$0.Time;
+    "updated": time$0.Time;
     "software": AffectedSoftware[];
 
     /** Creates a new Vulnerability instance. */
@@ -1862,14 +1866,26 @@ export class Vulnerability {
         if (!("cve" in $$source)) {
             this["cve"] = "";
         }
+        if (!("cveLink" in $$source)) {
+            this["cveLink"] = "";
+        }
         if (!("cvssScore" in $$source)) {
             this["cvssScore"] = 0;
+        }
+        if (!("cvssVector" in $$source)) {
+            this["cvssVector"] = "";
         }
         if (!("severity" in $$source)) {
             this["severity"] = "";
         }
+        if (!("researchers" in $$source)) {
+            this["researchers"] = [];
+        }
         if (!("published" in $$source)) {
             this["published"] = null;
+        }
+        if (!("updated" in $$source)) {
+            this["updated"] = null;
         }
         if (!("software" in $$source)) {
             this["software"] = [];
@@ -1882,10 +1898,14 @@ export class Vulnerability {
      * Creates a new Vulnerability instance from a string or object.
      */
     static createFrom($$source: any = {}): Vulnerability {
-        const $$createField6_0 = $$createType50;
+        const $$createField7_0 = $$createType0;
+        const $$createField10_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("researchers" in $$parsedSource) {
+            $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
+        }
         if ("software" in $$parsedSource) {
-            $$parsedSource["software"] = $$createField6_0($$parsedSource["software"]);
+            $$parsedSource["software"] = $$createField10_0($$parsedSource["software"]);
         }
         return new Vulnerability($$parsedSource as Partial<Vulnerability>);
     }
