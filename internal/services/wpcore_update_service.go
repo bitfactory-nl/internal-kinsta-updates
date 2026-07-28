@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/gitcli"
@@ -36,6 +38,9 @@ type coreGit interface {
 	DefaultBranchName(ctx context.Context, repoDir string) (string, error)
 	RemoteURL(ctx context.Context, repoDir string) (string, error)
 	Fetch(ctx context.Context, repoDir string) error
+	// PrepareWorktree ruimt restanten van een eerdere, afgebroken run op zodat
+	// AddWorktree op hetzelfde pad opnieuw kan slagen.
+	PrepareWorktree(ctx context.Context, repoDir, worktreePath string) error
 	AddWorktree(ctx context.Context, repoDir, worktreePath, branch, fromRef string) error
 	RemoveWorktree(ctx context.Context, repoDir, worktreePath string) error
 	StageAllIn(ctx context.Context, worktreePath string) error
@@ -71,6 +76,13 @@ type WPCoreUpdateService struct {
 	cfg      *config.Global
 	// tmpBase is de map waaronder tijdelijke worktrees komen (test seam).
 	tmpBase string
+
+	// bezig beschermt tegen gelijktijdige runs voor dezelfde combinatie van
+	// project en doelversie: die zouden op hetzelfde worktree-pad en dezelfde
+	// branch botsen. De frontend disablet de knoppen al, maar de bound method
+	// is ook los aanroepbaar.
+	bezigMu sync.Mutex
+	bezig   map[string]bool
 }
 
 // NewWPCoreUpdateService wires the service. De GitHub-client wordt lui
@@ -120,12 +132,20 @@ func (s *WPCoreUpdateService) UpdateProject(projectID, toVersion string) CoreUpd
 		return s.fout(res, fmt.Errorf("project %q niet gevonden", projectID))
 	}
 	res.ProjectName = p.DisplayName
-	if res.To == "" {
-		return s.fout(res, fmt.Errorf("geen doelversie opgegeven"))
+	if !reWPVersie.MatchString(res.To) {
+		return s.fout(res, fmt.Errorf("ongeldige doelversie %q", toVersion))
 	}
 	if p.Path == "" {
 		return s.fout(res, fmt.Errorf("project heeft geen pad"))
 	}
+
+	// Eén run per project+versie tegelijk: parallelle runs zouden dezelfde
+	// branch en hetzelfde worktree-pad gebruiken.
+	slot := projectID + "@" + res.To
+	if !s.claim(slot) {
+		return s.fout(res, fmt.Errorf("er loopt al een update voor dit project"))
+	}
+	defer s.release(slot)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
@@ -170,7 +190,11 @@ func (s *WPCoreUpdateService) UpdateProject(projectID, toVersion string) CoreUpd
 		return s.fout(res, fmt.Errorf("fetch: %w", err))
 	}
 	worktree := filepath.Join(s.worktreeBase(), fmt.Sprintf("%s-wp-%s", p.ID, res.To))
-	_ = os.RemoveAll(worktree) // restant van een eerdere, afgebroken run
+	// Restanten van een eerdere, afgebroken run opruimen — zowel de map als
+	// git's eigen worktree-registratie, anders blokkeert die een nieuwe poging.
+	if err := s.git.PrepareWorktree(ctx, p.Path, worktree); err != nil {
+		return s.fout(res, fmt.Errorf("oude worktree opruimen: %w", err))
+	}
 	if err := s.git.AddWorktree(ctx, p.Path, worktree, branch, "origin/"+def); err != nil {
 		return s.fout(res, fmt.Errorf("worktree aanmaken: %w", err))
 	}
@@ -187,6 +211,13 @@ func (s *WPCoreUpdateService) UpdateProject(projectID, toVersion string) CoreUpd
 	}
 	wpRoot := wpRootDir(worktree)
 	res.From = leesWPVersie(wpRoot)
+	// De release-branch kan inmiddels al op de doelversie staan (eerdere PR
+	// gemerged, of handmatig bijgewerkt). Dan is er niets te doen — dat is een
+	// duidelijker antwoord dan een commit die op "nothing to commit" faalt.
+	if res.From != "" && res.From == res.To {
+		res.Status = "up_to_date"
+		return res
+	}
 	if err := replaceCore(zipData, wpRoot); err != nil {
 		return s.fout(res, fmt.Errorf("core vervangen: %w", err))
 	}
@@ -219,6 +250,32 @@ func (s *WPCoreUpdateService) UpdateProject(projectID, toVersion string) CoreUpd
 		res.PullRequestURL = pr.HTMLURL
 	}
 	return res
+}
+
+// reWPVersie accepteert alleen versienummers zoals 7.0 of 7.0.2, zodat een
+// losse aanroep van deze bound method geen willekeurige string in een
+// branchnaam of download-URL kan zetten.
+var reWPVersie = regexp.MustCompile(`^[0-9]+(\.[0-9]+){1,2}$`)
+
+// claim reserveert het slot voor project+versie; false betekent dat er al een
+// run loopt.
+func (s *WPCoreUpdateService) claim(slot string) bool {
+	s.bezigMu.Lock()
+	defer s.bezigMu.Unlock()
+	if s.bezig[slot] {
+		return false
+	}
+	if s.bezig == nil {
+		s.bezig = map[string]bool{}
+	}
+	s.bezig[slot] = true
+	return true
+}
+
+func (s *WPCoreUpdateService) release(slot string) {
+	s.bezigMu.Lock()
+	defer s.bezigMu.Unlock()
+	delete(s.bezig, slot)
 }
 
 // worktreeBase is de map waaronder tijdelijke worktrees komen.
@@ -279,6 +336,17 @@ func (gitCoreOps) RemoteURL(ctx context.Context, repoDir string) (string, error)
 
 func (gitCoreOps) Fetch(ctx context.Context, repoDir string) error {
 	return gitcli.Fetch(ctx, repoDir)
+}
+
+// PrepareWorktree ruimt zowel de map als git's worktree-registratie op, zodat
+// een nieuwe poging op hetzelfde pad niet struikelt over restanten van een
+// afgebroken run.
+func (gitCoreOps) PrepareWorktree(ctx context.Context, repoDir, worktreePath string) error {
+	if _, err := os.Stat(worktreePath); err == nil {
+		_ = gitcli.WorktreeRemove(ctx, repoDir, worktreePath)
+		_ = os.RemoveAll(worktreePath)
+	}
+	return gitcli.WorktreePrune(ctx, repoDir)
 }
 
 func (gitCoreOps) AddWorktree(ctx context.Context, repoDir, worktreePath, branch, fromRef string) error {

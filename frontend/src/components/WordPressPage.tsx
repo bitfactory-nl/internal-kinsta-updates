@@ -4,11 +4,19 @@ import type { WPCoreReport, CoreUpdateResult } from '../../bindings/github.com/r
 import { GlobeIcon, RefreshIcon, CloudDownloadIcon } from './icons'
 import ExternalLink from './ExternalLink'
 
+// emptyCoreResult is een leeg resultaat om een frontend-fout in dezelfde vorm
+// bij de rij te kunnen tonen als een backend-resultaat.
+const emptyCoreResult: CoreUpdateResult = {
+  projectId: '', projectName: '', status: '', from: '', to: '',
+  branch: '', pullRequestUrl: '', error: '',
+}
+
 // coreUpdateLabel geeft de tekst per statuscode uit CoreUpdateResult.
 function coreUpdateLabel(status: string): string {
   switch (status) {
     case 'pr_created': return 'PR aangemaakt'
     case 'exists': return 'PR bestond al'
+    case 'up_to_date': return 'release-branch al actueel'
     case 'skipped_no_release': return 'overgeslagen: geen release-branch'
     default: return 'mislukt'
   }
@@ -65,7 +73,12 @@ export default function WordPressPage() {
       setUpdates(prev => ({ ...prev, [projectId]: res }))
       return res
     } catch (e) {
-      setError(String(e))
+      // Fout bij deze ene rij: bij de rij tonen, niet als paginabrede melding
+      // die na een bulk-run over de samenvatting heen blijft staan.
+      setUpdates(prev => ({
+        ...prev,
+        [projectId]: { ...emptyCoreResult, projectId, to: target, status: 'error', error: String(e) },
+      }))
       return null
     } finally {
       setUpdating(prev => {
@@ -131,7 +144,7 @@ export default function WordPressPage() {
                 ? <>laatste versie <span className="font-mono text-fg">{report.latestVersion}</span></>
                 : 'laatste versie onbekend'}
               {outdated > 0 && <> · <span className="text-amber">{outdated} verouderd</span></>}
-              {' · vergeleken met de default branch per project'}
+              {' · stand van de laatste fetch van de default branch'}
             </p>
           )}
         </div>
@@ -175,6 +188,13 @@ export default function WordPressPage() {
         {error && <p className="text-[12.5px] text-red mb-3 whitespace-pre-line">{error}</p>}
         {fetchNote && <p className="text-[12px] text-fg-faint mb-3">{fetchNote}</p>}
         {bulkNote && <p className="text-[12px] text-fg-muted mb-3">{bulkNote}</p>}
+        {Object.keys(updates).length > 0 && (
+          <p className="text-[12px] text-fg-faint mb-3">
+            PR gemerged? De versies hierboven komen uit de laatst gefetchte stand van de
+            release-branch — klik <span className="text-fg">Fetch alles</span> om de nieuwe
+            versies te zien.
+          </p>
+        )}
 
         {!report && busy && (
           <p className="text-[12.5px] text-fg-faint">Versies lezen uit alle projecten…</p>

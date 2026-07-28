@@ -28,6 +28,9 @@ type fakeCoreGit struct {
 	pushedBranch  string
 	pushErr       error
 	addErr        error
+	prepared      bool
+	// versieInWorktree bepaalt de version.php die AddWorktree neerzet.
+	versieInWorktree string
 }
 
 func (f *fakeCoreGit) DefaultBranchName(_ context.Context, _ string) (string, error) {
@@ -51,8 +54,12 @@ func (f *fakeCoreGit) AddWorktree(_ context.Context, _, worktreePath, _, _ strin
 	f.worktreePath = worktreePath
 	// Bouw een minimale webroot zodat replaceCore iets te doen heeft.
 	root := filepath.Join(worktreePath, "public")
+	versie := f.versieInWorktree
+	if versie == "" {
+		versie = "6.7.2"
+	}
 	for rel, inhoud := range map[string]string{
-		"wp-includes/version.php": "$wp_version = '6.7.2';",
+		"wp-includes/version.php": "$wp_version = '" + versie + "';",
 		"wp-config.php":           "geheim",
 	} {
 		pad := filepath.Join(root, rel)
@@ -257,5 +264,49 @@ func TestCoreUpdateLegeVersie(t *testing.T) {
 	res := svc.UpdateProject("p1", "")
 	if res.Status != "error" || res.Error == "" {
 		t.Fatalf("lege doelversie moet een fout geven: %+v", res)
+	}
+}
+
+func (f *fakeCoreGit) PrepareWorktree(_ context.Context, _, _ string) error {
+	f.prepared = true
+	return nil
+}
+
+func TestCoreUpdateRuimtOpVoorNieuwePoging(t *testing.T) {
+	git := &fakeCoreGit{defaultBranch: "release/1.0.x", remote: "git@github.com:o/r.git"}
+	svc := coreTestService(t, git, &fakeCoreDownloader{data: geldigeCoreZip(t)}, &fakeCorePulls{})
+
+	if res := svc.UpdateProject("p1", "7.0.2"); res.Status != "pr_created" {
+		t.Fatalf("Status = %q (%s)", res.Status, res.Error)
+	}
+	if !git.prepared {
+		t.Error("PrepareWorktree is niet aangeroepen — restanten van een afgebroken run blijven dan liggen")
+	}
+}
+
+func TestCoreUpdateAlActueel(t *testing.T) {
+	git := &fakeCoreGit{defaultBranch: "release/1.0.x", remote: "git@github.com:o/r.git", versieInWorktree: "7.0.2"}
+	svc := coreTestService(t, git, &fakeCoreDownloader{data: geldigeCoreZip(t)}, &fakeCorePulls{})
+
+	res := svc.UpdateProject("p1", "7.0.2")
+
+	if res.Status != "up_to_date" {
+		t.Fatalf("Status = %q, want up_to_date", res.Status)
+	}
+	if git.pushedBranch != "" || git.committed != "" {
+		t.Error("er is gecommit/gepusht terwijl de branch al op de doelversie stond")
+	}
+	if !git.removed {
+		t.Error("worktree is niet opgeruimd")
+	}
+}
+
+func TestCoreUpdateWeigertOngeldigeVersie(t *testing.T) {
+	svc := coreTestService(t, &fakeCoreGit{defaultBranch: "release/1.0.x"}, &fakeCoreDownloader{}, &fakeCorePulls{})
+	for _, v := range []string{"", "latest", "7", "../../etc", "7.0.2; rm -rf /"} {
+		res := svc.UpdateProject("p1", v)
+		if res.Status != "error" {
+			t.Errorf("versie %q gaf status %q, want error", v, res.Status)
+		}
 	}
 }
