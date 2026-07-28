@@ -2,7 +2,6 @@ package gitread
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -29,8 +28,7 @@ func CommitHistory(repoPath string, limit int) ([]domain.GraphCommit, error) {
 		fmt.Sprintf("-n%d", limit),
 	}
 
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repoPath
+	cmd := gitCommand(repoPath, args...)
 	raw, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git history: %w", err)

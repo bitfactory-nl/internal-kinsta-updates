@@ -2,7 +2,6 @@ package gitread
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -13,13 +12,11 @@ import (
 // For the initial commit (no parents) it falls back to git show.
 func CommitDiff(repoPath, hash string) ([]domain.FileDiff, error) {
 	// Try diff-tree first; it fails gracefully for root commits.
-	cmd := exec.Command("git", "diff-tree", "--no-commit-id", "-r", "-p", "--find-renames", hash)
-	cmd.Dir = repoPath
+	cmd := gitCommand(repoPath, "diff-tree", "--no-commit-id", "-r", "-p", "--find-renames", hash)
 	out, err := cmd.Output()
 	if err != nil {
 		// Likely a root commit — fall back to git show.
-		cmd2 := exec.Command("git", "show", hash, "--format=", "-p", "--find-renames")
-		cmd2.Dir = repoPath
+		cmd2 := gitCommand(repoPath, "show", hash, "--format=", "-p", "--find-renames")
 		out, err = cmd2.Output()
 		if err != nil {
 			return nil, fmt.Errorf("git commit diff %s: %w", hash, err)
@@ -39,8 +36,7 @@ func WorkingDiff(repoPath string, staged bool) ([]domain.FileDiff, error) {
 	} else {
 		args = []string{"diff"}
 	}
-	cmd := exec.Command("git", args...)
-	cmd.Dir = repoPath
+	cmd := gitCommand(repoPath, args...)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git working diff: %w", err)

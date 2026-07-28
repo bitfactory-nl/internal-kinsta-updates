@@ -2,7 +2,6 @@ package gitread
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +11,7 @@ import (
 
 // Blame returns per-line blame information for a file using git blame --porcelain.
 func Blame(repoPath, filePath string) ([]domain.BlameLine, error) {
-	cmd := exec.Command("git", "blame", "--porcelain", filePath)
-	cmd.Dir = repoPath
+	cmd := gitCommand(repoPath, "blame", "--porcelain", filePath)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git blame %s: %w", filePath, err)
