@@ -154,3 +154,35 @@ func TestDispatchWorkflowNoTrigger(t *testing.T) {
 		t.Errorf("error = %q, want Dutch 422 message", err.Error())
 	}
 }
+
+func TestBranchSHA(t *testing.T) {
+	var gotPath, gotAuth string
+	c := newTestActionsClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotAuth = r.URL.Path, r.Header.Get("Authorization")
+		_, _ = w.Write([]byte(`{"sha":"61b9c727b447e5f446c40c58f1492b790a84a98a","commit":{}}`))
+	})
+
+	sha, err := c.BranchSHA(context.Background(), "bitfactory-nl/web-afcnl", "release/1.0.x")
+	if err != nil {
+		t.Fatalf("BranchSHA: %v", err)
+	}
+	if sha != "61b9c727b447e5f446c40c58f1492b790a84a98a" {
+		t.Errorf("sha = %q", sha)
+	}
+	if gotPath != "/repos/bitfactory-nl/web-afcnl/commits/release/1.0.x" {
+		t.Errorf("path = %q", gotPath)
+	}
+	if !strings.Contains(gotAuth, "test-token") {
+		t.Errorf("Authorization ontbreekt: %q", gotAuth)
+	}
+}
+
+func TestBranchSHAFoutBijOnbekendeBranch(t *testing.T) {
+	c := newTestActionsClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message":"Not Found"}`))
+	})
+	if _, err := c.BranchSHA(context.Background(), "o/r", "release/9.9.x"); err == nil {
+		t.Fatal("verwachtte een fout bij 404")
+	}
+}

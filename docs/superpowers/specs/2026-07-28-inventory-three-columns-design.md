@@ -41,9 +41,9 @@ lokale kolom af van GitHub, dan krijgt die cel een eigen, subtiele markering
 
 ## Architectuur
 
-- `internal/adapters/github`: `BranchSHA(ctx, owner, repo, branch)` op de
-  bestaande PR-client-stijl (`GET /repos/{o}/{r}/commits/{branch}`, alleen de
-  sha).
+- `internal/adapters/github`: `(*ActionsClient).BranchSHA(ctx, repo, branch)`
+  naast het bestaande `DefaultBranch` (`GET /repos/{repo}/commits/{branch}`,
+  alleen de sha). Repo-notatie "org/naam", zoals de rest van die client.
 - `internal/services/inventory_sync.go` (nieuw): SHA-vergelijking per project
   met TTL-cache en gerichte fetch; pure helpers waar mogelijk zodat ze zonder
   netwerk te testen zijn.

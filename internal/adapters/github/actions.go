@@ -140,6 +140,31 @@ func (c *ActionsClient) DefaultBranch(ctx context.Context, repo string) (string,
 	return resp.DefaultBranch, nil
 }
 
+// commitResponse is the subset of the commit endpoint we need.
+type commitResponse struct {
+	SHA string `json:"sha"`
+}
+
+// BranchSHA returns the head commit SHA of branch in repo ("org/name"). Used to
+// see whether a local origin/<branch> ref is behind the remote, so only repos
+// that actually moved need a git fetch.
+func (c *ActionsClient) BranchSHA(ctx context.Context, repo, branch string) (string, error) {
+	url := fmt.Sprintf("%s/repos/%s/commits/%s", c.baseURL, repo, branch)
+	body, err := c.get(ctx, url, "application/vnd.github+json")
+	if err != nil {
+		return "", fmt.Errorf("branch sha %s@%s: %w", repo, branch, err)
+	}
+
+	var resp commitResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("parse commit %s@%s: %w", repo, branch, err)
+	}
+	if resp.SHA == "" {
+		return "", fmt.Errorf("branch sha %s@%s: leeg antwoord", repo, branch)
+	}
+	return resp.SHA, nil
+}
+
 type dispatchRequest struct {
 	Ref string `json:"ref"`
 }
