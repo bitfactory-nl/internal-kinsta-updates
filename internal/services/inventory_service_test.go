@@ -201,3 +201,59 @@ func TestInventoryReadsFromDefaultBranch(t *testing.T) {
 		t.Error("5.8 < latest 5.9 should be outdated")
 	}
 }
+
+// TestInventoryDisjuncteSlugs dekt de kernbelofte van de drie-kolommen-feature:
+// een plugin die alleen lokaal bestaat (nog niet gecommit) of alleen op de
+// GitHub-branch (net gemerged, lokaal nog niet gepulled) moet zichtbaar blijven,
+// met een lege cel in de andere kolom.
+func TestInventoryDisjuncteSlugs(t *testing.T) {
+	root := t.TempDir()
+	// Alleen op de GitHub-branch: committen en daarna lokaal weghalen.
+	writePlugin(t, root, "alleen-github", "1.0")
+
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = root
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("config", "user.email", "t@t.nl")
+	run("config", "user.name", "t")
+	run("checkout", "-q", "-b", "release/1.0.x")
+	run("add", "-A")
+	run("commit", "-q", "-m", "init")
+
+	if err := os.RemoveAll(filepath.Join(root, "public", "wp-content", "plugins", "alleen-github")); err != nil {
+		t.Fatal(err)
+	}
+	// Alleen lokaal: na de commit toegevoegd.
+	writePlugin(t, root, "alleen-lokaal", "2.0")
+
+	svc := newTestInventory(
+		fakeInventoryLister{list: []domain.Project{{ID: "a", Path: root, DisplayName: "Site A"}}},
+		fakeInventoryResolver{plugins: map[string]string{"alleen-github": "1.0", "alleen-lokaal": "2.0"}},
+	)
+
+	items, err := svc.Plugins()
+	if err != nil {
+		t.Fatalf("Plugins: %v", err)
+	}
+	byslug := map[string]InventoryProjectRef{}
+	for _, it := range items {
+		if len(it.Projects) > 0 {
+			byslug[it.Slug] = it.Projects[0]
+		}
+	}
+	if len(byslug) != 2 {
+		t.Fatalf("verwachtte beide slugs, kreeg %d: %+v", len(byslug), byslug)
+	}
+	if g := byslug["alleen-github"]; g.GithubVersion != "1.0" || g.LocalVersion != "" {
+		t.Errorf("alleen-github = %+v, want github 1.0 en lege lokale cel", g)
+	}
+	if l := byslug["alleen-lokaal"]; l.LocalVersion != "2.0" || l.GithubVersion != "" {
+		t.Errorf("alleen-lokaal = %+v, want lokaal 2.0 en lege github-cel", l)
+	}
+}

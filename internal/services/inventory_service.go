@@ -223,6 +223,11 @@ func (s *InventoryService) FetchAll() (FetchAllResult, error) {
 		}(p.ID, p.DisplayName, p.Path)
 	}
 	wg.Wait()
+	// De lokale refs zijn nu actueel; een direct volgend overzicht hoeft niet
+	// opnieuw bij de GitHub API langs.
+	if s.syncer != nil {
+		s.syncer.MarkAllChecked(s.projects.List())
+	}
 	sort.Strings(res.Errors)
 	return res, nil
 }
@@ -268,7 +273,7 @@ func (s *InventoryService) collect(read func(path, gitRef string) []installedRef
 			}
 		}
 
-		for slug := range unieke(lokaal, github) {
+		for slug := range unionSlugs(lokaal, github) {
 			it, ok := items[slug]
 			if !ok {
 				it = &InventoryItem{Slug: slug}
@@ -286,8 +291,8 @@ func (s *InventoryService) collect(read func(path, gitRef string) []installedRef
 	return items
 }
 
-// unieke geeft de verzameling slugs die in minstens één van beide bronnen zit.
-func unieke(a, b map[string]string) map[string]struct{} {
+// unionSlugs geeft de verzameling slugs die in minstens één van beide bronnen zit.
+func unionSlugs(a, b map[string]string) map[string]struct{} {
 	set := make(map[string]struct{}, len(a)+len(b))
 	for k := range a {
 		set[k] = struct{}{}
@@ -304,7 +309,9 @@ func (s *InventoryService) syncGithubRefs(projects []domain.Project) {
 	if s.syncer == nil {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	// De syncer begrenst zijn eigen sweep (syncSweepBudget); deze context is
+	// alleen een bovengrens voor het geval dat.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*syncSweepBudget)
 	defer cancel()
 	s.syncer.Sync(ctx, projects)
 }

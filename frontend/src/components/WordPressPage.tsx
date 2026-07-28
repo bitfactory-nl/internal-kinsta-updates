@@ -212,6 +212,7 @@ export default function WordPressPage() {
             <div className="flex items-center gap-2 px-3 py-1 bg-panel/40 border-b border-border">
               <span className="flex-1" />
               <VersionColumnsHeader />
+              <span className="w-[190px] shrink-0" />
             </div>
             {shown.map(p => (
               <div key={p.projectId}
@@ -224,8 +225,9 @@ export default function WordPressPage() {
                 <VersionColumns local={p.localVersion} github={p.githubVersion}
                                 latest={report.latestVersion} outdated={p.outdated}
                                 localBehind={p.localBehind} />
+                <span className="w-[190px] shrink-0 flex items-center justify-end gap-2">
                 {p.outdated && report.latestVersion && (
-                  <span className="flex items-center gap-2 shrink-0">
+                  <>
                     {updates[p.projectId] && (
                       updates[p.projectId].pullRequestUrl
                         ? <ExternalLink href={updates[p.projectId].pullRequestUrl}
@@ -244,8 +246,9 @@ export default function WordPressPage() {
                                  text-fg hover:bg-hover disabled:opacity-50 transition-colors">
                       {updating[p.projectId] ? 'Bezig…' : `Update → ${report.latestVersion}`}
                     </button>
-                  </span>
+                  </>
                 )}
+                </span>
               </div>
             ))}
           </div>

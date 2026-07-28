@@ -31,6 +31,11 @@ const syncTTL = 5 * time.Minute
 // syncWorkers bound het aantal parallelle checks/fetches.
 const syncWorkers = 6
 
+// syncSweepBudget begrenst hoe lang één sweep het overzicht mag ophouden. Bij
+// een traag of black-holed netwerk wachten de overzichten dus maximaal deze
+// tijd en renderen daarna met de laatst bekende stand.
+const syncSweepBudget = 45 * time.Second
+
 // inventorySyncer houdt de lokale origin-refs gelijk aan GitHub, zodat de
 // GitHub-kolom in de overzichten de echte stand van de release-branch toont
 // zonder dat de gebruiker handmatig "Fetch alles" hoeft te klikken.
@@ -41,6 +46,12 @@ const syncWorkers = 6
 type inventorySyncer struct {
 	src syncSource
 	now func() time.Time
+
+	// sweepMu serialiseert Sync-aanroepen. De drie overzichten delen één
+	// syncer; zonder deze lock start elke aanroep zijn eigen sweep voordat de
+	// eerste zijn TTL-markeringen heeft gezet, met dubbele API-calls en
+	// gelijktijdige fetches op dezelfde repo als gevolg.
+	sweepMu sync.Mutex
 
 	mu      sync.Mutex
 	checked map[string]time.Time // projectpad -> moment van laatste check
@@ -55,6 +66,8 @@ func (s *inventorySyncer) Sync(ctx context.Context, projects []domain.Project) {
 	if s.src == nil {
 		return
 	}
+	s.sweepMu.Lock()
+	defer s.sweepMu.Unlock()
 	todo := make([]domain.Project, 0, len(projects))
 	for _, p := range projects {
 		if p.Path != "" && s.due(p.Path) {
@@ -64,6 +77,9 @@ func (s *inventorySyncer) Sync(ctx context.Context, projects []domain.Project) {
 	if len(todo) == 0 {
 		return
 	}
+
+	ctx, cancel := context.WithTimeout(ctx, syncSweepBudget)
+	defer cancel()
 
 	sem := make(chan struct{}, syncWorkers)
 	var wg sync.WaitGroup
@@ -84,6 +100,17 @@ func (s *inventorySyncer) due(path string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.now().Sub(s.checked[path]) >= syncTTL
+}
+
+// MarkAllChecked markeert alle projecten als net gecheckt. Wordt gebruikt na
+// een handmatige "Fetch alles": de lokale stand is dan al actueel, dus een
+// direct volgend overzicht hoeft niet opnieuw bij de API langs.
+func (s *inventorySyncer) MarkAllChecked(projects []domain.Project) {
+	for _, p := range projects {
+		if p.Path != "" {
+			s.markChecked(p.Path)
+		}
+	}
 }
 
 // markChecked onthoudt dat dit project net gecheckt is.
