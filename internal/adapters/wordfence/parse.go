@@ -11,15 +11,19 @@ import (
 )
 
 type rawVuln struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	CVE   string `json:"cve"`
-	CVSS  struct {
+	ID      string `json:"id"`
+	Title   string `json:"title"`
+	CVE     string `json:"cve"`
+	CVELink string `json:"cve_link"`
+	CVSS    struct {
+		Vector string    `json:"vector"`
 		Score  flexFloat `json:"score"`
 		Rating string    `json:"rating"`
 	} `json:"cvss"`
-	Published string        `json:"published"`
-	Software  []rawSoftware `json:"software"`
+	Researchers []string      `json:"researchers"`
+	Published   string        `json:"published"`
+	Updated     string        `json:"updated"`
+	Software    []rawSoftware `json:"software"`
 }
 
 // flexFloat unmarshals a CVSS score that the Wordfence feed may send as a JSON
@@ -37,6 +41,29 @@ func (f *flexFloat) UnmarshalJSON(b []byte) error {
 		*f = flexFloat(v)
 	}
 	return nil
+}
+
+// wordfenceDateLayout is the date format used by the real Wordfence feed for
+// published/updated, e.g. "2022-09-09 00:00:00" (no "T", no zone) — verified
+// against the cached production feed. It is not RFC3339.
+const wordfenceDateLayout = "2006-01-02 15:04:05"
+
+// parseWordfenceTime parses a Wordfence feed timestamp. It tries the feed's
+// actual "YYYY-MM-DD HH:MM:SS" shape first, then falls back to RFC3339 for
+// resilience against an older/alternate feed shape. Best-effort, like
+// flexFloat: an empty or unparseable value leaves the zero time.Time rather
+// than failing the whole feed.
+func parseWordfenceTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	if t, err := time.Parse(wordfenceDateLayout, s); err == nil {
+		return t
+	}
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t
+	}
+	return time.Time{}
 }
 
 type rawSoftware struct {
@@ -65,15 +92,17 @@ func ParseFeed(data []byte) ([]domain.Vulnerability, error) {
 	out := make([]domain.Vulnerability, 0, len(raw))
 	for id, rv := range raw {
 		v := domain.Vulnerability{
-			ID:       firstNonEmpty(rv.ID, id),
-			Title:    rv.Title,
-			CVE:      rv.CVE,
-			Severity: rv.CVSS.Rating,
+			ID:          firstNonEmpty(rv.ID, id),
+			Title:       rv.Title,
+			CVE:         rv.CVE,
+			CVELink:     rv.CVELink,
+			Severity:    rv.CVSS.Rating,
+			CVSSVector:  rv.CVSS.Vector,
+			Researchers: rv.Researchers,
 		}
 		v.CVSSScore = float64(rv.CVSS.Score)
-		if t, err := time.Parse(time.RFC3339, rv.Published); err == nil {
-			v.Published = t
-		}
+		v.Published = parseWordfenceTime(rv.Published)
+		v.Updated = parseWordfenceTime(rv.Updated)
 		for _, rs := range rv.Software {
 			for _, span := range rs.AffectedVersions {
 				v.Software = append(v.Software, domain.AffectedSoftware{
