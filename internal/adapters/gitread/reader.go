@@ -179,17 +179,27 @@ func RecentCommits(repoPath string, limit int) ([]domain.Commit, error) {
 	return commits, nil
 }
 
+// gitCommand bouwt een git-aanroep met de globale --no-optional-locks vlag:
+// de commando's die hierlangs lopen (status, working/commit-diff, blame,
+// commit-history) mogen nooit een index.lock nemen, zodat een afgebroken
+// aanroep geen verweesd lockbestand kan achterlaten in een projectrepo.
+// Bewuste trade-off: git persisteert zo ook zijn stat-cache-refresh niet,
+// dus herhaalde scans betalen die refresh opnieuw — correctheid boven
+// cache-warmte. (Branches/RecentCommits lopen via go-git, niet hierlangs.)
+func gitCommand(dir string, args ...string) *exec.Cmd {
+	cmd := exec.Command("git", append([]string{"--no-optional-locks"}, args...)...)
+	cmd.Dir = dir
+	return cmd
+}
+
 // git2 runs git and returns error if exit code != 0.
 func git2(dir string, args ...string) error {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
-	return cmd.Run()
+	return gitCommand(dir, args...).Run()
 }
 
 // gitOut runs git and returns trimmed stdout; empty string on error.
 func gitOut(dir string, args ...string) string {
-	cmd := exec.Command("git", args...)
-	cmd.Dir = dir
+	cmd := gitCommand(dir, args...)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	_ = cmd.Run()

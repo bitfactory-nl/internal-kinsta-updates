@@ -53,8 +53,7 @@ func GrepTree(ctx context.Context, dir, ref, pattern string, pathspecs ...string
 	args = append(args, pathspecs...)
 
 	var stdout, stderr bytes.Buffer
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Dir = dir
+	cmd := newGitCmd(ctx, dir, args...)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
