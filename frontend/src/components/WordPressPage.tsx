@@ -1,7 +1,26 @@
 import { useEffect, useState, useCallback } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
-import type { WPCoreReport } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import type { WPCoreReport, CoreUpdateResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { GlobeIcon, RefreshIcon, CloudDownloadIcon } from './icons'
+import ExternalLink from './ExternalLink'
+
+// emptyCoreResult is een leeg resultaat om een frontend-fout in dezelfde vorm
+// bij de rij te kunnen tonen als een backend-resultaat.
+const emptyCoreResult: CoreUpdateResult = {
+  projectId: '', projectName: '', status: '', from: '', to: '',
+  branch: '', pullRequestUrl: '', error: '',
+}
+
+// coreUpdateLabel geeft de tekst per statuscode uit CoreUpdateResult.
+function coreUpdateLabel(status: string): string {
+  switch (status) {
+    case 'pr_created': return 'PR aangemaakt'
+    case 'exists': return 'PR bestond al'
+    case 'up_to_date': return 'release-branch al actueel'
+    case 'skipped_no_release': return 'overgeslagen: geen release-branch'
+    default: return 'mislukt'
+  }
+}
 
 export default function WordPressPage() {
   const [report, setReport] = useState<WPCoreReport | null>(null)
@@ -10,6 +29,12 @@ export default function WordPressPage() {
   const [filter, setFilter] = useState('')
   const [fetching, setFetching] = useState(false)
   const [fetchNote, setFetchNote] = useState<string | null>(null)
+  // Per project de uitkomst van de laatste core-update, plus welke projecten
+  // nu bezig zijn (bij de bulk-actie kunnen dat er meer zijn).
+  const [updates, setUpdates] = useState<Record<string, CoreUpdateResult>>({})
+  const [updating, setUpdating] = useState<Record<string, boolean>>({})
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkNote, setBulkNote] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setBusy(true); setError(null)
@@ -38,7 +63,66 @@ export default function WordPressPage() {
     }
   }
 
-  const outdated = report?.projects.filter(p => p.outdated).length ?? 0
+  // updateProject vraagt de backend een branch + PR te maken voor één project.
+  const updateProject = useCallback(async (projectId: string): Promise<CoreUpdateResult | null> => {
+    const target = report?.latestVersion
+    if (!target) return null
+    setUpdating(prev => ({ ...prev, [projectId]: true }))
+    try {
+      const res = await Services.WPCoreUpdateService.UpdateProject(projectId, target)
+      setUpdates(prev => ({ ...prev, [projectId]: res }))
+      return res
+    } catch (e) {
+      // Fout bij deze ene rij: bij de rij tonen, niet als paginabrede melding
+      // die na een bulk-run over de samenvatting heen blijft staan.
+      setUpdates(prev => ({
+        ...prev,
+        [projectId]: { ...emptyCoreResult, projectId, to: target, status: 'error', error: String(e) },
+      }))
+      return null
+    } finally {
+      setUpdating(prev => {
+        const next = { ...prev }
+        delete next[projectId]
+        return next
+      })
+    }
+  }, [report?.latestVersion])
+
+  const outdatedProjects = (report?.projects ?? []).filter(p => p.outdated)
+  const outdated = outdatedProjects.length
+
+  // updateAll werkt de verouderde projecten één voor één bij. Een mislukking
+  // stopt de rest niet; aan het eind volgt een samenvatting.
+  const updateAll = async () => {
+    const target = report?.latestVersion
+    if (!target || outdatedProjects.length === 0) return
+    const ok = window.confirm(
+      `Voor ${outdatedProjects.length} project(en) een branch update/wordpress-${target} ` +
+      `aanmaken vanaf de release-branch en een pull request openen?\n\n` +
+      `Er wordt niets naar de release-branch gepusht en niets op live gewijzigd.`
+    )
+    if (!ok) return
+
+    setBulkBusy(true); setError(null); setBulkNote(null)
+    const tally = { pr: 0, exists: 0, skipped: 0, failed: 0 }
+    try {
+      for (const p of outdatedProjects) {
+        const res = await updateProject(p.projectId)
+        if (!res) { tally.failed++; continue }
+        if (res.status === 'pr_created') tally.pr++
+        else if (res.status === 'exists') tally.exists++
+        else if (res.status === 'skipped_no_release') tally.skipped++
+        else tally.failed++
+      }
+      setBulkNote(
+        `${tally.pr} PR('s) aangemaakt · ${tally.exists} bestonden al · ` +
+        `${tally.skipped} overgeslagen · ${tally.failed} mislukt`
+      )
+    } finally {
+      setBulkBusy(false)
+    }
+  }
 
   const q = filter.trim().toLowerCase()
   const shown = (report?.projects ?? []).filter(p =>
@@ -60,7 +144,7 @@ export default function WordPressPage() {
                 ? <>laatste versie <span className="font-mono text-fg">{report.latestVersion}</span></>
                 : 'laatste versie onbekend'}
               {outdated > 0 && <> · <span className="text-amber">{outdated} verouderd</span></>}
-              {' · vergeleken met de default branch per project'}
+              {' · stand van de laatste fetch van de default branch'}
             </p>
           )}
         </div>
@@ -81,7 +165,15 @@ export default function WordPressPage() {
           </span>
           {fetching ? 'Fetchen…' : 'Fetch alles'}
         </button>
-        <button onClick={() => void load()} disabled={busy || fetching}
+        {outdated > 0 && report?.latestVersion && (
+          <button onClick={() => void updateAll()} disabled={bulkBusy || busy || fetching}
+            title={`Voor elk verouderd project een branch update/wordpress-${report.latestVersion} met pull request aanmaken`}
+            className="px-3 py-1.5 bg-panel border border-amber/50 rounded-lg text-[12.5px] font-medium
+                       text-amber hover:bg-hover disabled:opacity-50 transition-colors shrink-0">
+            {bulkBusy ? 'Updaten…' : `Alles updaten (${outdated})`}
+          </button>
+        )}
+        <button onClick={() => void load()} disabled={busy || fetching || bulkBusy}
           className="px-3 py-1.5 bg-accent hover:bg-accent-2 text-white text-[12.5px] font-semibold
                      rounded-lg disabled:opacity-50 transition-colors shrink-0 flex items-center gap-1.5">
           <span className={`inline-flex ${busy ? 'animate-spin' : ''}`}>
@@ -95,6 +187,14 @@ export default function WordPressPage() {
       <div className="flex-1 overflow-y-auto px-6 py-4">
         {error && <p className="text-[12.5px] text-red mb-3 whitespace-pre-line">{error}</p>}
         {fetchNote && <p className="text-[12px] text-fg-faint mb-3">{fetchNote}</p>}
+        {bulkNote && <p className="text-[12px] text-fg-muted mb-3">{bulkNote}</p>}
+        {Object.keys(updates).length > 0 && (
+          <p className="text-[12px] text-fg-faint mb-3">
+            PR gemerged? De versies hierboven komen uit de laatst gefetchte stand van de
+            release-branch — klik <span className="text-fg">Fetch alles</span> om de nieuwe
+            versies te zien.
+          </p>
+        )}
 
         {!report && busy && (
           <p className="text-[12.5px] text-fg-faint">Versies lezen uit alle projecten…</p>
@@ -123,6 +223,28 @@ export default function WordPressPage() {
                 )}
                 {!p.outdated && report.latestVersion && (
                   <span className="text-[11px] text-green">actueel</span>
+                )}
+                {p.outdated && report.latestVersion && (
+                  <span className="flex items-center gap-2 shrink-0">
+                    {updates[p.projectId] && (
+                      updates[p.projectId].pullRequestUrl
+                        ? <ExternalLink href={updates[p.projectId].pullRequestUrl}
+                            className="text-[11px] text-accent hover:underline">
+                            {coreUpdateLabel(updates[p.projectId].status)}
+                          </ExternalLink>
+                        : <span className={`text-[11px] ${updates[p.projectId].status === 'error' ? 'text-red' : 'text-fg-faint'}`}
+                                title={updates[p.projectId].error}>
+                            {coreUpdateLabel(updates[p.projectId].status)}
+                          </span>
+                    )}
+                    <button onClick={() => void updateProject(p.projectId)}
+                      disabled={!!updating[p.projectId] || bulkBusy || busy}
+                      title={`Branch update/wordpress-${report.latestVersion} met pull request aanmaken vanaf de release-branch`}
+                      className="px-2 py-[3px] bg-panel border border-border rounded-md text-[11px] font-medium
+                                 text-fg hover:bg-hover disabled:opacity-50 transition-colors">
+                      {updating[p.projectId] ? 'Bezig…' : `Update → ${report.latestVersion}`}
+                    </button>
+                  </span>
                 )}
               </div>
             ))}

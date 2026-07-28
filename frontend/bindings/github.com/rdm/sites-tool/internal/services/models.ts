@@ -106,6 +106,62 @@ export class BatchResult {
     }
 }
 
+/**
+ * CoreUpdateResult is de uitkomst van één core-update.
+ */
+export class CoreUpdateResult {
+    "projectId": string;
+    "projectName": string;
+
+    /**
+     * Status: pr_created | exists | skipped_no_release | error
+     */
+    "status": string;
+    "from": string;
+    "to": string;
+    "branch": string;
+    "pullRequestUrl": string;
+    "error": string;
+
+    /** Creates a new CoreUpdateResult instance. */
+    constructor($$source: Partial<CoreUpdateResult> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("pullRequestUrl" in $$source)) {
+            this["pullRequestUrl"] = "";
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoreUpdateResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoreUpdateResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoreUpdateResult($$parsedSource as Partial<CoreUpdateResult>);
+    }
+}
+
 export class FeedMeta {
     "fetchedAt": time$0.Time;
     "count": number;

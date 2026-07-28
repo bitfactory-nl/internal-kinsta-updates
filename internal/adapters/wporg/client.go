@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	neturl "net/url"
+	"strings"
 	"time"
 )
 
@@ -107,6 +108,20 @@ func (c *Client) LatestCoreVersion(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("wporg core version: geen offers in antwoord")
 	}
 	return resp.Offers[0].Current, nil
+}
+
+// CoreDownloadURL bouwt de download-URL voor de "no-content" zip van een
+// WordPress core-versie (bevat wp-admin/wp-includes/rootbestanden, maar geen
+// wp-content). Pure functie, dus zonder git of netwerk te testen.
+// Een lege of whitespace-only version levert "" op; whitespace en een
+// eventuele leading "v" (bijv. uit een tag als "v6.5.3") worden getrimd.
+func CoreDownloadURL(version string) string {
+	v := strings.TrimSpace(version)
+	if v == "" {
+		return ""
+	}
+	v = strings.TrimPrefix(v, "v")
+	return fmt.Sprintf("https://wordpress.org/wordpress-%s-no-content.zip", v)
 }
 
 // get performs a GET and returns the body and status code.
