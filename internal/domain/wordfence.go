@@ -5,13 +5,17 @@ import "time"
 
 // Vulnerability is one Wordfence vulnerability record (plugin-relevant subset).
 type Vulnerability struct {
-	ID        string             `json:"id"`
-	Title     string             `json:"title"`
-	CVE       string             `json:"cve"`
-	CVSSScore float64            `json:"cvssScore"`
-	Severity  string             `json:"severity"`
-	Published time.Time          `json:"published"`
-	Software  []AffectedSoftware `json:"software"`
+	ID          string             `json:"id"`
+	Title       string             `json:"title"`
+	CVE         string             `json:"cve"`
+	CVELink     string             `json:"cveLink"`
+	CVSSScore   float64            `json:"cvssScore"`
+	CVSSVector  string             `json:"cvssVector"`
+	Severity    string             `json:"severity"`
+	Researchers []string           `json:"researchers"`
+	Published   time.Time          `json:"published"`
+	Updated     time.Time          `json:"updated"`
+	Software    []AffectedSoftware `json:"software"`
 }
 
 // AffectedSoftware is one affected plugin/theme entry with a version range.
