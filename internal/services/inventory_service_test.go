@@ -148,8 +148,9 @@ func TestInventoryWordPress(t *testing.T) {
 	}
 }
 
-// TestInventoryReadsFromDefaultBranch proves versions come from the git
-// default branch, not the checked-out working tree.
+// TestInventoryReadsFromDefaultBranch proves the GitHub column comes from the
+// git default branch while the local column shows the working tree, so both are
+// visible side by side.
 func TestInventoryReadsFromDefaultBranch(t *testing.T) {
 	root := t.TempDir()
 	writePlugin(t, root, "contact-form-7", "5.8")
@@ -187,8 +188,11 @@ func TestInventoryReadsFromDefaultBranch(t *testing.T) {
 		t.Fatalf("want 1 item, got %d", len(items))
 	}
 	p := items[0].Projects[0]
-	if p.Version != "5.8" {
-		t.Errorf("version = %q, want committed 5.8 (not working tree 5.9)", p.Version)
+	if p.GithubVersion != "5.8" {
+		t.Errorf("github-kolom = %q, want committed 5.8", p.GithubVersion)
+	}
+	if p.LocalVersion != "5.9" {
+		t.Errorf("lokale kolom = %q, want working tree 5.9", p.LocalVersion)
 	}
 	if p.Ref != "release/1.0.x" {
 		t.Errorf("ref = %q, want release/1.0.x", p.Ref)

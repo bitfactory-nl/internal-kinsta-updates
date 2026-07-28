@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { WPCoreReport, CoreUpdateResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { GlobeIcon, RefreshIcon, CloudDownloadIcon } from './icons'
+import VersionColumns, { VersionColumnsHeader } from './VersionColumns'
 import ExternalLink from './ExternalLink'
 
 // emptyCoreResult is een leeg resultaat om een frontend-fout in dezelfde vorm
@@ -126,7 +127,8 @@ export default function WordPressPage() {
 
   const q = filter.trim().toLowerCase()
   const shown = (report?.projects ?? []).filter(p =>
-    !q || p.projectName.toLowerCase().includes(q) || p.version.toLowerCase().includes(q)
+    !q || p.projectName.toLowerCase().includes(q) ||
+    p.githubVersion.toLowerCase().includes(q) || p.localVersion.toLowerCase().includes(q)
   )
 
   return (
@@ -144,7 +146,7 @@ export default function WordPressPage() {
                 ? <>laatste versie <span className="font-mono text-fg">{report.latestVersion}</span></>
                 : 'laatste versie onbekend'}
               {outdated > 0 && <> · <span className="text-amber">{outdated} verouderd</span></>}
-              {' · stand van de laatste fetch van de default branch'}
+              {' · GitHub-kolom wordt automatisch bijgewerkt'}
             </p>
           )}
         </div>
@@ -207,6 +209,10 @@ export default function WordPressPage() {
 
         {report && shown.length > 0 && (
           <div className="border border-border rounded-lg overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-1 bg-panel/40 border-b border-border">
+              <span className="flex-1" />
+              <VersionColumnsHeader />
+            </div>
             {shown.map(p => (
               <div key={p.projectId}
                    className="flex items-center gap-2 px-3 py-2 text-[12.5px] border-b border-border/40 last:border-b-0">
@@ -215,15 +221,9 @@ export default function WordPressPage() {
                       title={`Versie gelezen van ${p.ref}`}>
                   ⑂ {p.ref}
                 </span>
-                <span className={`font-mono ${p.outdated ? 'text-amber' : 'text-fg-muted'}`}>
-                  {p.version}
-                </span>
-                {p.outdated && report.latestVersion && (
-                  <span className="font-mono text-fg-faint">→ {report.latestVersion}</span>
-                )}
-                {!p.outdated && report.latestVersion && (
-                  <span className="text-[11px] text-green">actueel</span>
-                )}
+                <VersionColumns local={p.localVersion} github={p.githubVersion}
+                                latest={report.latestVersion} outdated={p.outdated}
+                                localBehind={p.localBehind} />
                 {p.outdated && report.latestVersion && (
                   <span className="flex items-center gap-2 shrink-0">
                     {updates[p.projectId] && (
