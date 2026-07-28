@@ -80,7 +80,7 @@ func NewServices(cfg Config) *Services {
 
 		Wordfence:       wordfence,
 		WordfenceUpdate: wordfenceUpdate,
-		Inventory:       services.NewInventoryService(project),
+		Inventory:       services.NewInventoryService(project, &cfg.Global),
 		WPCoreUpdate:    services.NewWPCoreUpdateService(project, &cfg.Global),
 	}
 }

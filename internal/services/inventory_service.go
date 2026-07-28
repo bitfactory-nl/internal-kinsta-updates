@@ -10,6 +10,8 @@ import (
 	"github.com/rdm/sites-tool/internal/adapters/gitcli"
 	"github.com/rdm/sites-tool/internal/adapters/wporg"
 	"github.com/rdm/sites-tool/internal/adapters/wpplugins"
+	"github.com/rdm/sites-tool/internal/config"
+	"github.com/rdm/sites-tool/internal/domain"
 )
 
 // workingTreeRef labels entries read from the working directory because the
@@ -33,11 +35,43 @@ type inventoryResolver interface {
 type InventoryProjectRef struct {
 	ProjectID   string `json:"projectId"`
 	ProjectName string `json:"projectName"`
-	Version     string `json:"version"`
-	Outdated    bool   `json:"outdated"`
-	// Ref is the git ref the version was read from (e.g. origin/release/1.0.x),
-	// or "werkmap" when the working tree was used as fallback.
+	// LocalVersion is de versie in de werkmap van de gebruiker.
+	LocalVersion string `json:"localVersion"`
+	// GithubVersion is de versie op de default release-branch van GitHub
+	// (gelezen van origin/<branch>, die vooraf wordt bijgewerkt).
+	GithubVersion string `json:"githubVersion"`
+	// Outdated vergelijkt de GitHub-kolom met de laatste versie: dat is de
+	// stand die naar productie gaat.
+	Outdated bool `json:"outdated"`
+	// LocalBehind is true als de werkmap achterloopt op GitHub — een hint om
+	// te pullen, niet hetzelfde als verouderd.
+	LocalBehind bool `json:"localBehind"`
+	// Ref is the git ref the GitHub version was read from (e.g.
+	// origin/release/1.0.x), or "werkmap" when the working tree was the only
+	// available source.
 	Ref string `json:"ref"`
+}
+
+// buildProjectRef stelt één rij samen uit de lokale en de GitHub-versie.
+// Outdated volgt bewust de GitHub-kolom (dat is wat naar productie gaat);
+// LocalBehind markeert alleen dat de checkout van de gebruiker achterloopt.
+func buildProjectRef(projectID, projectName, local, github, latest, ref string) InventoryProjectRef {
+	// Zonder GitHub-kolom (geen git-repo of geen origin-ref) valt de
+	// verouderd-bepaling terug op de lokale versie, zodat een project niet
+	// stil uit de telling verdwijnt.
+	effectief := github
+	if effectief == "" {
+		effectief = local
+	}
+	return InventoryProjectRef{
+		ProjectID:     projectID,
+		ProjectName:   projectName,
+		LocalVersion:  local,
+		GithubVersion: github,
+		Outdated:      latest != "" && effectief != "" && compareVersions(effectief, latest) < 0,
+		LocalBehind:   local != "" && github != "" && compareVersions(local, github) < 0,
+		Ref:           ref,
+	}
 }
 
 // InventoryItem is one plugin or theme aggregated across all projects.
@@ -65,15 +99,18 @@ type cachedVersion struct {
 type InventoryService struct {
 	projects projectLister
 	wporg    inventoryResolver
+	// syncer houdt de origin-refs gelijk aan GitHub; nil = geen sync (tests).
+	syncer *inventorySyncer
 
 	mu    sync.Mutex
 	cache map[string]cachedVersion // "plugin:slug" | "theme:slug" | "core"
 }
 
-func NewInventoryService(projects *ProjectService) *InventoryService {
+func NewInventoryService(projects *ProjectService, cfg *config.Global) *InventoryService {
 	return &InventoryService{
 		projects: projects,
 		wporg:    wporg.NewClient(),
+		syncer:   newInventorySyncer(gitSyncSource{cfg: cfg}),
 		cache:    make(map[string]cachedVersion),
 	}
 }
@@ -115,30 +152,31 @@ func (s *InventoryService) WordPress() (WPCoreReport, error) {
 	}
 	report.LatestVersion = latest
 
-	for _, p := range s.projects.List() {
+	projects := s.projects.List()
+	s.syncGithubRefs(projects)
+
+	for _, p := range projects {
+		// Lokale kolom: de werkmap van de gebruiker.
+		lokaal, _ := wpplugins.ReadWPVersion(p.Path)
+
+		// GitHub-kolom: origin/<default branch>, net bijgewerkt door de sync.
 		ref := s.projectRef(p.Path)
-		var v string
+		var github string
 		if ref != "" {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			data, err := gitcli.ShowFile(ctx, p.Path, ref, "public/wp-includes/version.php")
 			cancel()
 			if err == nil {
-				v = wpplugins.ParseWPVersion(data)
+				github = wpplugins.ParseWPVersion(data)
 			}
 		} else {
 			ref = workingTreeRef
-			v, _ = wpplugins.ReadWPVersion(p.Path)
 		}
-		if v == "" {
-			continue // not a WordPress project (on this ref)
+		if lokaal == "" && github == "" {
+			continue // geen WordPress-project
 		}
-		report.Projects = append(report.Projects, InventoryProjectRef{
-			ProjectID:   p.ID,
-			ProjectName: p.DisplayName,
-			Version:     v,
-			Outdated:    latest != "" && compareVersions(v, latest) < 0,
-			Ref:         ref,
-		})
+		report.Projects = append(report.Projects,
+			buildProjectRef(p.ID, p.DisplayName, lokaal, github, latest, ref))
 	}
 	sort.Slice(report.Projects, func(i, j int) bool {
 		return strings.ToLower(report.Projects[i].ProjectName) < strings.ToLower(report.Projects[j].ProjectName)
@@ -208,27 +246,67 @@ func (s *InventoryService) projectRef(path string) string {
 // fall back to the working tree.
 func (s *InventoryService) collect(read func(path, gitRef string) []installedRef) map[string]*InventoryItem {
 	items := make(map[string]*InventoryItem)
-	for _, p := range s.projects.List() {
+	projects := s.projects.List()
+	s.syncGithubRefs(projects)
+
+	for _, p := range projects {
 		gitRef := s.projectRef(p.Path)
 		label := gitRef
 		if label == "" {
 			label = workingTreeRef
 		}
-		for _, ref := range read(p.Path, gitRef) {
-			it, ok := items[ref.slug]
+		// Twee bronnen per project: de werkmap ("" = working tree) en de
+		// GitHub-stand op origin/<default branch>.
+		lokaal := map[string]string{}
+		for _, ref := range read(p.Path, "") {
+			lokaal[ref.slug] = ref.version
+		}
+		github := map[string]string{}
+		if gitRef != "" {
+			for _, ref := range read(p.Path, gitRef) {
+				github[ref.slug] = ref.version
+			}
+		}
+
+		for slug := range unieke(lokaal, github) {
+			it, ok := items[slug]
 			if !ok {
-				it = &InventoryItem{Slug: ref.slug}
-				items[ref.slug] = it
+				it = &InventoryItem{Slug: slug}
+				items[slug] = it
 			}
 			it.Projects = append(it.Projects, InventoryProjectRef{
-				ProjectID:   p.ID,
-				ProjectName: p.DisplayName,
-				Version:     ref.version,
-				Ref:         label,
+				ProjectID:     p.ID,
+				ProjectName:   p.DisplayName,
+				LocalVersion:  lokaal[slug],
+				GithubVersion: github[slug],
+				Ref:           label,
 			})
 		}
 	}
 	return items
+}
+
+// unieke geeft de verzameling slugs die in minstens één van beide bronnen zit.
+func unieke(a, b map[string]string) map[string]struct{} {
+	set := make(map[string]struct{}, len(a)+len(b))
+	for k := range a {
+		set[k] = struct{}{}
+	}
+	for k := range b {
+		set[k] = struct{}{}
+	}
+	return set
+}
+
+// syncGithubRefs werkt de origin-refs bij waar GitHub vooruit is, zodat de
+// GitHub-kolom de echte stand van de release-branch toont. Best-effort.
+func (s *InventoryService) syncGithubRefs(projects []domain.Project) {
+	if s.syncer == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	s.syncer.Sync(ctx, projects)
 }
 
 // readPlugins lists plugins with versions at gitRef ("" = working tree).
@@ -403,7 +481,9 @@ func finishItems(items map[string]*InventoryItem) []InventoryItem {
 		})
 		for i := range it.Projects {
 			p := &it.Projects[i]
-			p.Outdated = it.LatestVersion != "" && p.Version != "" && compareVersions(p.Version, it.LatestVersion) < 0
+			// Outdated volgt de GitHub-kolom: dat is de stand die naar
+			// productie gaat. LocalBehind is puur een pull-hint.
+			*p = buildProjectRef(p.ProjectID, p.ProjectName, p.LocalVersion, p.GithubVersion, it.LatestVersion, p.Ref)
 			if p.Outdated {
 				it.OutdatedCount++
 			}
