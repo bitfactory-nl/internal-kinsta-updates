@@ -211,6 +211,7 @@ func (s *ProjectService) BatchStatus() []domain.ProjectStatusSummary {
 				Behind:      status.Behind,
 				Dirty:       dirty,
 				IsRepo:      status.IsRepo,
+				DeployType:  p.Deploy.Type,
 			}
 			mu.Lock()
 			results = append(results, summary)
