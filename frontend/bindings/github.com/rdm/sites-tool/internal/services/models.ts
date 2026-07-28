@@ -273,12 +273,34 @@ export class InventoryItem {
 export class InventoryProjectRef {
     "projectId": string;
     "projectName": string;
-    "version": string;
+
+    /**
+     * LocalVersion is de versie in de werkmap van de gebruiker.
+     */
+    "localVersion": string;
+
+    /**
+     * GithubVersion is de versie op de default release-branch van GitHub
+     * (gelezen van origin/<branch>, die vooraf wordt bijgewerkt).
+     */
+    "githubVersion": string;
+
+    /**
+     * Outdated vergelijkt de GitHub-kolom met de laatste versie: dat is de
+     * stand die naar productie gaat.
+     */
     "outdated": boolean;
 
     /**
-     * Ref is the git ref the version was read from (e.g. origin/release/1.0.x),
-     * or "werkmap" when the working tree was used as fallback.
+     * LocalBehind is true als de werkmap achterloopt op GitHub — een hint om
+     * te pullen, niet hetzelfde als verouderd.
+     */
+    "localBehind": boolean;
+
+    /**
+     * Ref is the git ref the GitHub version was read from (e.g.
+     * origin/release/1.0.x), or "werkmap" when the working tree was the only
+     * available source.
      */
     "ref": string;
 
@@ -290,11 +312,17 @@ export class InventoryProjectRef {
         if (!("projectName" in $$source)) {
             this["projectName"] = "";
         }
-        if (!("version" in $$source)) {
-            this["version"] = "";
+        if (!("localVersion" in $$source)) {
+            this["localVersion"] = "";
+        }
+        if (!("githubVersion" in $$source)) {
+            this["githubVersion"] = "";
         }
         if (!("outdated" in $$source)) {
             this["outdated"] = false;
+        }
+        if (!("localBehind" in $$source)) {
+            this["localBehind"] = false;
         }
         if (!("ref" in $$source)) {
             this["ref"] = "";

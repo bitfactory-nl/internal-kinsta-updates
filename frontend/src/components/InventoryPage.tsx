@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import VersionColumns, { VersionColumnsHeader } from './VersionColumns'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { InventoryItem } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { PackageIcon, PaletteIcon, RefreshIcon, ChevronIcon, CloudDownloadIcon } from './icons'
@@ -156,20 +157,21 @@ export default function InventoryPage({ kind }: Props) {
                 {/* per-project versions */}
                 {open && (
                   <ul className="border-t border-border bg-panel/40">
+                    <li className="flex items-center gap-2 px-3 py-1 pl-9 border-b border-border/40">
+                      <span className="flex-1" />
+                      <VersionColumnsHeader />
+                    </li>
                     {it.projects.map(p => (
-                      <li key={p.projectId + p.version}
+                      <li key={p.projectId + p.githubVersion + p.localVersion}
                           className="flex items-center gap-2 px-3 py-1.5 pl-9 text-[12px] border-b border-border/40 last:border-b-0">
                         <span className="text-fg truncate">{p.projectName}</span>
                         <span className="font-mono text-[10.5px] text-fg-faint truncate flex-1"
-                              title={`Versie gelezen van ${p.ref}`}>
+                              title={`GitHub-versie gelezen van ${p.ref}`}>
                           ⑂ {p.ref}
                         </span>
-                        <span className={`font-mono ${p.outdated ? 'text-amber' : 'text-fg-muted'}`}>
-                          {p.version || '?'}
-                        </span>
-                        {p.outdated && it.latestVersion && (
-                          <span className="font-mono text-fg-faint">→ {it.latestVersion}</span>
-                        )}
+                        <VersionColumns local={p.localVersion} github={p.githubVersion}
+                                        latest={it.latestVersion} outdated={p.outdated}
+                                        localBehind={p.localBehind} />
                       </li>
                     ))}
                   </ul>
