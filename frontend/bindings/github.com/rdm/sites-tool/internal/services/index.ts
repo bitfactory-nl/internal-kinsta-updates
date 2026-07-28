@@ -17,6 +17,7 @@ import * as SecurityService from "./securityservice.js";
 import * as SettingsService from "./settingsservice.js";
 import * as TestService from "./testservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
+import * as WPCoreUpdateService from "./wpcoreupdateservice.js";
 import * as WordfenceService from "./wordfenceservice.js";
 import * as WordfenceUpdateService from "./wordfenceupdateservice.js";
 export {
@@ -36,6 +37,7 @@ export {
     SettingsService,
     TestService,
     VulnScanService,
+    WPCoreUpdateService,
     WordfenceService,
     WordfenceUpdateService
 };
@@ -43,6 +45,7 @@ export {
 export {
     AppSettings,
     BatchResult,
+    CoreUpdateResult,
     FeedMeta,
     FetchAllResult,
     InventoryItem,
