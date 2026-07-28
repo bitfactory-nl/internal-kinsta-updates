@@ -1300,6 +1300,12 @@ export class Report {
     "dependencyUpdates": UpdateRow[];
     "wpUpdates": UpdateRow[];
     "avg": AVGRow[];
+
+    /**
+     * Opmerkingen is vrije tekst van de developer/updater, onderaan het
+     * rapport (en de PDF) getoond.
+     */
+    "opmerkingen": string;
     "updatedAt": time$0.Time;
 
     /** Creates a new Report instance. */
@@ -1333,6 +1339,9 @@ export class Report {
         }
         if (!("avg" in $$source)) {
             this["avg"] = [];
+        }
+        if (!("opmerkingen" in $$source)) {
+            this["opmerkingen"] = "";
         }
         if (!("updatedAt" in $$source)) {
             this["updatedAt"] = null;

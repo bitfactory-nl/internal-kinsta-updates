@@ -51,5 +51,8 @@ type Report struct {
 	DependencyUpdates []UpdateRow   `json:"dependencyUpdates"`
 	WPUpdates         []UpdateRow   `json:"wpUpdates"`
 	AVG               []AVGRow      `json:"avg"`
-	UpdatedAt         time.Time     `json:"updatedAt"`
+	// Opmerkingen is vrije tekst van de developer/updater, onderaan het
+	// rapport (en de PDF) getoond.
+	Opmerkingen string    `json:"opmerkingen"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }

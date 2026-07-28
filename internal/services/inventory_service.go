@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/gitcli"
-	"github.com/rdm/sites-tool/internal/adapters/wpplugins"
 	"github.com/rdm/sites-tool/internal/adapters/wporg"
+	"github.com/rdm/sites-tool/internal/adapters/wpplugins"
 )
 
 // workingTreeRef labels entries read from the working directory because the
@@ -200,17 +200,7 @@ type installedRef struct {
 func (s *InventoryService) projectRef(path string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	def, err := gitcli.DefaultBranch(ctx, path)
-	if err != nil || def == "" {
-		return ""
-	}
-	if gitcli.RefExists(ctx, path, "origin/"+def) {
-		return "origin/" + def
-	}
-	if gitcli.RefExists(ctx, path, def) {
-		return def
-	}
-	return ""
+	return projectFileRef(ctx, path)
 }
 
 // collect walks all projects and groups installed items by slug. Items are

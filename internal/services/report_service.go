@@ -11,9 +11,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rdm/sites-tool/internal/adapters/endoflife"
 	"github.com/rdm/sites-tool/internal/adapters/kinsta"
 	"github.com/rdm/sites-tool/internal/domain"
 	"github.com/wailsapp/wails/v3/pkg/application"
+)
+
+// Componentnamen in de "Server software & frameworks"-tabel. De prefill
+// matcht op deze exacte strings.
+const (
+	compPHPProd   = "PHP (productie)"
+	compPHPLocal  = "PHP (lokaal)"
+	compMariaDB   = "MariaDB"
+	compNode      = "Node"
+	compWordPress = "WordPress"
 )
 
 // reportProjects is the subset of *ProjectService ReportService needs (test seam).
@@ -37,6 +48,12 @@ type reportPDF interface {
 	RenderPDF(ctx context.Context, html, outPath string) error
 }
 
+// reportEOL is de subset van *endoflife.Client die ReportService nodig heeft
+// (test seam).
+type reportEOL interface {
+	Cycles(ctx context.Context, product string) ([]endoflife.Cycle, error)
+}
+
 // ReportService builds, persists and exports the per-project client report
 // ("Servicecontract rapportage", Bitfactory house style).
 type ReportService struct {
@@ -45,12 +62,14 @@ type ReportService struct {
 	security reportSecurity
 	store    *ReportStore
 	pdf      reportPDF
+	eol      reportEOL
+	repo     repoFileReader
 	app      *application.App
 }
 
 // NewReportService wires the service.
-func NewReportService(projects reportProjects, kinsta reportKinsta, security reportSecurity, store *ReportStore, pdf reportPDF) *ReportService {
-	return &ReportService{projects: projects, kinsta: kinsta, security: security, store: store, pdf: pdf}
+func NewReportService(projects reportProjects, kinsta reportKinsta, security reportSecurity, store *ReportStore, pdf reportPDF, eol reportEOL, repo repoFileReader) *ReportService {
+	return &ReportService{projects: projects, kinsta: kinsta, security: security, store: store, pdf: pdf, eol: eol, repo: repo}
 }
 
 // SetApp injects the Wails app reference (called after app creation), needed
@@ -89,7 +108,34 @@ func (s *ReportService) GetReport(projectID, period string) (domain.Report, erro
 	if stored.ProjectID == "" {
 		return skeletonReport(p, projectID, period), nil
 	}
+	stored.Software = migrateSoftwareRows(stored.Software)
 	return stored, nil
+}
+
+// migrateSoftwareRows werkt drafts van vóór de PHP-splitsing bij: de rij
+// "PHP" wordt "PHP (productie)" en "PHP (lokaal)" wordt direct erna
+// ingevoegd. Idempotent; geeft een nieuwe slice terug.
+func migrateSoftwareRows(rows []domain.SoftwareRow) []domain.SoftwareRow {
+	heeftLokaal := false
+	for _, row := range rows {
+		if row.Component == compPHPLocal {
+			heeftLokaal = true
+		}
+	}
+	out := make([]domain.SoftwareRow, 0, len(rows)+1)
+	for _, row := range rows {
+		if row.Component == "PHP" {
+			row.Component = compPHPProd
+			out = append(out, row)
+			if !heeftLokaal {
+				out = append(out, domain.SoftwareRow{Component: compPHPLocal})
+				heeftLokaal = true
+			}
+			continue
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 // skeletonReport builds a fresh draft with the default rows described in the
@@ -106,10 +152,11 @@ func skeletonReport(p domain.Project, projectID, period string) domain.Report {
 			{Onderdeel: "TLS-certificaat", Status: "✔ OK"},
 		},
 		Software: []domain.SoftwareRow{
-			{Component: "PHP"},
-			{Component: "MariaDB"},
-			{Component: "Node"},
-			{Component: "WordPress"},
+			{Component: compPHPProd},
+			{Component: compPHPLocal},
+			{Component: compMariaDB},
+			{Component: compNode},
+			{Component: compWordPress},
 		},
 		DependencyUpdates: []domain.UpdateRow{
 			{Naam: "Composer - PHP packages"},
@@ -178,6 +225,8 @@ func (s *ReportService) Prefill(projectID, period string) (domain.Report, error)
 	}
 
 	s.prefillFromKinsta(&r, p)
+	s.prefillFromRepo(&r, p)
+	s.prefillEOL(&r)
 	s.prefillFromSecurity(&r, projectID)
 
 	return r, nil
@@ -197,8 +246,8 @@ func (s *ReportService) prefillFromKinsta(r *domain.Report, p domain.Project) {
 			if e.ID != envID {
 				continue
 			}
-			setSoftwareHuidig(r, "PHP", e.ContainerInfo.PHPEngineVersion)
-			setSoftwareHuidig(r, "WordPress", e.WordPressVersion)
+			setSoftwareHuidig(r, compPHPProd, normalizeVersion(e.ContainerInfo.PHPEngineVersion))
+			setSoftwareHuidig(r, compWordPress, e.WordPressVersion)
 			break
 		}
 	}
@@ -222,6 +271,80 @@ func (s *ReportService) prefillFromKinsta(r *domain.Report, p domain.Project) {
 			Actie: fmt.Sprintf("%d kwetsbare plugin(s) gevonden", vulnerable),
 			Wie:   "Bitfactory",
 		})
+	}
+}
+
+// prefillFromRepo vult "PHP (lokaal)" en "Node" uit de projectbestanden
+// (.bitfactory Dockerfile en docker-compose). Best-effort: leesfouten en
+// niet-parsebare bestanden slaan de betreffende cel over.
+func (s *ReportService) prefillFromRepo(r *domain.Report, p domain.Project) {
+	if s.repo == nil || p.Path == "" {
+		return
+	}
+	php := ""
+	if b, err := s.repo.ReadProjectFile(p, ".bitfactory/docker/php-fpm/Dockerfile.dev"); err == nil {
+		php = phpFromDockerfile(b)
+	}
+	var dockerfile []byte
+	if php == "" {
+		if b, err := s.repo.ReadProjectFile(p, ".bitfactory/docker/php-fpm/Dockerfile"); err == nil {
+			dockerfile = b
+			php = phpFromDockerfile(b)
+		}
+	}
+	setSoftwareHuidig(r, compPHPLocal, php)
+
+	node := ""
+	if b, err := s.repo.ReadProjectFile(p, "docker-compose.yaml"); err == nil {
+		node = nodeFromCompose(b)
+	}
+	if node == "" {
+		if dockerfile == nil {
+			if b, err := s.repo.ReadProjectFile(p, ".bitfactory/docker/php-fpm/Dockerfile"); err == nil {
+				dockerfile = b
+			}
+		}
+		node = nodeFromDockerfile(dockerfile)
+	}
+	setSoftwareHuidig(r, compNode, node)
+}
+
+// eolProducts koppelt rapportrijen aan endoflife.date-producten.
+var eolProducts = map[string]string{
+	compPHPProd:   "php",
+	compPHPLocal:  "php",
+	compNode:      "nodejs",
+	compMariaDB:   "mariadb",
+	compWordPress: "wordpress",
+}
+
+// prefillEOL vult "Laatste versie" (nieuwste actieve/LTS-release) en
+// "Ondersteund tot" (EOL-datum van de huidige versie) voor elke bekende rij.
+// Best-effort per product; zonder Huidig blijft "Ondersteund tot" leeg.
+func (s *ReportService) prefillEOL(r *domain.Report) {
+	if s.eol == nil {
+		return
+	}
+	now := time.Now()
+	for i := range r.Software {
+		product, ok := eolProducts[r.Software[i].Component]
+		if !ok {
+			continue
+		}
+		// Eigen timeout per lookup: een traag product mag het budget van de
+		// volgende rijen niet opeten (de client cachet per product).
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		cycles, err := s.eol.Cycles(ctx, product)
+		cancel()
+		if err != nil {
+			continue
+		}
+		if v := latestActive(product, cycles, now); v != "" {
+			r.Software[i].Laatste = v
+		}
+		if d := supportedUntil(r.Software[i].Huidig, cycles); d != "" {
+			r.Software[i].OndersteundTot = d
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package app
 
 import (
 	"github.com/rdm/sites-tool/internal/adapters/browser"
+	"github.com/rdm/sites-tool/internal/adapters/endoflife"
 	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/services"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -53,7 +54,7 @@ func NewServices(cfg Config) *Services {
 
 	pdfRunner := browser.NewPDFRunner(services.PDFScriptPath())
 	reportStore := services.NewReportStore(services.DefaultReportsDir())
-	reportSvc := services.NewReportService(project, kinsta, security, reportStore, pdfRunner)
+	reportSvc := services.NewReportService(project, kinsta, security, reportStore, pdfRunner, endoflife.NewClient(), services.GitRepoFiles{})
 
 	git := services.NewGitService(project)
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
