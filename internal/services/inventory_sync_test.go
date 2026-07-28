@@ -178,3 +178,46 @@ func TestSyncSlaatProjectZonderRemoteOver(t *testing.T) {
 		}
 	}
 }
+
+// TestSyncDedupliceertGelijktijdigeAanroepen: de drie overzichten (WordPress,
+// Plugins, Themes) delen één syncer. Worden ze vlak na elkaar geopend, dan mag
+// dat niet leiden tot meerdere volledige sweeps over dezelfde projecten — dat
+// zou de TTL-cache omzeilen en dubbele fetches op dezelfde repo veroorzaken.
+func TestSyncDedupliceertGelijktijdigeAanroepen(t *testing.T) {
+	fake := newSyncFake()
+	syncer := newInventorySyncer(fake)
+	projects := syncTestProjects()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			syncer.Sync(context.Background(), projects)
+		}()
+	}
+	wg.Wait()
+
+	// Twee projecten, dus precies twee SHA-checks en één fetch (de achterloper).
+	if got := fake.shaCalls(); got != 2 {
+		t.Errorf("SHA-calls = %d bij 3 gelijktijdige Syncs, want 2 (één per project)", got)
+	}
+	if got := fake.gefetcht(); len(got) != 1 {
+		t.Errorf("fetches = %v, want precies één", got)
+	}
+}
+
+func TestMarkAllCheckedVoorkomtDirecteHercheck(t *testing.T) {
+	fake := newSyncFake()
+	syncer := newInventorySyncer(fake)
+	projects := syncTestProjects()
+
+	// Na een handmatige "Fetch alles" is de lokale stand al actueel; een
+	// direct volgende Sync hoeft niet opnieuw bij de API langs.
+	syncer.MarkAllChecked(projects)
+	syncer.Sync(context.Background(), projects)
+
+	if got := fake.shaCalls(); got != 0 {
+		t.Errorf("SHA-calls = %d na MarkAllChecked, want 0", got)
+	}
+}
