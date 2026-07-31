@@ -19,7 +19,7 @@ var mediaScanScript string
 // mediaScanTimeout bounds the whole SSH round trip. The analyzer keeps a shorter
 // budget of its own (mediaPHPBudget), so this is a backstop rather than the normal
 // end of a slow scan.
-const mediaScanTimeout = 8 * time.Minute
+const mediaScanTimeout = 25 * time.Minute
 
 // mediaProbeTimeout bounds the much cheaper connection check.
 const mediaProbeTimeout = 45 * time.Second

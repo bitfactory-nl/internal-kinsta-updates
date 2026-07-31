@@ -13,8 +13,9 @@ import (
 
 // mediaPHPBudget is the analyzer's own wall-clock budget in seconds. It sits well
 // under mediaScanTimeout so a slow site returns a marked partial result instead of
-// being killed mid-scan.
-const mediaPHPBudget = 330
+// being killed mid-scan. Generous on purpose: an incomplete scan cannot answer the
+// question it was asked, so waiting is better than truncating.
+const mediaPHPBudget = 1200
 
 // mediaTarget is everything one scan needs: where to connect and where the site
 // lives on the server.

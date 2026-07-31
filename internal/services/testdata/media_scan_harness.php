@@ -120,4 +120,12 @@ $wpdb = new RdmFakeWpdb($fixture);
 // en de parser moet er niet op omvallen.
 echo "PHP Warning: testruis op stdout\n";
 
-require dirname(__DIR__) . '/media_scan.php';
+// BELANGRIJK: includen BINNEN een functie, precies zoals `wp eval-file` doet.
+// Op globaal niveau includen verbergt juist de fout die dit script ooit maakte —
+// top-level variabelen zijn hier lokaal, dus `global $x` levert niets op.
+function rdm_include_zoals_wp_cli($pad)
+{
+    include $pad;
+}
+
+rdm_include_zoals_wp_cli(dirname(__DIR__) . '/media_scan.php');
