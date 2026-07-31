@@ -126,9 +126,12 @@ func (s *MediaScanStore) Latest(projectID string) (*domain.MediaScanSummary, err
 	return &scans[0], nil
 }
 
-// Detail returns a window of a scan's per-file rows. An offset past the end yields
-// an empty slice rather than an error, so the UI can page until it runs dry.
-func (s *MediaScanStore) Detail(projectID, scanID string, offset, limit int) ([]domain.MediaFileRow, error) {
+// Detail returns a window of a scan's per-file rows, optionally limited to one
+// category. The detail file holds every category in one stream, so filtering has to
+// happen while reading: counting rows of all categories would make the offset of a
+// single category's list meaningless. An offset past the end yields an empty slice
+// rather than an error, so the UI can page until it runs dry.
+func (s *MediaScanStore) Detail(projectID, scanID string, category domain.MediaCategory, offset, limit int) ([]domain.MediaFileRow, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -150,13 +153,18 @@ func (s *MediaScanStore) Detail(projectID, scanID string, offset, limit int) ([]
 	rows := make([]domain.MediaFileRow, 0, limit)
 	sc := bufio.NewScanner(zr)
 	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	for i := 0; sc.Scan(); i++ {
-		if i < offset {
-			continue
-		}
+	gezien := 0
+	for regel := 0; sc.Scan(); regel++ {
 		var row domain.MediaFileRow
 		if err := json.Unmarshal(sc.Bytes(), &row); err != nil {
-			return nil, fmt.Errorf("parse detailregel %d: %w", i, err)
+			return nil, fmt.Errorf("parse detailregel %d: %w", regel, err)
+		}
+		if category != "" && row.Category != category {
+			continue
+		}
+		gezien++
+		if gezien <= offset {
+			continue
 		}
 		rows = append(rows, row)
 		if len(rows) == limit {

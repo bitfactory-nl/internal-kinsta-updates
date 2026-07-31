@@ -60,7 +60,7 @@ func TestMediaScanStoreDetailPaginering(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	eerste, err := store.Detail("p1", "s1", 0, 2)
+	eerste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, 0, 2)
 	if err != nil {
 		t.Fatalf("Detail: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestMediaScanStoreDetailPaginering(t *testing.T) {
 	}
 
 	// Voorbij het einde vragen levert de rest op, geen fout.
-	laatste, err := store.Detail("p1", "s1", 3, 10)
+	laatste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, 3, 10)
 	if err != nil {
 		t.Fatalf("Detail voorbij einde: %v", err)
 	}
@@ -121,5 +121,36 @@ func TestMediaScanStoreZonderScans(t *testing.T) {
 	}
 	if laatste != nil {
 		t.Errorf("Latest = %+v, wil nil", laatste)
+	}
+}
+
+func TestMediaScanStoreDetailPerCategorie(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	rijen := []domain.MediaFileRow{
+		{Path: "a.jpg", Category: domain.MediaOrphanFile},
+		{Path: "b.jpg", Category: domain.MediaOrphanFile},
+		{Path: "c.jpg", Category: domain.MediaUnreferenced},
+		{Path: "d.jpg", Category: domain.MediaUnreferenced},
+	}
+	if err := store.Save(mediaSummary("s1", time.Now()), rijen); err != nil {
+		t.Fatal(err)
+	}
+
+	// Zonder categoriefilter zou offset 0 van "unreferenced" de eerste zwerver geven;
+	// met filter hoort het de eerste rij van díe categorie te zijn.
+	got, err := store.Detail("p1", "s1", domain.MediaUnreferenced, 0, 1)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "c.jpg" {
+		t.Errorf("eerste rij = %+v, wil c.jpg", got)
+	}
+
+	got, err = store.Detail("p1", "s1", domain.MediaUnreferenced, 1, 5)
+	if err != nil {
+		t.Fatalf("Detail met offset: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "d.jpg" {
+		t.Errorf("tweede pagina = %+v, wil d.jpg", got)
 	}
 }

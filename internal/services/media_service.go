@@ -240,10 +240,12 @@ func (s *MediaService) ListScans(projectID string) ([]domain.MediaScanSummary, e
 	return s.store.List(projectID)
 }
 
-// ScanDetail returns a window of a scan's per-file rows.
-func (s *MediaService) ScanDetail(projectID, scanID string, offset, limit int) ([]domain.MediaFileRow, error) {
+// ScanDetail returns a window of one category's rows. The category matters: the
+// stored detail file holds all categories in one stream, so paging without it would
+// hand the caller another category's rows.
+func (s *MediaService) ScanDetail(projectID, scanID string, category domain.MediaCategory, offset, limit int) ([]domain.MediaFileRow, error) {
 	if limit <= 0 || limit > 2000 {
 		limit = 500
 	}
-	return s.store.Detail(projectID, scanID, offset, limit)
+	return s.store.Detail(projectID, scanID, category, offset, limit)
 }

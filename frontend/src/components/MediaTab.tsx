@@ -114,14 +114,16 @@ function CategorieBlok({ projectId, scanId, blok }: { projectId: string; scanId:
 
   const zichtbaar = useMemo(() => {
     const q = filter.trim().toLowerCase()
-    const eigen = rijen.filter(r => r.category === blok.category || !r.category)
-    return q ? eigen.filter(r => r.path.toLowerCase().includes(q) || (r.title ?? '').toLowerCase().includes(q)) : eigen
-  }, [rijen, filter, blok.category])
+    if (!q) return rijen
+    return rijen.filter(r => r.path.toLowerCase().includes(q) || (r.title ?? '').toLowerCase().includes(q))
+  }, [rijen, filter])
 
+  // De offset loopt binnen deze categorie; het detailbestand bevat alle
+  // categorieën, dus de backend filtert mee.
   const meerLaden = async () => {
     setMeerBezig(true)
     try {
-      const volgende = await Services.MediaService.ScanDetail(projectId, scanId, rijen.length, 500)
+      const volgende = await Services.MediaService.ScanDetail(projectId, scanId, blok.category, rijen.length, 500)
       setRijen(huidig => [...huidig, ...(volgende ?? [])])
     } finally {
       setMeerBezig(false)

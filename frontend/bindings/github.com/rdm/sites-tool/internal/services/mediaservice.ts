@@ -68,10 +68,12 @@ export function SaveSSHAccess(projectID: string, user: string, path: string): $C
 }
 
 /**
- * ScanDetail returns a window of a scan's per-file rows.
+ * ScanDetail returns a window of one category's rows. The category matters: the
+ * stored detail file holds all categories in one stream, so paging without it would
+ * hand the caller another category's rows.
  */
-export function ScanDetail(projectID: string, scanID: string, offset: number, limit: number): $CancellablePromise<domain$0.MediaFileRow[]> {
-    return $Call.ByID(372605205, projectID, scanID, offset, limit).then(($result: any) => {
+export function ScanDetail(projectID: string, scanID: string, category: domain$0.MediaCategory, offset: number, limit: number): $CancellablePromise<domain$0.MediaFileRow[]> {
+    return $Call.ByID(372605205, projectID, scanID, category, offset, limit).then(($result: any) => {
         return $$createType6($result);
     });
 }
