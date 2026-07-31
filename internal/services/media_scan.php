@@ -866,7 +866,10 @@ final class RdmMediaScan
     {
         $uit = [];
         foreach ($this->byClass as $klasse => $t) {
-            $uit[] = ['class' => $klasse, 'files' => $t['files'], 'bytes' => $t['bytes']];
+            // (string) is geen overbodige netheid: PHP maakt van een sleutel die
+            // alleen uit cijfers bestaat een int, en dan staat er in de JSON een
+            // getal waar de andere kant een string verwacht.
+            $uit[] = ['class' => (string) $klasse, 'files' => $t['files'], 'bytes' => $t['bytes']];
         }
         usort($uit, function ($a, $b) {
             return $b['bytes'] <=> $a['bytes'];
@@ -878,7 +881,9 @@ final class RdmMediaScan
     {
         $uit = [];
         foreach ($this->byPeriod as $periode => $t) {
-            $uit[] = ['period' => $periode, 'files' => $t['files'], 'bytes' => $t['bytes']];
+            // Een map die "2020" heet wordt door PHP een int-sleutel; zonder cast
+            // levert json_encode daar een getal voor op.
+            $uit[] = ['period' => (string) $periode, 'files' => $t['files'], 'bytes' => $t['bytes']];
         }
         usort($uit, function ($a, $b) {
             return strcmp($a['period'], $b['period']);

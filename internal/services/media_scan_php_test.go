@@ -63,6 +63,7 @@ func mediaFixtureTree(t *testing.T) (uploadsDir, fixturePad string) {
 	schrijf("2024/05/zwerver.jpg", 300)      // niet in de bibliotheek
 	schrijf("2024/05/uitgelicht.jpg", 400)   // alleen via _thumbnail_id in gebruik
 	schrijf("2023/01/oud.jpg", 700)          // andere maand: valt buiten een selectie op 2024/05
+	schrijf("2020/los.jpg", 120)             // map met alleen cijfers: wordt in PHP een int-sleutel
 	schrijf("cache/rommel.css", 50)          // plugin-rommel
 	// 2024/05/weg.jpg staat bewust NIET op schijf: dat is categorie B.
 
@@ -143,11 +144,23 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 	}
 	sum, detail := payload.summary("s1", "p1", "web-test", "live", timeNulpunt(), 0)
 
-	if sum.TotalFiles != 7 {
-		t.Errorf("TotalFiles = %d, wil 7", sum.TotalFiles)
+	if sum.TotalFiles != 8 {
+		t.Errorf("TotalFiles = %d, wil 8", sum.TotalFiles)
 	}
-	if sum.TotalBytes != 3150 {
-		t.Errorf("TotalBytes = %d, wil 3150", sum.TotalBytes)
+	if sum.TotalBytes != 3270 {
+		t.Errorf("TotalBytes = %d, wil 3270", sum.TotalBytes)
+	}
+
+	// Een map die alleen uit cijfers bestaat moet als string terugkomen: PHP maakt
+	// van zo'n array-sleutel een int, en dan breekt het parsen aan de Go-kant.
+	var gevonden bool
+	for _, p := range sum.ByPeriod {
+		if p.Period == "2020" {
+			gevonden = true
+		}
+	}
+	if !gevonden {
+		t.Errorf("ByPeriod = %+v; wil map \"2020\" als string", sum.ByPeriod)
 	}
 	if sum.AttachmentCount != 5 {
 		t.Errorf("AttachmentCount = %d, wil 5", sum.AttachmentCount)
@@ -164,8 +177,8 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 	}
 
 	zwerver := categorie(t, sum, domain.MediaOrphanFile)
-	if zwerver.Files != 1 || len(zwerver.Samples) != 1 || zwerver.Samples[0].Path != "2024/05/zwerver.jpg" {
-		t.Errorf("categorie A = %+v; wil alleen zwerver.jpg (niet het thumbnail, niet de plugin-cache)", zwerver)
+	if zwerver.Files != 2 {
+		t.Errorf("categorie A = %+v; wil zwerver.jpg en los.jpg (niet het thumbnail, niet de plugin-cache)", zwerver)
 	}
 	if !zwerver.Hard {
 		t.Error("categorie A moet als hard feit gelden")
@@ -187,8 +200,8 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 		t.Errorf("categorie C bytes = %d, wil 1200 (grootte uit de bestandsdoorloop)", ongebruikt.Bytes)
 	}
 
-	if len(detail) != 6 {
-		t.Errorf("detailregels = %d, wil 6 (2 in gebruik, 2 zonder referentie, 1 zwerver, 1 ontbrekend)", len(detail))
+	if len(detail) != 7 {
+		t.Errorf("detailregels = %d, wil 7 (2 in gebruik, 2 zonder referentie, 2 zwervers, 1 ontbrekend)", len(detail))
 	}
 
 	// De gebruikte kant moet er óók staan, met het bewijs erbij: zonder "waar is dit
