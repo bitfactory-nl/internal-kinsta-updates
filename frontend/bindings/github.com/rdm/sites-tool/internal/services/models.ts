@@ -162,6 +162,39 @@ export class CoreUpdateResult {
     }
 }
 
+/**
+ * EnvSSHEndpoint is one environment's SSH endpoint as Kinsta reports it. The API
+ * has no username field, so that has to come from the project's own config.
+ */
+export class EnvSSHEndpoint {
+    "host": string;
+    "port": number;
+    "envName": string;
+
+    /** Creates a new EnvSSHEndpoint instance. */
+    constructor($$source: Partial<EnvSSHEndpoint> = {}) {
+        if (!("host" in $$source)) {
+            this["host"] = "";
+        }
+        if (!("port" in $$source)) {
+            this["port"] = 0;
+        }
+        if (!("envName" in $$source)) {
+            this["envName"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EnvSSHEndpoint instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EnvSSHEndpoint {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EnvSSHEndpoint($$parsedSource as Partial<EnvSSHEndpoint>);
+    }
+}
+
 export class FeedMeta {
     "fetchedAt": time$0.Time;
     "count": number;
@@ -393,6 +426,46 @@ export class MakeTarget {
     static createFrom($$source: any = {}): MakeTarget {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new MakeTarget($$parsedSource as Partial<MakeTarget>);
+    }
+}
+
+/**
+ * MediaProbe is the outcome of a connection check against one environment.
+ */
+export class MediaProbe {
+    "user": string;
+    "home": string;
+    "webroot": string;
+    "wpCli": string;
+    "uploadsKb": number;
+
+    /** Creates a new MediaProbe instance. */
+    constructor($$source: Partial<MediaProbe> = {}) {
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("home" in $$source)) {
+            this["home"] = "";
+        }
+        if (!("webroot" in $$source)) {
+            this["webroot"] = "";
+        }
+        if (!("wpCli" in $$source)) {
+            this["wpCli"] = "";
+        }
+        if (!("uploadsKb" in $$source)) {
+            this["uploadsKb"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaProbe instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaProbe {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaProbe($$parsedSource as Partial<MediaProbe>);
     }
 }
 
@@ -638,6 +711,35 @@ export class ProjectWorkflow {
 }
 
 /**
+ * SSHAccess is what a project knows about reaching its own server. Kinsta's API
+ * supplies neither of these, so they are entered once and then remembered.
+ */
+export class SSHAccess {
+    "user": string;
+    "path": string;
+
+    /** Creates a new SSHAccess instance. */
+    constructor($$source: Partial<SSHAccess> = {}) {
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SSHAccess instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SSHAccess {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SSHAccess($$parsedSource as Partial<SSHAccess>);
+    }
+}
+
+/**
  * SearchHit represents a single grep match in a file.
  */
 export class SearchHit {
@@ -773,6 +875,38 @@ export class SecurityScanResult {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
         }
         return new SecurityScanResult($$parsedSource as Partial<SecurityScanResult>);
+    }
+}
+
+/**
+ * SiteLinkConflict reports a Kinsta site that is linked to more than one project.
+ */
+export class SiteLinkConflict {
+    "siteId": string;
+    "projects": string[];
+
+    /** Creates a new SiteLinkConflict instance. */
+    constructor($$source: Partial<SiteLinkConflict> = {}) {
+        if (!("siteId" in $$source)) {
+            this["siteId"] = "";
+        }
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SiteLinkConflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SiteLinkConflict {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
+        }
+        return new SiteLinkConflict($$parsedSource as Partial<SiteLinkConflict>);
     }
 }
 

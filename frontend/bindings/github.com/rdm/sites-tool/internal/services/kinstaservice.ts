@@ -9,13 +9,28 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as kinsta$0 from "../adapters/kinsta/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
+/**
+ * EnvironmentSSH resolves the SSH endpoint of one environment of the project's
+ * linked Kinsta site. An empty envID picks the live environment, or the only one
+ * when the site has just a single environment.
+ */
+export function EnvironmentSSH(projectID: string, envID: string): $CancellablePromise<$models.EnvSSHEndpoint> {
+    return $Call.ByID(4023335780, projectID, envID).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 /**
  * GetEnvironmentPluginsAndThemes returns plugins + themes for an environment.
  * The environment details themselves are already included in the SiteDetails response.
  */
 export function GetEnvironmentPluginsAndThemes(envID: string): $CancellablePromise<kinsta$0.EnvironmentDetails | null> {
     return $Call.ByID(1998672195, envID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -31,7 +46,7 @@ export function GetLinkedSiteID(projectID: string): $CancellablePromise<string> 
  */
 export function GetSiteDetails(siteID: string): $CancellablePromise<kinsta$0.SiteDetails | null> {
     return $Call.ByID(2795368366, siteID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
@@ -44,6 +59,8 @@ export function IsConfigured(): $CancellablePromise<boolean> {
 
 /**
  * LinkSite saves a Kinsta site_id to the project's .rdm.yml so it persists.
+ * Linking a site that already belongs to another project is refused: that is how
+ * projects end up reading each other's data.
  */
 export function LinkSite(projectID: string, siteID: string): $CancellablePromise<void> {
     return $Call.ByID(4229065038, projectID, siteID);
@@ -54,14 +71,29 @@ export function LinkSite(projectID: string, siteID: string): $CancellablePromise
  */
 export function ListSites(): $CancellablePromise<kinsta$0.Site[]> {
     return $Call.ByID(3451855999).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * SiteLinkConflicts lists Kinsta sites linked to more than one project. Such a
+ * duplicate is never harmless: both projects then read the same site's PHP
+ * version, plugin list and SSH details, so at least one shows another customer's
+ * data — including in generated reports.
+ */
+export function SiteLinkConflicts(): $CancellablePromise<$models.SiteLinkConflict[]> {
+    return $Call.ByID(1922175449).then(($result: any) => {
+        return $$createType8($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = kinsta$0.EnvironmentDetails.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = kinsta$0.SiteDetails.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = kinsta$0.Site.createFrom;
-const $$createType5 = $Create.Array($$createType4);
+const $$createType0 = $models.EnvSSHEndpoint.createFrom;
+const $$createType1 = kinsta$0.EnvironmentDetails.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = kinsta$0.SiteDetails.createFrom;
+const $$createType4 = $Create.Nullable($$createType3);
+const $$createType5 = kinsta$0.Site.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.SiteLinkConflict.createFrom;
+const $$createType8 = $Create.Array($$createType7);

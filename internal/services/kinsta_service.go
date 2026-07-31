@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/kinsta"
@@ -159,6 +161,65 @@ func (s *KinstaService) GetSiteDetails(siteID string) (*kinsta.SiteDetails, erro
 	return &kinsta.SiteDetails{
 		Site:         *site,
 		Environments: envs,
+	}, nil
+}
+
+// EnvSSHEndpoint is one environment's SSH endpoint as Kinsta reports it. The API
+// has no username field, so that has to come from the project's own config.
+type EnvSSHEndpoint struct {
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	EnvName string `json:"envName"`
+}
+
+// EnvironmentSSH resolves the SSH endpoint of one environment of the project's
+// linked Kinsta site. An empty envID picks the live environment, or the only one
+// when the site has just a single environment.
+func (s *KinstaService) EnvironmentSSH(projectID, envID string) (EnvSSHEndpoint, error) {
+	siteID, err := s.GetLinkedSiteID(projectID)
+	if err != nil {
+		return EnvSSHEndpoint{}, err
+	}
+	if siteID == "" {
+		return EnvSSHEndpoint{}, fmt.Errorf("dit project is nog niet aan een Kinsta-site gekoppeld")
+	}
+	details, err := s.GetSiteDetails(siteID)
+	if err != nil {
+		return EnvSSHEndpoint{}, err
+	}
+	if len(details.Environments) == 0 {
+		return EnvSSHEndpoint{}, fmt.Errorf("geen omgevingen gevonden voor deze Kinsta-site")
+	}
+
+	env := details.Environments[0]
+	if envID != "" {
+		gevonden := false
+		for _, e := range details.Environments {
+			if e.ID == envID {
+				env, gevonden = e, true
+				break
+			}
+		}
+		if !gevonden {
+			return EnvSSHEndpoint{}, fmt.Errorf("omgeving %q niet gevonden", envID)
+		}
+	} else {
+		for _, e := range details.Environments {
+			if e.Name == "live" {
+				env = e
+				break
+			}
+		}
+	}
+
+	port, err := strconv.Atoi(strings.TrimSpace(env.SSHConnection.SSHPort))
+	if err != nil || port == 0 {
+		return EnvSSHEndpoint{}, fmt.Errorf("Kinsta gaf geen SSH-poort voor omgeving %q", env.Name)
+	}
+	return EnvSSHEndpoint{
+		Host:    strings.TrimSpace(env.SSHConnection.SSHIP.ExternalIP),
+		Port:    port,
+		EnvName: env.Name,
 	}, nil
 }
 

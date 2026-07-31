@@ -7,6 +7,7 @@ import * as GitService from "./gitservice.js";
 import * as InventoryService from "./inventoryservice.js";
 import * as KinstaService from "./kinstaservice.js";
 import * as MakeService from "./makeservice.js";
+import * as MediaService from "./mediaservice.js";
 import * as NotifyService from "./notifyservice.js";
 import * as PluginService from "./pluginservice.js";
 import * as ProjectService from "./projectservice.js";
@@ -27,6 +28,7 @@ export {
     InventoryService,
     KinstaService,
     MakeService,
+    MediaService,
     NotifyService,
     PluginService,
     ProjectService,
@@ -46,20 +48,24 @@ export {
     AppSettings,
     BatchResult,
     CoreUpdateResult,
+    EnvSSHEndpoint,
     FeedMeta,
     FetchAllResult,
     InventoryItem,
     InventoryProjectRef,
     MakeResult,
     MakeTarget,
+    MediaProbe,
     PackageUpdate,
     PluginUpdateResult,
     ProjectUpdateResult,
     ProjectVulnReport,
     ProjectWorkflow,
+    SSHAccess,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,
+    SiteLinkConflict,
     UpdateBranch,
     UpdateDetail,
     UpdateSelection,

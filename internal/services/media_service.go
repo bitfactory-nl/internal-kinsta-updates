@@ -1,0 +1,249 @@
+package services
+
+import (
+	"context"
+	_ "embed"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
+
+	sshadapter "github.com/rdm/sites-tool/internal/adapters/ssh"
+	"github.com/rdm/sites-tool/internal/config"
+	"github.com/rdm/sites-tool/internal/domain"
+)
+
+//go:embed media_scan.php
+var mediaScanScript string
+
+// mediaScanTimeout bounds the whole SSH round trip. The analyzer keeps a shorter
+// budget of its own (mediaPHPBudget), so this is a backstop rather than the normal
+// end of a slow scan.
+const mediaScanTimeout = 8 * time.Minute
+
+// mediaProbeTimeout bounds the much cheaper connection check.
+const mediaProbeTimeout = 45 * time.Second
+
+// kinstaSSHSource resolves an environment's SSH endpoint (test seam).
+type kinstaSSHSource interface {
+	EnvironmentSSH(projectID, envID string) (EnvSSHEndpoint, error)
+}
+
+// MediaService analyses wp-content/uploads on a Kinsta environment: what is there,
+// how big it is, and which media have no reference left. It is deliberately
+// read-only — there is no method here that changes anything on the server.
+type MediaService struct {
+	projects *ProjectService
+	kinsta   kinstaSSHSource
+	store    *MediaScanStore
+	ssh      sshRunner
+	now      func() time.Time
+
+	bezigMu sync.Mutex
+	bezig   map[string]bool
+}
+
+func NewMediaService(projects *ProjectService, kinsta *KinstaService, store *MediaScanStore) *MediaService {
+	return &MediaService{
+		projects: projects,
+		kinsta:   kinsta,
+		store:    store,
+		ssh:      sshadapter.NewClient(),
+		now:      time.Now,
+		bezig:    map[string]bool{},
+	}
+}
+
+// claim reserves one environment for a scan; a scan is heavy on a customer's
+// container, so two at once is never wanted.
+func (s *MediaService) claim(slot string) bool {
+	s.bezigMu.Lock()
+	defer s.bezigMu.Unlock()
+	if s.bezig[slot] {
+		return false
+	}
+	s.bezig[slot] = true
+	return true
+}
+
+func (s *MediaService) release(slot string) {
+	s.bezigMu.Lock()
+	delete(s.bezig, slot)
+	s.bezigMu.Unlock()
+}
+
+func (s *MediaService) project(id string) (domain.Project, error) {
+	p, ok := s.projects.Get(id)
+	if !ok {
+		return domain.Project{}, fmt.Errorf("project %q niet gevonden", id)
+	}
+	return p, nil
+}
+
+func (s *MediaService) target(projectID, envID string) (mediaTarget, domain.Project, error) {
+	p, err := s.project(projectID)
+	if err != nil {
+		return mediaTarget{}, domain.Project{}, err
+	}
+	ep, err := s.kinsta.EnvironmentSSH(projectID, envID)
+	if err != nil {
+		return mediaTarget{}, p, err
+	}
+	tgt, err := mediaSSHTarget(p, ep)
+	return tgt, p, err
+}
+
+// ProbeEnvironment checks whether a scan can work at all: does the key-based login
+// succeed, which user are we, where is the site, does WP-CLI answer, and how big is
+// uploads. Cheap enough to run before anything else.
+func (s *MediaService) ProbeEnvironment(projectID, envID string) (MediaProbe, error) {
+	tgt, _, err := s.target(projectID, envID)
+	if err != nil {
+		return MediaProbe{}, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), mediaProbeTimeout)
+	defer cancel()
+
+	out, err := s.ssh.RunCommand(ctx, tgt.SSH, buildMediaProbeCommand(tgt.Webroot))
+	probe := mediaProbeUit(out)
+	if err != nil && probe.User == "" {
+		return MediaProbe{}, fmt.Errorf("verbinding met %s: %w", tgt.SSH.Host, err)
+	}
+	if probe.Webroot == "" {
+		return probe, fmt.Errorf("geen wp-config.php gevonden onder %s; vul het pad handmatig in", probe.Home)
+	}
+	return probe, nil
+}
+
+// ScanEnvironment runs the analyzer on one environment and stores the result. The
+// stored scan is returned so the UI can show it right away.
+func (s *MediaService) ScanEnvironment(projectID, envID string) (domain.MediaScanSummary, error) {
+	tgt, p, err := s.target(projectID, envID)
+	if err != nil {
+		return domain.MediaScanSummary{}, err
+	}
+
+	slot := projectID + "@" + envID
+	if !s.claim(slot) {
+		return domain.MediaScanSummary{}, fmt.Errorf("er loopt al een mediascan voor deze omgeving")
+	}
+	defer s.release(slot)
+
+	ctx, cancel := context.WithTimeout(context.Background(), mediaScanTimeout)
+	defer cancel()
+
+	start := s.now()
+	out, runErr := s.ssh.RunCommand(ctx, tgt.SSH, buildMediaScanCommand(tgt.Webroot, mediaScanScript))
+
+	// Eerst parsen, ook na een fout: RunCommand geeft de stdout mee terug en een
+	// gedeeltelijk resultaat zegt meer dan alleen een exitcode.
+	payload, perr := parseMediaScanOutput(out)
+	if perr != nil {
+		if melding := eersteGroep(reMediaErr, out); melding != "" {
+			return domain.MediaScanSummary{}, fmt.Errorf("scan op de server: %s", melding)
+		}
+		if runErr != nil {
+			return domain.MediaScanSummary{}, fmt.Errorf("mediascan op %s: %w", tgt.SSH.Host, runErr)
+		}
+		return domain.MediaScanSummary{}, perr
+	}
+
+	sum, detail := payload.summary(
+		start.Format("20060102-150405"),
+		projectID, p.DisplayName, tgt.EnvName,
+		start, duBytesUit(out),
+	)
+	sum.DurationMS = s.now().Sub(start).Milliseconds()
+	if runErr != nil {
+		// Een niet-nul exitcode met een geldig resultaat komt voor: PHP-notices op
+		// een klantsite zijn geen reden om de uitkomst weg te gooien.
+		sum.Scope.Notes = append(sum.Scope.Notes, "de scan eindigde met een foutcode: "+runErr.Error())
+	}
+
+	if err := s.store.Save(sum, detail); err != nil {
+		return sum, err
+	}
+	s.onthoudWebroot(p, eersteGroep(reMediaRoot, out))
+	return sum, nil
+}
+
+// onthoudWebroot stores a freshly discovered webroot in .rdm.yml so the next scan
+// does not have to search for it. Failing to save is not worth aborting a scan
+// that already succeeded.
+func (s *MediaService) onthoudWebroot(p domain.Project, root string) {
+	root = strings.TrimSpace(root)
+	if root == "" || p.Config.SSH == nil || p.Config.SSH.Path == root {
+		return
+	}
+	cfg := p.Config
+	ssh := *cfg.SSH
+	ssh.Path = root
+	cfg.SSH = &ssh
+	if err := config.SaveProject(p.Path, cfg); err == nil {
+		s.projects.UpdateProjectConfig(p.ID, cfg)
+	}
+}
+
+// SSHAccess is what a project knows about reaching its own server. Kinsta's API
+// supplies neither of these, so they are entered once and then remembered.
+type SSHAccess struct {
+	User string `json:"user"`
+	Path string `json:"path"`
+}
+
+// GetSSHAccess returns the stored SSH username and webroot for a project.
+func (s *MediaService) GetSSHAccess(projectID string) (SSHAccess, error) {
+	p, err := s.project(projectID)
+	if err != nil {
+		return SSHAccess{}, err
+	}
+	if p.Config.SSH == nil {
+		return SSHAccess{}, nil
+	}
+	return SSHAccess{User: p.Config.SSH.User, Path: p.Config.SSH.Path}, nil
+}
+
+// SaveSSHAccess stores the SSH username and optional webroot in .rdm.yml. An empty
+// path means: find it on the server during the next scan.
+func (s *MediaService) SaveSSHAccess(projectID, user, path string) error {
+	p, err := s.project(projectID)
+	if err != nil {
+		return err
+	}
+	user = strings.TrimSpace(user)
+	if user == "" {
+		return fmt.Errorf("SSH-gebruiker mag niet leeg zijn")
+	}
+	cfg := p.Config
+	ssh := domain.SSHTarget{}
+	if cfg.SSH != nil {
+		ssh = *cfg.SSH
+	}
+	ssh.User = user
+	ssh.Path = strings.TrimSpace(path)
+	cfg.SSH = &ssh
+	if err := config.SaveProject(p.Path, cfg); err != nil {
+		return fmt.Errorf("opslaan .rdm.yml: %w", err)
+	}
+	s.projects.UpdateProjectConfig(projectID, cfg)
+	return nil
+}
+
+// LatestScan returns the newest stored scan, or nil when the project was never
+// scanned.
+func (s *MediaService) LatestScan(projectID string) (*domain.MediaScanSummary, error) {
+	return s.store.Latest(projectID)
+}
+
+// ListScans returns the stored scans, newest first, so growth over time is visible.
+func (s *MediaService) ListScans(projectID string) ([]domain.MediaScanSummary, error) {
+	return s.store.List(projectID)
+}
+
+// ScanDetail returns a window of a scan's per-file rows.
+func (s *MediaService) ScanDetail(projectID, scanID string, offset, limit int) ([]domain.MediaFileRow, error) {
+	if limit <= 0 || limit > 2000 {
+		limit = 500
+	}
+	return s.store.Detail(projectID, scanID, offset, limit)
+}
