@@ -83,11 +83,13 @@ export function ScanDetail(projectID: string, scanID: string, category: domain$0
 }
 
 /**
- * ScanEnvironment runs the analyzer on one environment and stores the result. The
- * stored scan is returned so the UI can show it right away.
+ * ScanEnvironment runs the analyzer on one environment and stores the result. When
+ * folders is non-empty the scan is limited to those prefixes inside uploads, which
+ * keeps both the file walk and the library index small — the way to look at one
+ * year without waiting for a whole media library.
  */
-export function ScanEnvironment(projectID: string, envID: string): $CancellablePromise<domain$0.MediaScanSummary> {
-    return $Call.ByID(3796140597, projectID, envID).then(($result: any) => {
+export function ScanEnvironment(projectID: string, envID: string, folders: string[]): $CancellablePromise<domain$0.MediaScanSummary> {
+    return $Call.ByID(3796140597, projectID, envID, folders).then(($result: any) => {
         return $$createType1($result);
     });
 }

@@ -100,6 +100,10 @@ type MediaCategoryResult struct {
 // shown alongside every result: without it, "no reference found" reads as
 // "unused", which is exactly the mistake that deletes something in use.
 type MediaScanScope struct {
+	// Folders limits a scan to these prefixes inside uploads (empty = everything).
+	// A scoped scan says nothing about the folders it skipped, which is why it is
+	// recorded alongside the numbers rather than inferred from them.
+	Folders           []string `json:"folders,omitempty"`
 	UploadsPath       string   `json:"uploadsPath"`
 	UploadsURL        string   `json:"uploadsUrl"`
 	Multisite         bool     `json:"multisite"`

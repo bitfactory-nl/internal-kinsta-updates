@@ -49,7 +49,13 @@ class RdmFakeWpdb
 
     public function prepare($query, ...$args)
     {
-        return vsprintf($query, $args);
+        // wpdb zet zelf quotes om %s heen; vsprintf doet dat niet.
+        return vsprintf(str_replace('%s', "'%s'", $query), $args);
+    }
+
+    public function esc_like($text)
+    {
+        return addcslashes($text, '_%\\');
     }
 
     public function get_var($query)
@@ -63,6 +69,7 @@ class RdmFakeWpdb
     public function get_results($query, $mode = null)
     {
         list($rows, $pk) = $this->bron($query);
+        $rows  = $this->mapFilter($query, $rows);
         $na    = $this->getal($query, '/>\s*(\d+)/');
         $limit = $this->getal($query, '/LIMIT\s+(\d+)/') ?: 1000;
 
@@ -77,6 +84,38 @@ class RdmFakeWpdb
             }
         }
         return $out;
+    }
+
+    /**
+     * mapFilter bootst de LIKE-filter na waarmee een gerichte scan de index beperkt.
+     * Zonder dit zou een test over mapselectie niets bewijzen: de fake zou gewoon
+     * alle rijen teruggeven.
+     */
+    private function mapFilter($query, $rows)
+    {
+        $heeftLike = strpos($query, 'meta_value LIKE') !== false;
+        $heeftRoot = strpos($query, "meta_value NOT LIKE '%/%'") !== false;
+        if (!$heeftLike && !$heeftRoot) {
+            return $rows;
+        }
+        preg_match_all("/meta_value LIKE '([^']*)%'/", $query, $m);
+        $prefixen = array_map('stripcslashes', $m[1]);
+
+        $uit = [];
+        foreach ($rows as $r) {
+            $bestand = (string) ($r['file'] ?? '');
+            if ($heeftRoot && strpos($bestand, '/') === false) {
+                $uit[] = $r;
+                continue;
+            }
+            foreach ($prefixen as $p) {
+                if ($p !== '' && strpos($bestand, $p) === 0) {
+                    $uit[] = $r;
+                    break;
+                }
+            }
+        }
+        return $uit;
     }
 
     /** Welke fixture-lijst hoort bij deze query, en op welke kolom loopt de cursor? */

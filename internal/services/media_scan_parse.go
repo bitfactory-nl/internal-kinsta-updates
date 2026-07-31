@@ -24,13 +24,14 @@ const (
 type mediaScanPayload struct {
 	Error string `json:"error"`
 
-	UploadsPath     string `json:"uploadsPath"`
-	UploadsURL      string `json:"uploadsUrl"`
-	Multisite       bool   `json:"multisite"`
-	TotalFiles      int    `json:"totalFiles"`
-	TotalBytes      int64  `json:"totalBytes"`
-	AttachmentCount int    `json:"attachmentCount"`
-	ReferencedCount int    `json:"referencedCount"`
+	Folders         []string `json:"folders"`
+	UploadsPath     string   `json:"uploadsPath"`
+	UploadsURL      string   `json:"uploadsUrl"`
+	Multisite       bool     `json:"multisite"`
+	TotalFiles      int      `json:"totalFiles"`
+	TotalBytes      int64    `json:"totalBytes"`
+	AttachmentCount int      `json:"attachmentCount"`
+	ReferencedCount int      `json:"referencedCount"`
 
 	ByClass    []domain.MediaClassTotals    `json:"byClass"`
 	ByPeriod   []domain.MediaPeriodBucket   `json:"byPeriod"`
@@ -120,6 +121,7 @@ func (p mediaScanPayload) summary(scanID, projectID, projectName, env string, at
 		Largest:         p.Largest,
 		Categories:      p.Categories,
 		Scope: domain.MediaScanScope{
+			Folders:           p.Folders,
 			UploadsPath:       p.UploadsPath,
 			UploadsURL:        p.UploadsURL,
 			Multisite:         p.Multisite,

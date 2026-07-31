@@ -150,7 +150,7 @@ func TestMediaScanEnvironmentSlaatOp(t *testing.T) {
 	runner := &fakeSSHRunner{uit: sentinelUitvoer(t, voorbeeldPayload())}
 	svc, _ := newMediaService(t, runner, t.TempDir())
 
-	sum, err := svc.ScanEnvironment("p1", "env-1")
+	sum, err := svc.ScanEnvironment("p1", "env-1", nil)
 	if err != nil {
 		t.Fatalf("ScanEnvironment: %v", err)
 	}
@@ -197,10 +197,10 @@ func TestMediaScanEnvironmentWeigertTweedeScan(t *testing.T) {
 
 	var tweedeFout error
 	runner.voor = func() {
-		_, tweedeFout = svc.ScanEnvironment("p1", "env-1")
+		_, tweedeFout = svc.ScanEnvironment("p1", "env-1", nil)
 	}
 
-	if _, err := svc.ScanEnvironment("p1", "env-1"); err != nil {
+	if _, err := svc.ScanEnvironment("p1", "env-1", nil); err != nil {
 		t.Fatalf("eerste scan: %v", err)
 	}
 	if tweedeFout == nil {
@@ -216,7 +216,7 @@ func TestMediaScanEnvironmentZonderSSHGebruiker(t *testing.T) {
 	svc, ps := newMediaService(t, runner, t.TempDir())
 	ps.projects[0].Config.SSH = nil
 
-	_, err := svc.ScanEnvironment("p1", "env-1")
+	_, err := svc.ScanEnvironment("p1", "env-1", nil)
 	if err == nil {
 		t.Fatal("wil een fout zonder SSH-gebruiker")
 	}
@@ -235,7 +235,7 @@ func TestMediaScanEnvironmentFoutcodeMetGeldigResultaat(t *testing.T) {
 	}
 	svc, _ := newMediaService(t, runner, t.TempDir())
 
-	sum, err := svc.ScanEnvironment("p1", "env-1")
+	sum, err := svc.ScanEnvironment("p1", "env-1", nil)
 	if err != nil {
 		t.Fatalf("een geldig resultaat met foutcode hoort bruikbaar te zijn: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestMediaScanEnvironmentServerfout(t *testing.T) {
 	}
 	svc, _ := newMediaService(t, runner, t.TempDir())
 
-	_, err := svc.ScanEnvironment("p1", "env-1")
+	_, err := svc.ScanEnvironment("p1", "env-1", nil)
 	if err == nil {
 		t.Fatal("wil een fout wanneer de server geen resultaat geeft")
 	}
@@ -359,7 +359,7 @@ func TestMediaScanGebruiktWachtwoordUitKeychain(t *testing.T) {
 	if err := svc.SaveSSHAccess("p1", "steinweg", "/www/site/public", "Zw3rt-K0nijn!"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.ScanEnvironment("p1", "env-1"); err != nil {
+	if _, err := svc.ScanEnvironment("p1", "env-1", nil); err != nil {
 		t.Fatalf("ScanEnvironment: %v", err)
 	}
 

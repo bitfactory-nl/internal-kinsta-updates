@@ -57,6 +57,8 @@ final class RdmMediaScan
 
     private $basedir = '';
     private $baseurl = '';
+    /** Gekozen mappen (relatief aan uploads); leeg = de hele boom. '.' = de hoofdmap. */
+    private $folders = [];
 
     private $byId = [];      // id => ['file','title','mime','date']
     private $pathToId = [];   // sleutel(relpad) => id
@@ -92,11 +94,12 @@ final class RdmMediaScan
     private $walkComplete = true;
     private $refScanComplete = false;
 
-    public function __construct($db, $budget)
+    public function __construct($db, $budget, array $folders = [])
     {
-        $this->db     = $db;
-        $this->budget = (float) $budget;
-        $this->start  = microtime(true);
+        $this->db      = $db;
+        $this->budget  = (float) $budget;
+        $this->folders = array_values(array_filter(array_map('trim', $folders), 'strlen'));
+        $this->start   = microtime(true);
     }
 
     public function run()
@@ -176,6 +179,24 @@ final class RdmMediaScan
         return preg_match('/\.(zip|gz|tar|sql|log|bak|tmp|txt|json|xml|css|js)$/i', $l) === 1;
     }
 
+    /**
+     * periodeVan geeft het padvoorvoegsel waar een bestand onder valt: "2024/05"
+     * voor de standaard WordPress-indeling, anders de bovenste map, en "." voor
+     * bestanden die los in uploads staan. Dit is een echt pad, geen label, zodat
+     * de UI het rechtstreeks als scan-selectie kan teruggeven.
+     */
+    private static function periodeVan($rel)
+    {
+        $delen = explode('/', $rel);
+        if (count($delen) < 2) {
+            return '.';
+        }
+        if (count($delen) >= 3 && preg_match('/^\d{4}$/', $delen[0]) && preg_match('/^\d{2}$/', $delen[1])) {
+            return $delen[0] . '/' . $delen[1];
+        }
+        return $delen[0];
+    }
+
     /** Klasse van een bestand: wat heeft het gemaakt? */
     private function klasseVan($rel, $bekend)
     {
@@ -203,18 +224,44 @@ final class RdmMediaScan
 
     // --- 1. mediabibliotheek indexeren ---
 
+    /**
+     * mapFilter beperkt de index tot de gekozen mappen. Zo blijft een gerichte scan
+     * ook aan de databasekant klein, en niet alleen bij het doorlopen van de schijf.
+     */
+    private function mapFilter()
+    {
+        if (!$this->folders) {
+            return ['', []];
+        }
+        $delen = [];
+        $args  = [];
+        foreach ($this->folders as $f) {
+            if ($f === '.') {
+                // %% omdat de placeholder pas door prepare() heen gaat.
+                $delen[] = "pm.meta_value NOT LIKE '%%/%%'";
+                continue;
+            }
+            // Nooit twee keer prepare(): de LIKE-waarde bevat zelf een %, en dan
+            // struikelt de buitenste prepare over zijn eigen placeholder.
+            $delen[] = 'pm.meta_value LIKE %s';
+            $args[]  = $this->db->esc_like($f . '/') . '%';
+        }
+        return [' AND (' . implode(' OR ', $delen) . ')', $args];
+    }
+
     private function indexAttachments()
     {
+        list($filter, $filterArgs) = $this->mapFilter();
         $laatste = 0;
         while (true) {
+            $args  = array_merge([$laatste], $filterArgs, [self::BATCH]);
             $rijen = $this->db->get_results($this->db->prepare(
                 "SELECT p.ID, p.post_title, p.post_mime_type, p.post_date_gmt, pm.meta_value AS file
                    FROM {$this->db->posts} p
                    JOIN {$this->db->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = '_wp_attached_file'
-                  WHERE p.post_type = 'attachment' AND p.ID > %d
+                  WHERE p.post_type = 'attachment' AND p.ID > %d" . $filter . "
                   ORDER BY p.ID ASC LIMIT %d",
-                $laatste,
-                self::BATCH
+                ...$args
             ), ARRAY_A);
             if (!$rijen) {
                 return;
@@ -299,12 +346,8 @@ final class RdmMediaScan
         }
         $this->hartslag('bestanden doorlopen');
         $prefix = strlen($this->basedir) + 1;
-        $it = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($this->basedir, FilesystemIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::LEAVES_ONLY,
-            RecursiveIteratorIterator::CATCH_GET_CHILD
-        );
 
+        foreach ($this->doorloopIterators() as $it) {
         foreach ($it as $bestand) {
             if (!$bestand->isFile()) {
                 continue;
@@ -329,10 +372,7 @@ final class RdmMediaScan
             $this->byClass[$klasse]['files']++;
             $this->byClass[$klasse]['bytes'] += $bytes;
 
-            $delen   = explode('/', $rel);
-            $periode = (count($delen) >= 3 && preg_match('/^\d{4}$/', $delen[0]) && preg_match('/^\d{2}$/', $delen[1]))
-                ? $delen[0] . '/' . $delen[1]
-                : 'overig/' . $delen[0];
+            $periode = self::periodeVan($rel);
             if (!isset($this->byPeriod[$periode])) {
                 $this->byPeriod[$periode] = ['files' => 0, 'bytes' => 0];
             }
@@ -375,10 +415,47 @@ final class RdmMediaScan
             if (($this->totalFiles % 5000) === 0 && $this->overBudget()) {
                 $this->walkComplete = false;
                 $this->notes[]      = 'tijdsbudget geraakt tijdens het doorlopen van de bestanden';
-                break;
+                break 2;
             }
         }
+        }
         $this->sorteerGrootste();
+    }
+
+    /**
+     * doorloopIterators levert de te doorlopen mappen: de hele boom, of alleen de
+     * gekozen mappen. Dat laatste is de reden dat een gerichte scan snel is — de
+     * bestandsdoorloop is het duurste onderdeel op netwerkopslag.
+     */
+    private function doorloopIterators()
+    {
+        if (!$this->folders) {
+            return [new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($this->basedir, FilesystemIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::LEAVES_ONLY,
+                RecursiveIteratorIterator::CATCH_GET_CHILD
+            )];
+        }
+
+        $uit = [];
+        foreach ($this->folders as $f) {
+            if ($f === '.') {
+                // Alleen de losse bestanden in de hoofdmap, niet de submappen.
+                $uit[] = new FilesystemIterator($this->basedir, FilesystemIterator::SKIP_DOTS);
+                continue;
+            }
+            $pad = $this->basedir . '/' . ltrim($f, '/');
+            if (is_dir($pad)) {
+                $uit[] = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($pad, FilesystemIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::LEAVES_ONLY,
+                    RecursiveIteratorIterator::CATCH_GET_CHILD
+                );
+            } else {
+                $this->notes[] = 'map niet gevonden op de server: ' . $f;
+            }
+        }
+        return $uit;
     }
 
     private function sorteerGrootste()
@@ -731,6 +808,7 @@ final class RdmMediaScan
         $volledig = $this->indexComplete && $this->walkComplete && $this->refScanComplete;
 
         return [
+            'folders'           => $this->folders,
             'uploadsPath'       => $this->basedir,
             'uploadsUrl'        => $this->baseurl,
             'multisite'         => is_multisite(),
@@ -766,5 +844,16 @@ final class RdmMediaScan
 // functiescope. Het budget komt uit de omgeving; zonder waarde ruim genomen.
 $rdmDb = isset($wpdb) ? $wpdb : $GLOBALS['wpdb'];
 $rdmBudget = getenv('RDM_MEDIA_BUDGET');
-$rdmScan = new RdmMediaScan($rdmDb, $rdmBudget !== false && $rdmBudget !== '' ? (float) $rdmBudget : 1800.0);
+// De mapselectie komt base64-gecodeerd binnen: mapnamen kunnen spaties en
+// aanhalingstekens bevatten, en die mogen de shell niet raken.
+$rdmFolders = [];
+$rdmFoldersRaw = getenv('RDM_MEDIA_FOLDERS');
+if ($rdmFoldersRaw !== false && $rdmFoldersRaw !== '') {
+    $rdmFolders = array_filter(explode("\n", (string) base64_decode($rdmFoldersRaw, true)), 'strlen');
+}
+$rdmScan = new RdmMediaScan(
+    $rdmDb,
+    $rdmBudget !== false && $rdmBudget !== '' ? (float) $rdmBudget : 1800.0,
+    $rdmFolders
+);
 rdm_emit($rdmScan->run());

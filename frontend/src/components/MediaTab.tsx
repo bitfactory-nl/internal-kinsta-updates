@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
-import type { MediaScanSummary, MediaCategoryResult, MediaFileRow } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBucket } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
 interface Props { projectId: string }
@@ -50,25 +50,62 @@ function Stat({ label, waarde, sub }: { label: string; waarde: string; sub?: str
   )
 }
 
-// PeriodeBalken laat in pure CSS zien waar de ruimte zit; een chartlibrary is
-// hiervoor niet nodig en zit ook niet in dit project.
-function PeriodeBalken({ scan }: { scan: MediaScanSummary }) {
-  const rijen = (scan.byPeriod ?? []).slice().sort((a, b) => b.bytes - a.bytes).slice(0, 12)
-  const max = rijen.reduce((m, r) => Math.max(m, r.bytes), 0)
-  if (!rijen.length) return null
+interface MappenPaneelProps {
+  rijen: MediaPeriodBucket[]
+  herkomst: string
+  selectie: Set<string>
+  onToggle: (period: string) => void
+  onScan: () => void
+  bezig: boolean
+}
+
+// MappenPaneel laat in pure CSS zien waar de ruimte zit (een chartlibrary zit niet
+// in dit project) en dient tegelijk als selectie: een gerichte scan doorloopt alleen
+// de aangevinkte mappen, wat het duurste onderdeel — de bestandsdoorloop — klein
+// houdt.
+function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: MappenPaneelProps) {
+  const [alles, setAlles] = useState(false)
+  const gesorteerd = rijen.slice().sort((a, b) => b.bytes - a.bytes)
+  const zichtbaar = alles ? gesorteerd : gesorteerd.slice(0, 12)
+  const max = gesorteerd.reduce((m, r) => Math.max(m, r.bytes), 0)
+  const gekozenBytes = gesorteerd.filter(r => selectie.has(r.period)).reduce((n, r) => n + r.bytes, 0)
+  if (!gesorteerd.length) return null
+
   return (
     <div className="bg-panel border border-border rounded-xl p-4">
-      <div className="text-[10px] font-semibold tracking-wide text-fg-faint mb-2.5">GROOTSTE MAPPEN</div>
-      {rijen.map(r => (
-        <div key={r.period} className="flex items-center gap-2 py-[3px]">
-          <span className="font-mono text-[11px] text-fg-muted w-[110px] shrink-0 truncate">{r.period}</span>
-          <div className="flex-1 h-2 bg-panel-2 rounded-full overflow-hidden">
-            <div className="h-full bg-accent rounded-full" style={{ width: `${max ? (r.bytes / max) * 100 : 0}%` }} />
-          </div>
-          <span className="font-mono text-[11px] text-fg w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
-          <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
-        </div>
-      ))}
+      <div className="flex items-center gap-2 mb-2.5">
+        <div className="text-[10px] font-semibold tracking-wide text-fg-faint">MAPPEN</div>
+        <div className="text-[10px] text-fg-faint">{herkomst}</div>
+        {selectie.size > 0 && (
+          <button onClick={onScan} disabled={bezig}
+            className="ml-auto bg-accent text-white text-[11.5px] font-semibold px-3 py-1 rounded-lg hover:brightness-110 disabled:opacity-50 transition">
+            {bezig ? 'Bezig…' : `Scan ${selectie.size} map${selectie.size === 1 ? '' : 'pen'} (${bytes(gekozenBytes)})`}
+          </button>
+        )}
+      </div>
+
+      {zichtbaar.map(r => {
+        const aan = selectie.has(r.period)
+        return (
+          <label key={r.period} className="flex items-center gap-2 py-[3px] cursor-pointer hover:bg-hover rounded px-1 -mx-1">
+            <input type="checkbox" checked={aan} onChange={() => onToggle(r.period)} className="shrink-0 accent-accent" />
+            <span className={`font-mono text-[11px] w-[110px] shrink-0 truncate ${aan ? 'text-fg' : 'text-fg-muted'}`}>
+              {r.period === '.' ? '(hoofdmap)' : r.period}
+            </span>
+            <div className="flex-1 h-2 bg-panel-2 rounded-full overflow-hidden">
+              <div className="h-full bg-accent rounded-full" style={{ width: `${max ? (r.bytes / max) * 100 : 0}%` }} />
+            </div>
+            <span className="font-mono text-[11px] text-fg w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
+            <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
+          </label>
+        )
+      })}
+
+      {gesorteerd.length > 12 && (
+        <button onClick={() => setAlles(a => !a)} className="mt-2 text-[11.5px] text-fg-muted hover:text-fg transition">
+          {alles ? 'minder tonen' : `alle ${gesorteerd.length} mappen tonen`}
+        </button>
+      )}
     </div>
   )
 }
@@ -186,6 +223,8 @@ export default function MediaTab({ projectId }: Props) {
   const [wachtwoord, setWachtwoord] = useState('')
   const [heeftWachtwoord, setHeeftWachtwoord] = useState(false)
   const [scan, setScan] = useState<MediaScanSummary | null>(null)
+  const [scans, setScans] = useState<MediaScanSummary[]>([])
+  const [selectie, setSelectie] = useState<Set<string>>(new Set())
   const [bezig, setBezig] = useState(false)
   const [probeTekst, setProbeTekst] = useState<string | null>(null)
   const [fout, setFout] = useState<string | null>(null)
@@ -197,7 +236,7 @@ export default function MediaTab({ projectId }: Props) {
       .then(id => (id ? Services.KinstaService.GetSiteDetails(id).then(setSite) : undefined))
       .catch(e => setFout(foutTekst(e)))
 
-    setWachtwoord('')
+    setWachtwoord(''); setScans([]); setSelectie(new Set())
     Services.MediaService.GetSSHAccess(projectId)
       .then(a => { setUser(a.user ?? ''); setPad(a.path ?? ''); setHeeftWachtwoord(a.hasPassword) })
       .catch(() => {})
@@ -205,6 +244,10 @@ export default function MediaTab({ projectId }: Props) {
     Services.MediaService.LatestScan(projectId)
       .then(s => setScan(s ?? null))
       .catch(e => setFout(foutTekst(e)))
+
+    Services.MediaService.ListScans(projectId)
+      .then(l => setScans(l ?? []))
+      .catch(() => {})
   }, [projectId])
 
   // Zonder expliciete keuze de live-omgeving: dat is waar de klant naar kijkt.
@@ -221,7 +264,7 @@ export default function MediaTab({ projectId }: Props) {
     await Services.MediaService.SaveSSHAccess(projectId, user, pad, wachtwoord)
     if (wachtwoord) {
       setHeeftWachtwoord(true)
-      setWachtwoord('')
+      setWachtwoord(''); setScans([]); setSelectie(new Set())
     }
   }, [projectId, user, pad, wachtwoord])
 
@@ -239,16 +282,30 @@ export default function MediaTab({ projectId }: Props) {
     }
   }
 
-  const scanNu = async () => {
+  const scanNu = async (mappen: string[] = []) => {
     setBezig(true); setFout(null); setProbeTekst(null)
     try {
       await bewaarToegang()
-      setScan(await Services.MediaService.ScanEnvironment(projectId, envId))
+      const verse = await Services.MediaService.ScanEnvironment(projectId, envId, mappen)
+      setScan(verse)
+      setScans(await Services.MediaService.ListScans(projectId) ?? [])
     } catch (e) {
       setFout(foutTekst(e))
     } finally {
       setBezig(false)
     }
+  }
+
+  const toggleMap = (period: string) => {
+    setSelectie(huidig => {
+      const volgende = new Set(huidig)
+      if (volgende.has(period)) {
+        volgende.delete(period)
+      } else {
+        volgende.add(period)
+      }
+      return volgende
+    })
   }
 
   if (!site) {
@@ -262,6 +319,14 @@ export default function MediaTab({ projectId }: Props) {
       </div>
     )
   }
+
+  // De mappenlijst komt uit de laatste vólledige scan. Na een gerichte scan zou je
+  // anders alleen de mappen zien die je net had gekozen, en niets meer kunnen kiezen.
+  const volledige = scans.find(s => !(s.scope.folders ?? []).length) ?? null
+  const mappenlijst: MediaPeriodBucket[] = (volledige ?? scan)?.byPeriod ?? []
+  const mappenHerkomst = volledige && scan && volledige.id !== scan.id
+    ? `uit de volledige scan van ${new Date(volledige.scannedAt).toLocaleDateString('nl-NL')}`
+    : ''
 
   const gegenereerd = (scan?.byClass ?? []).find(c => c.class === 'generated')
   const systeem = (scan?.byClass ?? []).find(c => c.class === 'system')
@@ -288,9 +353,9 @@ export default function MediaTab({ projectId }: Props) {
           className="text-[12.5px] text-fg-muted border border-border rounded-lg px-3 py-1.5 hover:bg-hover transition disabled:opacity-50">
           Verbinding testen
         </button>
-        <button onClick={scanNu} disabled={bezig || !user || !envId}
+        <button onClick={() => scanNu()} disabled={bezig || !user || !envId}
           className="ml-auto bg-accent text-white text-[12.5px] font-semibold px-4 py-1.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition">
-          {bezig ? <span className="animate-spin inline-block">↻</span> : '▶ Scan uitvoeren'}
+          {bezig ? <span className="animate-spin inline-block">↻</span> : '▶ Alles scannen'}
         </button>
       </div>
 
@@ -313,6 +378,11 @@ export default function MediaTab({ projectId }: Props) {
             <div className="text-[11.5px] text-fg-muted mb-3">
               Stand van {new Date(scan.scannedAt).toLocaleString('nl-NL')} · omgeving {scan.environment} ·
               {' '}{Math.round(scan.durationMs / 1000)} s
+              {(scan.scope.folders ?? []).length > 0 && (
+                <span className="ml-1.5 text-amber">
+                  · alleen {(scan.scope.folders ?? []).join(', ')} — over de overige mappen zegt deze scan niets
+                </span>
+              )}
             </div>
 
             <div className="flex gap-2.5 flex-wrap mb-4">
@@ -337,7 +407,14 @@ export default function MediaTab({ projectId }: Props) {
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <PeriodeBalken scan={scan} />
+              <MappenPaneel
+                rijen={mappenlijst}
+                herkomst={mappenHerkomst}
+                selectie={selectie}
+                onToggle={toggleMap}
+                onScan={() => scanNu(Array.from(selectie))}
+                bezig={bezig}
+              />
               <ScopeBlok scan={scan} />
             </div>
           </>

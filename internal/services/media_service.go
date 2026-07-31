@@ -144,9 +144,11 @@ func (s *MediaService) ProbeEnvironment(projectID, envID string) (MediaProbe, er
 	return probe, nil
 }
 
-// ScanEnvironment runs the analyzer on one environment and stores the result. The
-// stored scan is returned so the UI can show it right away.
-func (s *MediaService) ScanEnvironment(projectID, envID string) (domain.MediaScanSummary, error) {
+// ScanEnvironment runs the analyzer on one environment and stores the result. When
+// folders is non-empty the scan is limited to those prefixes inside uploads, which
+// keeps both the file walk and the library index small — the way to look at one
+// year without waiting for a whole media library.
+func (s *MediaService) ScanEnvironment(projectID, envID string, folders []string) (domain.MediaScanSummary, error) {
 	tgt, p, err := s.target(projectID, envID)
 	if err != nil {
 		return domain.MediaScanSummary{}, err
@@ -162,7 +164,7 @@ func (s *MediaService) ScanEnvironment(projectID, envID string) (domain.MediaSca
 	defer cancel()
 
 	start := s.now()
-	out, runErr := s.ssh.RunCommand(ctx, tgt.SSH, buildMediaScanCommand(tgt.Webroot, mediaScanScript))
+	out, runErr := s.ssh.RunCommand(ctx, tgt.SSH, buildMediaScanCommand(tgt.Webroot, mediaScanScript, folders))
 
 	// Eerst parsen, ook na een fout: RunCommand geeft de stdout mee terug en een
 	// gedeeltelijk resultaat zegt meer dan alleen een exitcode.

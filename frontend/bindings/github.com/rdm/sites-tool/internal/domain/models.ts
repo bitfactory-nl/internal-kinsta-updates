@@ -1168,6 +1168,12 @@ export class MediaPeriodBucket {
  * "unused", which is exactly the mistake that deletes something in use.
  */
 export class MediaScanScope {
+    /**
+     * Folders limits a scan to these prefixes inside uploads (empty = everything).
+     * A scoped scan says nothing about the folders it skipped, which is why it is
+     * recorded alongside the numbers rather than inferred from them.
+     */
+    "folders"?: string[];
     "uploadsPath": string;
     "uploadsUrl": string;
     "multisite": boolean;
@@ -1224,14 +1230,18 @@ export class MediaScanScope {
      * Creates a new MediaScanScope instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaScanScope {
-        const $$createField3_0 = $$createType0;
-        const $$createField9_0 = $$createType0;
+        const $$createField0_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField10_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("folders" in $$parsedSource) {
+            $$parsedSource["folders"] = $$createField0_0($$parsedSource["folders"]);
+        }
         if ("tablesScanned" in $$parsedSource) {
-            $$parsedSource["tablesScanned"] = $$createField3_0($$parsedSource["tablesScanned"]);
+            $$parsedSource["tablesScanned"] = $$createField4_0($$parsedSource["tablesScanned"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField9_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField10_0($$parsedSource["notes"]);
         }
         return new MediaScanScope($$parsedSource as Partial<MediaScanScope>);
     }

@@ -66,15 +66,20 @@ func zoekWebroot(webroot string) string {
 // buildMediaScanCommand returns the whole scan as one shell command: every
 // RunCommand is a fresh SSH dial, so splitting this up would cost a handshake per
 // step. The analyzer is piped in over stdin, which leaves no file on the server.
-func buildMediaScanCommand(webroot, script string) string {
+func buildMediaScanCommand(webroot, script string, folders []string) string {
+	env := fmt.Sprintf("RDM_MEDIA_BUDGET=%d", mediaPHPBudget)
+	if len(folders) > 0 {
+		// Base64 zodat mapnamen met spaties of aanhalingstekens de shell niet raken.
+		env += " RDM_MEDIA_FOLDERS=" + base64.StdEncoding.EncodeToString([]byte(strings.Join(folders, "\n")))
+	}
 	return strings.Join([]string{
 		zoekWebroot(webroot),
 		`if [ -z "$root" ] || [ ! -f "$root/wp-config.php" ]; then echo "RDM-ERR:geen wp-config.php gevonden"; exit 3; fi`,
 		`cd "$root" || exit 3`,
 		`echo "RDM-ROOT:$root"`,
 		`echo "RDM-DU:$(du -sk wp-content/uploads 2>/dev/null | cut -f1)"`,
-		fmt.Sprintf(`printf %%s '%s' | base64 -d | RDM_MEDIA_BUDGET=%d nice -n 19 wp eval-file - 2>&1`,
-			base64.StdEncoding.EncodeToString([]byte(script)), mediaPHPBudget),
+		fmt.Sprintf(`printf %%s '%s' | base64 -d | %s nice -n 19 wp eval-file - 2>&1`,
+			base64.StdEncoding.EncodeToString([]byte(script)), env),
 	}, "\n")
 }
 
