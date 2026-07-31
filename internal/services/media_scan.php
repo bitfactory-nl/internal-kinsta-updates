@@ -44,6 +44,8 @@ final class RdmMediaScan
 {
     /** Batchgrootte voor queries; altijd op de primary key, nooit met OFFSET. */
     const BATCH = 2000;
+    /** Kleinere batch voor content: één pagina vol pagebuilder-data kan megabytes zijn. */
+    const BATCH_CONTENT = 200;
     /** Aantal grootste bestanden dat wordt bijgehouden. */
     const TOP = 100;
     /** Voorbeeldrijen per categorie in de samenvatting. */
@@ -256,18 +258,28 @@ final class RdmMediaScan
 
     private function indexAttachments()
     {
+        try {
+            $this->indexAttachmentsBatches();
+        } catch (Throwable $e) {
+            $this->indexComplete = false;
+            $this->notes[]       = 'indexeren afgebroken: ' . $e->getMessage();
+        }
+    }
+
+    private function indexAttachmentsBatches()
+    {
         list($filter, $filterArgs) = $this->mapFilter();
         $laatste = 0;
         while (true) {
             $args  = array_merge([$laatste], $filterArgs, [self::BATCH]);
-            $rijen = $this->db->get_results($this->db->prepare(
+            $rijen = $this->haalRijen($this->db->prepare(
                 "SELECT p.ID, p.post_title, p.post_mime_type, p.post_date_gmt, pm.meta_value AS file
                    FROM {$this->db->posts} p
                    JOIN {$this->db->postmeta} pm ON pm.post_id = p.ID AND pm.meta_key = '_wp_attached_file'
                   WHERE p.post_type = 'attachment' AND p.ID > %d" . $filter . "
                   ORDER BY p.ID ASC LIMIT %d",
                 ...$args
-            ), ARRAY_A);
+            ), 'attachments');
             if (!$rijen) {
                 return;
             }
@@ -300,9 +312,19 @@ final class RdmMediaScan
         if (!$this->indexComplete) {
             return;
         }
+        try {
+            $this->indexGeneratedSizesBatches();
+        } catch (Throwable $e) {
+            $this->indexComplete = false;
+            $this->notes[]       = 'indexeren van formaten afgebroken: ' . $e->getMessage();
+        }
+    }
+
+    private function indexGeneratedSizesBatches()
+    {
         $laatste = 0;
         while (true) {
-            $rijen = $this->db->get_results($this->db->prepare(
+            $rijen = $this->haalRijen($this->db->prepare(
                 "SELECT meta_id, post_id, meta_value
                    FROM {$this->db->postmeta}
                   WHERE meta_key IN ('_wp_attachment_metadata','_wp_attachment_backup_sizes')
@@ -310,7 +332,7 @@ final class RdmMediaScan
                   ORDER BY meta_id ASC LIMIT %d",
                 $laatste,
                 self::BATCH
-            ), ARRAY_A);
+            ), 'attachment_sizes');
             if (!$rijen) {
                 return;
             }
@@ -514,6 +536,23 @@ final class RdmMediaScan
         $this->rowsScanned[$bron] += $aantal;
     }
 
+    /**
+     * haalRijen voert één batch uit en telt hem. Cruciaal: $wpdb->get_results()
+     * geeft bij een SQL-fout óók een lege array terug. Zonder deze controle leest
+     * de lus dat als "klaar" en meldt de scan "geen referenties gevonden" terwijl er
+     * in werkelijkheid niets is doorzocht — een stille nul is het gevaarlijkste
+     * antwoord dat dit script kan geven.
+     */
+    private function haalRijen($sql, $bron)
+    {
+        $rijen = $this->db->get_results($sql, ARRAY_A);
+        if (!empty($this->db->last_error)) {
+            throw new RuntimeException('databasefout bij ' . $bron . ': ' . $this->db->last_error);
+        }
+        $this->tel($bron, is_array($rijen) ? count($rijen) : 0);
+        return $rijen;
+    }
+
     /** Zet het bewijs-bit voor elk attachment waar deze tekst naar verwijst. */
     private function collect($tekst, $bron)
     {
@@ -647,19 +686,18 @@ final class RdmMediaScan
         $this->tables[] = $this->db->posts;
         $laatste = 0;
         while (!$this->overBudget()) {
-            $rijen = $this->db->get_results($this->db->prepare(
+            $rijen = $this->haalRijen($this->db->prepare(
                 "SELECT ID, post_type, post_status, post_content, post_excerpt
                    FROM {$this->db->posts}
                   WHERE ID > %d AND post_type <> 'attachment'
                     AND post_status NOT IN ('auto-draft','trash')
                   ORDER BY ID ASC LIMIT %d",
                 $laatste,
-                self::BATCH
-            ), ARRAY_A);
+                self::BATCH_CONTENT
+            ), 'posts');
             if (!$rijen) {
                 return;
             }
-            $this->tel('posts', count($rijen));
             foreach ($rijen as $r) {
                 $laatste = (int) $r['ID'];
                 // Revisies gelden niet als bewijs dat iets nu in gebruik is, maar
@@ -676,7 +714,7 @@ final class RdmMediaScan
         $this->tables[] = $this->db->postmeta;
         $laatste = 0;
         while (!$this->overBudget()) {
-            $rijen = $this->db->get_results($this->db->prepare(
+            $rijen = $this->haalRijen($this->db->prepare(
                 "SELECT meta_id, meta_key, meta_value
                    FROM {$this->db->postmeta}
                   WHERE meta_id > %d
@@ -684,11 +722,10 @@ final class RdmMediaScan
                   ORDER BY meta_id ASC LIMIT %d",
                 $laatste,
                 self::BATCH
-            ), ARRAY_A);
+            ), 'postmeta');
             if (!$rijen) {
                 return;
             }
-            $this->tel('postmeta', count($rijen));
             foreach ($rijen as $r) {
                 $laatste = (int) $r['meta_id'];
                 $key     = (string) $r['meta_key'];
@@ -705,18 +742,17 @@ final class RdmMediaScan
         $this->tables[] = $this->db->options;
         $laatste = 0;
         while (!$this->overBudget()) {
-            $rijen = $this->db->get_results($this->db->prepare(
+            $rijen = $this->haalRijen($this->db->prepare(
                 "SELECT option_id, option_name, option_value FROM {$this->db->options}
                   WHERE option_id > %d
                     AND option_name NOT LIKE '\_transient%%' AND option_name NOT LIKE '\_site\_transient%%'
                   ORDER BY option_id ASC LIMIT %d",
                 $laatste,
                 500
-            ), ARRAY_A);
+            ), 'options');
             if (!$rijen) {
                 return;
             }
-            $this->tel('options', count($rijen));
             foreach ($rijen as $r) {
                 $laatste = (int) $r['option_id'];
                 $this->collect($r['option_value'], 'options');
@@ -732,17 +768,16 @@ final class RdmMediaScan
             $this->tables[] = $tabel;
             $laatste = 0;
             while (!$this->overBudget()) {
-                $rijen = $this->db->get_results($this->db->prepare(
+                $rijen = $this->haalRijen($this->db->prepare(
                     "SELECT $pk AS pk, meta_key, meta_value FROM $tabel
                       WHERE $pk > %d AND meta_key NOT LIKE '%%capabilities%%' AND meta_key <> 'session_tokens'
                       ORDER BY $pk ASC LIMIT %d",
                     $laatste,
                     self::BATCH
-                ), ARRAY_A);
+                ), $bron);
                 if (!$rijen) {
                     break;
                 }
-                $this->tel($bron, count($rijen));
                 foreach ($rijen as $r) {
                     $laatste = (int) $r['pk'];
                     $this->collect($r['meta_value'], $bron);

@@ -39,6 +39,8 @@ class RdmFakeWpdb
     public $termmeta = 'wp_termmeta';
     public $usermeta = 'wp_usermeta';
     public $prefix   = 'wp_';
+    /** Zoals de echte wpdb: laatste SQL-fout, leeg als het goed ging. */
+    public $last_error = '';
 
     private $fx;
 
@@ -68,6 +70,13 @@ class RdmFakeWpdb
 
     public function get_results($query, $mode = null)
     {
+        // Een gesimuleerde SQL-fout: lege uitkomst mét last_error, precies zoals
+        // wpdb zich gedraagt. Zonder dit valt de stille-nul-bug niet te testen.
+        $kapot = $this->fx['sqlError'] ?? '';
+        if ($kapot !== '' && strpos($query, $kapot) !== false) {
+            $this->last_error = 'Table is full';
+            return [];
+        }
         list($rows, $pk) = $this->bron($query);
         $rows  = $this->mapFilter($query, $rows);
         $na    = $this->getal($query, '/>\s*(\d+)/');

@@ -282,3 +282,50 @@ func TestMediaScanPHPAlleenGekozenMappen(t *testing.T) {
 		t.Errorf("Scope.Folders = %v, wil [2024/05]", sum.Scope.Folders)
 	}
 }
+
+// TestMediaScanPHPDatabasefoutIsGeenLegeUitkomst dekt de gevaarlijkste faalmodus af:
+// $wpdb->get_results() geeft bij een SQL-fout ook een lege array, en zonder controle
+// leest de scan dat als "geen referenties gevonden". Dan zou alles als ongebruikt
+// worden gepresenteerd terwijl er niets is doorzocht.
+func TestMediaScanPHPDatabasefoutIsGeenLegeUitkomst(t *testing.T) {
+	php, err := exec.LookPath("php")
+	if err != nil {
+		t.Skip("php niet beschikbaar")
+	}
+	_, fixturePad := mediaFixtureTree(t)
+
+	// De postmeta-query laten falen: dat is de bron die de meeste referenties levert.
+	ruw, err := os.ReadFile(fixturePad)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture map[string]any
+	if err := json.Unmarshal(ruw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	fixture["sqlError"] = "meta_key NOT IN"
+	aangepast, err := json.Marshal(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(fixturePad, aangepast, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	payload, err := parseMediaScanOutput(draaiHarness(t, php, fixturePad, nil))
+	if err != nil {
+		t.Fatalf("parseMediaScanOutput: %v", err)
+	}
+	sum, _ := payload.summary("s3", "p1", "web-test", "live", timeNulpunt(), 0)
+
+	if payload.ReferenceScanRan {
+		t.Error("referentiescan meldt zich geslaagd terwijl een query faalde")
+	}
+	if c := categorie(t, sum, domain.MediaUnreferenced); c.Files != 0 {
+		t.Errorf("ongebruikt = %d; na een databasefout mag daar geen uitspraak staan", c.Files)
+	}
+	gemeld := strings.Join(sum.Scope.Notes, " | ")
+	if !strings.Contains(gemeld, "databasefout") {
+		t.Errorf("notities = %q; wil de databasefout benoemd hebben", gemeld)
+	}
+}
