@@ -16,6 +16,7 @@ import (
 const (
 	mediaSummaryFile = "summary.json"
 	mediaDetailFile  = "detail.ndjson.gz"
+	mediaCrawlFile   = "crawl.json"
 )
 
 // MediaScanStore persists media scans under baseDir/<projectID>/<scanID>/. The
@@ -231,4 +232,33 @@ func (s *MediaScanStore) RowsForCategories(projectID, scanID string, cats ...dom
 		return nil, fmt.Errorf("lees detailbestand: %w", err)
 	}
 	return uit, nil
+}
+
+// SaveCrawl stores a rendered-usage crawl next to the scan it belongs to.
+func (s *MediaScanStore) SaveCrawl(projectID, scanID string, res MediaCrawlResult) error {
+	dir := s.scanDir(projectID, scanID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("mkdir mediascan: %w", err)
+	}
+	data, err := json.MarshalIndent(res, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal crawl: %w", err)
+	}
+	return os.WriteFile(filepath.Join(dir, mediaCrawlFile), data, 0o644)
+}
+
+// GetCrawl reads the crawl of a scan, or nil when no crawl was ever run for it.
+func (s *MediaScanStore) GetCrawl(projectID, scanID string) (*MediaCrawlResult, error) {
+	data, err := os.ReadFile(filepath.Join(s.scanDir(projectID, scanID), mediaCrawlFile))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("lees crawl: %w", err)
+	}
+	var res MediaCrawlResult
+	if err := json.Unmarshal(data, &res); err != nil {
+		return nil, fmt.Errorf("parse crawl: %w", err)
+	}
+	return &res, nil
 }

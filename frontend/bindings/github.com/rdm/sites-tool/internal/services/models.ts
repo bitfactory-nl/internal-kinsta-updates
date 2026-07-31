@@ -430,6 +430,69 @@ export class MakeTarget {
 }
 
 /**
+ * MediaCrawlResult is what a rendered crawl established. The counts are the point:
+ * they say how much of the "no reference found" list is actually served to visitors,
+ * which is the one check a database scan cannot perform.
+ */
+export class MediaCrawlResult {
+    "scanId": string;
+    "siteUrl": string;
+    "crawledAt": time$0.Time;
+    "pagesVisited": number;
+    "pagesPlanned": number;
+    "uploadsSeen": number;
+    "unreferencedSeen": number;
+    "errors": string[];
+    "pages"?: { [_ in string]?: string[] };
+
+    /** Creates a new MediaCrawlResult instance. */
+    constructor($$source: Partial<MediaCrawlResult> = {}) {
+        if (!("scanId" in $$source)) {
+            this["scanId"] = "";
+        }
+        if (!("siteUrl" in $$source)) {
+            this["siteUrl"] = "";
+        }
+        if (!("crawledAt" in $$source)) {
+            this["crawledAt"] = null;
+        }
+        if (!("pagesVisited" in $$source)) {
+            this["pagesVisited"] = 0;
+        }
+        if (!("pagesPlanned" in $$source)) {
+            this["pagesPlanned"] = 0;
+        }
+        if (!("uploadsSeen" in $$source)) {
+            this["uploadsSeen"] = 0;
+        }
+        if (!("unreferencedSeen" in $$source)) {
+            this["unreferencedSeen"] = 0;
+        }
+        if (!("errors" in $$source)) {
+            this["errors"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaCrawlResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaCrawlResult {
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("errors" in $$parsedSource) {
+            $$parsedSource["errors"] = $$createField7_0($$parsedSource["errors"]);
+        }
+        if ("pages" in $$parsedSource) {
+            $$parsedSource["pages"] = $$createField8_0($$parsedSource["pages"]);
+        }
+        return new MediaCrawlResult($$parsedSource as Partial<MediaCrawlResult>);
+    }
+}
+
+/**
  * MediaProbe is the outcome of a connection check against one environment.
  */
 export class MediaProbe {
@@ -607,7 +670,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType4;
+        const $$createField5_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -652,7 +715,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType6;
+        const $$createField3_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -821,9 +884,9 @@ export class QuarantineResult {
      * Creates a new QuarantineResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QuarantineResult {
-        const $$createField1_0 = $$createType8;
-        const $$createField2_0 = $$createType10;
-        const $$createField5_0 = $$createType12;
+        const $$createField1_0 = $$createType9;
+        const $$createField2_0 = $$createType11;
+        const $$createField5_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("moved" in $$parsedSource) {
             $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
@@ -1030,7 +1093,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType14;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1163,11 +1226,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType16;
-        const $$createField3_0 = $$createType18;
-        const $$createField4_0 = $$createType18;
-        const $$createField5_0 = $$createType18;
-        const $$createField6_0 = $$createType18;
+        const $$createField2_0 = $$createType17;
+        const $$createField3_0 = $$createType19;
+        const $$createField4_0 = $$createType19;
+        const $$createField5_0 = $$createType19;
+        const $$createField6_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -1394,19 +1457,20 @@ export class WordfenceVulnFinding {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = InventoryProjectRef.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = PluginUpdateResult.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = WordfenceVulnFinding.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = QuarantineEntry.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = QuarantineSkip.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = QuarantineBatch.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = SecurityFinding.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = WPCoreUpdate.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = PackageUpdate.createFrom;
-const $$createType18 = $Create.Array($$createType17);
+const $$createType3 = $Create.Map($Create.Any, $$createType0);
+const $$createType4 = PluginUpdateResult.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = WordfenceVulnFinding.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = QuarantineEntry.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = QuarantineSkip.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = QuarantineBatch.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = SecurityFinding.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = WPCoreUpdate.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = PackageUpdate.createFrom;
+const $$createType19 = $Create.Array($$createType18);

@@ -234,3 +234,37 @@ func opdrachtUitCommando(t *testing.T, cmd string) quarantineOpdracht {
 	}
 	return o
 }
+
+func TestQuarantaineWeigertWatDeCrawlZag(t *testing.T) {
+	runner := &fakeSSHRunner{}
+	svc, _ := newMediaService(t, runner, t.TempDir())
+	scanMetRijen(t, svc, "s1", nil, []domain.MediaFileRow{
+		oudeRij("2020/01/oud.jpg", domain.MediaUnreferenced),
+	})
+
+	// De databasescan noemde dit bestand ongebruikt, maar een crawl zag de browser
+	// het opvragen. Waarnemen weegt zwaarder dan afleiden.
+	if err := svc.store.SaveCrawl("p1", "s1", MediaCrawlResult{
+		ScanID: "s1",
+		Pages:  map[string][]string{"2020/01/oud.jpg": {"https://klant.nl/over-ons"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := svc.QuarantineFiles("p1", "env-1", "s1", []string{"2020/01/oud.jpg"}, 90)
+	if err == nil {
+		t.Fatal("wil een fout: dit bestand wordt op de site geladen")
+	}
+	if runner.calls != 0 {
+		t.Error("er mag geen SSH-opdracht uitgaan")
+	}
+
+	// En de reden moet ondubbelzinnig zijn.
+	rijen, derr := svc.ScanDetail("p1", "s1", domain.MediaUnreferenced, "", 0, 10)
+	if derr != nil {
+		t.Fatalf("ScanDetail: %v", derr)
+	}
+	if len(rijen) != 1 || len(rijen[0].Evidence) == 0 || rijen[0].Evidence[0] != domain.EvidenceRendered {
+		t.Errorf("rij = %+v; wil bewijs 'rendered' bij de regel", rijen)
+	}
+}

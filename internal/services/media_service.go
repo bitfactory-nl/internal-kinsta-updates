@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rdm/sites-tool/internal/adapters/browser"
 	sshadapter "github.com/rdm/sites-tool/internal/adapters/ssh"
 	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/domain"
@@ -59,10 +60,14 @@ type MediaService struct {
 	store    *MediaScanStore
 	ssh      sshRunner
 	secrets  secretStore
+	crawler  siteCrawler
 	now      func() time.Time
 
 	bezigMu sync.Mutex
 	bezig   map[string]bool
+
+	crawlMu    sync.Mutex
+	crawlCache map[string]map[string]bool
 }
 
 func NewMediaService(projects *ProjectService, kinsta *KinstaService, store *MediaScanStore) *MediaService {
@@ -72,6 +77,7 @@ func NewMediaService(projects *ProjectService, kinsta *KinstaService, store *Med
 		store:    store,
 		ssh:      sshadapter.NewClient(),
 		secrets:  keychainSecrets{},
+		crawler:  browser.NewCrawler(CrawlScriptPath()),
 		now:      time.Now,
 		bezig:    map[string]bool{},
 	}
@@ -298,5 +304,21 @@ func (s *MediaService) ScanDetail(projectID, scanID string, category domain.Medi
 	if limit <= 0 || limit > 2000 {
 		limit = 500
 	}
-	return s.store.Detail(projectID, scanID, category, prefix, offset, limit)
+	rijen, err := s.store.Detail(projectID, scanID, category, prefix, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	// Is er een crawl gedraaid, dan telt "de browser heeft dit opgevraagd" als bewijs.
+	// Dat hoort bij de rij te staan, niet in een apart hoekje: het is de sterkste
+	// aanwijzing dat een bestand ondanks de databasescan in gebruik is.
+	gezien := s.crawlPaden(projectID, scanID)
+	if len(gezien) == 0 {
+		return rijen, nil
+	}
+	for i := range rijen {
+		if gezien[rijen[i].Path] {
+			rijen[i].Evidence = append(rijen[i].Evidence, domain.EvidenceRendered)
+		}
+	}
+	return rijen, nil
 }

@@ -151,6 +151,11 @@ func (s *MediaService) QuarantineFiles(projectID, envID, scanID string, paths []
 		return QuarantineResult{}, err
 	}
 
+	// Heeft een crawl dit bestand op de site zien laden, dan is het in gebruik — punt.
+	// Dat weegt zwaarder dan de databasescan, want het is waargenomen in plaats van
+	// afgeleid.
+	opDeSite := s.crawlPaden(projectID, scanID)
+
 	grens := s.now().AddDate(0, 0, -minAgeDays).Unix()
 	var teVerplaatsen []string
 	var geweigerd []QuarantineSkip
@@ -160,6 +165,13 @@ func (s *MediaService) QuarantineFiles(projectID, envID, scanID string, paths []
 			geweigerd = append(geweigerd, QuarantineSkip{
 				Path:   pad,
 				Reason: "staat in deze scan niet als ongebruikt of zwerfbestand",
+			})
+			continue
+		}
+		if opDeSite[pad] {
+			geweigerd = append(geweigerd, QuarantineSkip{
+				Path:   pad,
+				Reason: "wordt op de site geladen (gezien tijdens de crawl)",
 			})
 			continue
 		}

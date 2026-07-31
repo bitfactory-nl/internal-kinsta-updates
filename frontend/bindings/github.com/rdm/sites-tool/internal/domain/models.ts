@@ -1037,6 +1037,12 @@ export enum MediaEvidence {
     EvidenceTermMeta = "termmeta",
     EvidenceUserMeta = "usermeta",
     EvidenceThemeCode = "theme",
+
+    /**
+     * EvidenceRendered means a browser actually requested the file while loading a
+     * page — the only evidence that covers sliders, page builders and lazy loading.
+     */
+    EvidenceRendered = "rendered",
     EvidenceExtraTable = "extra_table",
 
     /**

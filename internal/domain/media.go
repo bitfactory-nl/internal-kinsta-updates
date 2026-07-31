@@ -47,13 +47,16 @@ const (
 type MediaEvidence string
 
 const (
-	EvidenceContent      MediaEvidence = "content"
-	EvidenceMeta         MediaEvidence = "meta"
-	EvidenceACF          MediaEvidence = "acf"
-	EvidenceOptions      MediaEvidence = "options"
-	EvidenceTermMeta     MediaEvidence = "termmeta"
-	EvidenceUserMeta     MediaEvidence = "usermeta"
-	EvidenceThemeCode    MediaEvidence = "theme"
+	EvidenceContent   MediaEvidence = "content"
+	EvidenceMeta      MediaEvidence = "meta"
+	EvidenceACF       MediaEvidence = "acf"
+	EvidenceOptions   MediaEvidence = "options"
+	EvidenceTermMeta  MediaEvidence = "termmeta"
+	EvidenceUserMeta  MediaEvidence = "usermeta"
+	EvidenceThemeCode MediaEvidence = "theme"
+	// EvidenceRendered means a browser actually requested the file while loading a
+	// page — the only evidence that covers sliders, page builders and lazy loading.
+	EvidenceRendered     MediaEvidence = "rendered"
 	EvidenceExtraTable   MediaEvidence = "extra_table"
 	EvidenceRevisionOnly MediaEvidence = "revision_only" // alleen in een oude revisie
 	EvidenceFilenameOnly MediaEvidence = "filename_only" // losse bestandsnaam, zwak bewijs

@@ -18,9 +18,9 @@ type DeployLinks struct {
 }
 
 type DeployConf struct {
-	Type  string            `json:"type"`
-	Link  DeployLinks       `json:"link"`
-	Vars  map[string]string `json:"vars,omitempty"`
+	Type string            `json:"type"`
+	Link DeployLinks       `json:"link"`
+	Vars map[string]string `json:"vars,omitempty"`
 }
 
 type Project struct {

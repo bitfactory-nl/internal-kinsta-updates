@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
 import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBucket, MediaExtTotals } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
-import type { QuarantineBatch } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import type { QuarantineBatch, MediaCrawlResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import ExternalLink from './ExternalLink'
 
 interface Props { projectId: string }
 
@@ -42,6 +43,7 @@ const BEWIJS_LABEL: Record<string, string> = {
   termmeta: 'categorie',
   usermeta: 'gebruiker',
   theme: 'themacode',
+  rendered: 'op de site gezien',
   extra_table: 'plugin-tabel',
   revision_only: 'alleen revisie',
   filename_only: 'alleen bestandsnaam',
@@ -79,6 +81,7 @@ interface MappenPaneelProps {
   // Voor het uitklappen van een map: de bestanden komen uit de opgeslagen scan.
   projectId: string
   scanId: string
+  uploadsUrl: string
   gekozen: Set<string>
   onToggleRij: (pad: string) => void
   onToggleZichtbaar: (paden: string[], aan: boolean) => void
@@ -143,10 +146,86 @@ function SorteerKnop({ op, actief, omgekeerd, onKies }: {
   )
 }
 
+interface VoorbeeldProps {
+  projectId: string
+  scanId: string
+  uploadsUrl: string
+  rij: MediaFileRow
+}
+
+const PREVIEW_TYPES = /\.(jpe?g|png|gif|webp|avif|svg|ico)$/i
+
+// Voorbeeld toont het bestand zoals de bezoeker het zou zien: rechtstreeks van de
+// publieke uploads-URL. Lukt dat niet, dan is dat zelf informatie — een bestand dat
+// niet op te vragen is, wordt ook door niemand gebruikt.
+function Voorbeeld({ projectId, scanId, uploadsUrl, rij }: VoorbeeldProps) {
+  const [mislukt, setMislukt] = useState(false)
+  const [paginas, setPaginas] = useState<string[] | null>(null)
+  const url = uploadsUrl ? `${uploadsUrl.replace(/\/$/, '')}/${rij.path}` : ''
+  const toonbaar = PREVIEW_TYPES.test(rij.path)
+
+  useEffect(() => {
+    let levend = true
+    setPaginas(null)
+    Services.MediaService.FileUsage(projectId, scanId, rij.path)
+      .then(p => { if (levend) setPaginas(p ?? []) })
+      .catch(() => { if (levend) setPaginas([]) })
+    return () => { levend = false }
+  }, [projectId, scanId, rij.path])
+
+  return (
+    <div className="ml-6 my-1.5 flex gap-3 bg-panel-2 border border-border rounded-lg p-2.5">
+      <div className="w-[120px] h-[90px] shrink-0 rounded-md border border-border bg-panel overflow-hidden flex items-center justify-center">
+        {toonbaar && url && !mislukt ? (
+          <img src={url} alt={rij.path} onError={() => setMislukt(true)}
+            className="max-w-full max-h-full object-contain" />
+        ) : (
+          <span className="text-[10px] text-fg-faint text-center px-1">
+            {mislukt ? 'niet op te vragen' : (rij.path.split('.').pop() ?? '').toUpperCase()}
+          </span>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1 text-[11px] leading-relaxed">
+        <div className="font-mono text-fg truncate">{rij.path}</div>
+        {rij.title && <div className="text-fg-muted truncate">{rij.title}</div>}
+        <div className="text-fg-faint">
+          {bytes(rij.bytes)} · {datum(rij.modifiedAt)}
+          {rij.attachmentId ? ` · id ${rij.attachmentId}` : ''}
+          {rij.mimeType ? ` · ${rij.mimeType}` : ''}
+        </div>
+        {url && (
+          <ExternalLink href={url} className="text-accent hover:underline break-all">{url}</ExternalLink>
+        )}
+        <div className="mt-1">
+          {paginas === null ? (
+            <span className="text-fg-faint">vindplaatsen ophalen…</span>
+          ) : paginas.length === 0 ? (
+            <span className="text-fg-faint">
+              Geen crawl-resultaat voor dit bestand. Draai "Site doorzoeken" om te zien of een
+              pagina het echt opvraagt.
+            </span>
+          ) : (
+            <>
+              <span className="text-green font-semibold">Geladen op {paginas.length} pagina{paginas.length === 1 ? '' : "'s"}:</span>
+              {paginas.map(p => (
+                <div key={p} className="truncate">
+                  <ExternalLink href={p} className="text-accent hover:underline">{p}</ExternalLink>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface MapInhoudProps {
   projectId: string
   scanId: string
   map: string
+  uploadsUrl: string
   gekozen: Set<string>
   onToggleRij: (pad: string) => void
   onToggleZichtbaar: (paden: string[], aan: boolean) => void
@@ -155,10 +234,11 @@ interface MapInhoudProps {
 // MapInhoud haalt de bestanden van één map op uit de opgeslagen scan. Alleen wat de
 // scan in een veilige categorie zette is aan te vinken; wat in gebruik is staat er
 // bewust wél bij — je wil kunnen zien waarom een map niet leeg kan.
-function MapInhoud({ projectId, scanId, map, gekozen, onToggleRij, onToggleZichtbaar }: MapInhoudProps) {
+function MapInhoud({ projectId, scanId, map, uploadsUrl, gekozen, onToggleRij, onToggleZichtbaar }: MapInhoudProps) {
   const [rijen, setRijen] = useState<MediaFileRow[] | null>(null)
   const [fout, setFout] = useState<string | null>(null)
   const [meer, setMeer] = useState(false)
+  const [openRij, setOpenRij] = useState<string | null>(null)
 
   useEffect(() => {
     let levend = true
@@ -202,15 +282,21 @@ function MapInhoud({ projectId, scanId, map, gekozen, onToggleRij, onToggleZicht
       <div className="divide-y divide-border/30">
         {zichtbaar.map((r, i) => {
           const mag = kanWeg(r)
+          const open = openRij === r.path
           return (
-            <div key={`${r.path}-${i}`} className="flex items-center gap-2 py-1">
+            <div key={`${r.path}-${i}`}>
+            <div className="flex items-center gap-2 py-1">
               <input type="checkbox" disabled={!mag} checked={gekozen.has(r.path)}
                 onChange={() => onToggleRij(r.path)}
                 title={mag ? '' : 'deze media wordt gebruikt of het bestand bestaat niet meer'}
                 className="shrink-0 accent-accent disabled:opacity-30" />
-              <span className={`font-mono text-[11px] truncate flex-1 ${mag ? 'text-fg' : 'text-fg-faint'}`}>
+              <button onClick={() => setOpenRij(open ? null : r.path)}
+                title="voorbeeld en vindplaatsen"
+                className={`font-mono text-[11px] truncate flex-1 text-left hover:underline ${
+                  open ? 'text-fg font-semibold' : mag ? 'text-fg' : 'text-fg-faint'
+                }`}>
                 {r.path.startsWith(map + '/') ? r.path.slice(map.length + 1) : r.path}
-              </span>
+              </button>
               {(r.evidence ?? []).slice(0, 2).map(e => (
                 <span key={e} className="text-[9px] font-semibold px-1.5 py-px rounded bg-green-soft text-green shrink-0">
                   {BEWIJS_LABEL[e] ?? e}
@@ -223,6 +309,8 @@ function MapInhoud({ projectId, scanId, map, gekozen, onToggleRij, onToggleZicht
               )}
               <span className="font-mono text-[10.5px] text-fg-muted w-[65px] text-right shrink-0">{bytes(r.bytes)}</span>
               <span className="font-mono text-[10.5px] text-fg-faint w-[85px] text-right shrink-0">{datum(r.modifiedAt)}</span>
+            </div>
+            {open && <Voorbeeld projectId={projectId} scanId={scanId} uploadsUrl={uploadsUrl} rij={r} />}
             </div>
           )
         })}
@@ -243,7 +331,7 @@ function MapInhoud({ projectId, scanId, map, gekozen, onToggleRij, onToggleZicht
 // houdt.
 function MappenPaneel({
   rijen, herkomst, selectie, onToggle, onScan, bezig,
-  projectId, scanId, gekozen, onToggleRij, onToggleZichtbaar,
+  projectId, scanId, uploadsUrl, gekozen, onToggleRij, onToggleZichtbaar,
 }: MappenPaneelProps) {
   const [alles, setAlles] = useState(false)
   const [openMap, setOpenMap] = useState<string | null>(null)
@@ -319,7 +407,7 @@ function MappenPaneel({
               </span>
             </div>
             {open && (
-              <MapInhoud projectId={projectId} scanId={scanId} map={r.period}
+              <MapInhoud projectId={projectId} scanId={scanId} map={r.period} uploadsUrl={uploadsUrl}
                 gekozen={gekozen} onToggleRij={onToggleRij} onToggleZichtbaar={onToggleZichtbaar} />
             )}
           </div>
@@ -368,6 +456,66 @@ function TypePaneel({ rijen, totaal }: { rijen: MediaExtTotals[]; totaal: number
           <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+interface CrawlPaneelProps {
+  crawl: MediaCrawlResult | null
+  maxPaginas: number
+  onMax: (n: number) => void
+  onStart: () => void
+  bezig: boolean
+}
+
+// CrawlPaneel draait de Playwright-crawl. Dit is het enige onderdeel dat kan zien wat
+// een pagina écht opvraagt — sliders, pagebuilder-CSS en lazy loading zitten nergens
+// in de database. Wat de crawl ziet, gaat daarom boven de databasescan.
+function CrawlPaneel({ crawl, maxPaginas, onMax, onStart, bezig }: CrawlPaneelProps) {
+  return (
+    <div className="bg-panel border border-border rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+        <div className="text-[10px] font-semibold tracking-wide text-fg-faint">SITE DOORZOEKEN</div>
+        <label className="flex items-center gap-1.5 text-[11px] text-fg-muted ml-auto">
+          max
+          <input type="number" min={1} max={500} value={maxPaginas}
+            onChange={e => onMax(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+            className="w-[60px] bg-panel-2 border border-border rounded-lg px-2 py-1 text-[12px] text-fg text-right" />
+          pagina's
+        </label>
+        <button onClick={onStart} disabled={bezig}
+          className="bg-panel-2 border border-border text-[11.5px] font-semibold text-fg px-3 py-1 rounded-lg hover:bg-hover disabled:opacity-50 transition">
+          {bezig ? 'Bezig…' : crawl ? 'Opnieuw doorzoeken' : 'Start met Playwright'}
+        </button>
+      </div>
+
+      <p className="text-[11.5px] text-fg-muted leading-relaxed">
+        Playwright opent de pagina's uit de sitemap, scrolt naar beneden zodat lazy-loaded
+        beelden ook laden, en legt vast welk bestand echt wordt opgevraagd. Dat is de enige
+        manier om media te vinden die via een slider of pagebuilder wordt ingeladen.
+      </p>
+
+      {crawl && (
+        <div className="mt-2 text-[11.5px] text-fg-muted">
+          <div>
+            Stand van {new Date(crawl.crawledAt).toLocaleString('nl-NL')} ·{' '}
+            <span className="font-mono text-fg">{crawl.pagesVisited}</span> van {crawl.pagesPlanned} pagina's ·{' '}
+            <span className="font-mono text-fg">{crawl.uploadsSeen}</span> bestanden gezien
+          </div>
+          {crawl.unreferencedSeen > 0 && (
+            <div className="mt-1 text-amber">
+              {crawl.unreferencedSeen} bestanden die de databasescan "ongebruikt" noemde, worden
+              wél door de site opgevraagd. Die zijn uitgesloten van quarantaine.
+            </div>
+          )}
+          {(crawl.errors ?? []).length > 0 && (
+            <div className="mt-1 text-fg-faint">
+              {(crawl.errors ?? []).length} pagina{(crawl.errors ?? []).length === 1 ? '' : "'s"} gaf een fout,
+              bijv. {(crawl.errors ?? [])[0]}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -585,6 +733,8 @@ export default function MediaTab({ projectId }: Props) {
   const [batches, setBatches] = useState<QuarantineBatch[] | null>(null)
   const [qBezig, setQBezig] = useState(false)
   const [qMelding, setQMelding] = useState<string | null>(null)
+  const [crawl, setCrawl] = useState<MediaCrawlResult | null>(null)
+  const [maxPaginas, setMaxPaginas] = useState(60)
   const [bezig, setBezig] = useState(false)
   const [probeTekst, setProbeTekst] = useState<string | null>(null)
   const [fout, setFout] = useState<string | null>(null)
@@ -597,7 +747,7 @@ export default function MediaTab({ projectId }: Props) {
       .catch(e => setFout(foutTekst(e)))
 
     setWachtwoord(''); setScans([]); setSelectie(new Set())
-    setGekozen(new Set()); setBatches(null); setQMelding(null)
+    setGekozen(new Set()); setBatches(null); setQMelding(null); setCrawl(null)
     Services.MediaService.GetSSHAccess(projectId)
       .then(a => { setUser(a.user ?? ''); setPad(a.path ?? ''); setHeeftWachtwoord(a.hasPassword) })
       .catch(() => {})
@@ -626,7 +776,7 @@ export default function MediaTab({ projectId }: Props) {
     if (wachtwoord) {
       setHeeftWachtwoord(true)
       setWachtwoord(''); setScans([]); setSelectie(new Set())
-    setGekozen(new Set()); setBatches(null); setQMelding(null)
+    setGekozen(new Set()); setBatches(null); setQMelding(null); setCrawl(null)
     }
   }, [projectId, user, pad, wachtwoord])
 
@@ -655,6 +805,35 @@ export default function MediaTab({ projectId }: Props) {
       setFout(foutTekst(e))
     } finally {
       setBezig(false)
+    }
+  }
+
+  // De crawl-samenvatting hoort bij de scan die je bekijkt, dus die volgt de scan.
+  useEffect(() => {
+    if (!scan) { setCrawl(null); return }
+    let levend = true
+    Services.MediaService.CrawlSummary(projectId, scan.id)
+      .then(c => { if (levend) setCrawl(c ?? null) })
+      .catch(() => { if (levend) setCrawl(null) })
+    return () => { levend = false }
+  }, [projectId, scan])
+
+  const doorzoekSite = async () => {
+    if (!scan) return
+    setQBezig(true); setFout(null); setQMelding(null)
+    try {
+      const res = await Services.MediaService.CrawlSite(projectId, envId, scan.id, maxPaginas)
+      setCrawl(res)
+      setQMelding(
+        `${res.pagesVisited} pagina's bezocht · ${res.uploadsSeen} bestanden echt opgevraagd` +
+        (res.unreferencedSeen > 0
+          ? ` · ${res.unreferencedSeen} daarvan stonden als "geen referentie gevonden" — die zijn nu uitgesloten van quarantaine`
+          : ''),
+      )
+    } catch (e) {
+      setFout(foutTekst(e))
+    } finally {
+      setQBezig(false)
     }
   }
 
@@ -872,6 +1051,8 @@ export default function MediaTab({ projectId }: Props) {
             </div>
 
             <div className="flex flex-col gap-2.5">
+              <CrawlPaneel crawl={crawl} maxPaginas={maxPaginas} onMax={setMaxPaginas}
+                onStart={doorzoekSite} bezig={qBezig} />
               <QuarantainePaneel batches={batches} bezig={qBezig} onOphalen={haalBatches} onHerstel={herstelBatch} />
               <TypePaneel rijen={scan.byExtension ?? []} totaal={scan.totalBytes} />
               <MappenPaneel
@@ -883,6 +1064,7 @@ export default function MediaTab({ projectId }: Props) {
                 bezig={bezig}
                 projectId={projectId}
                 scanId={scan.id}
+                uploadsUrl={scan.scope.uploadsUrl}
                 gekozen={gekozen}
                 onToggleRij={toggleRij}
                 onToggleZichtbaar={toggleZichtbaar}
