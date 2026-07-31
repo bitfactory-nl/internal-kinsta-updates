@@ -78,21 +78,94 @@ interface MappenPaneelProps {
   bezig: boolean
 }
 
+type MapSortering = 'grootte' | 'datum' | 'aantal' | 'gemiddeld'
+
+// SORTEER_LABEL benoemt ook wát je aan een sortering ziet. "Gemiddeld" is de
+// interessantste: een map met een gemiddelde van tientallen MB's is geen
+// mediabibliotheek maar een parkeerplaats voor grote bestanden, terwijl een map vol
+// thumbnails juist een laag gemiddelde heeft.
+const SORTEER_LABEL: Record<MapSortering, string> = {
+  grootte: 'grootte',
+  datum: 'datum',
+  aantal: 'aantal',
+  gemiddeld: 'gem. per bestand',
+}
+
+// datumWaarde maakt van "2024/05" een sorteerbaar getal. Mappen die geen jaar/maand
+// zijn (cache, WPL, de hoofdmap) horen niet in een datumreeks en gaan altijd naar
+// achteren, ongeacht de richting.
+function datumWaarde(period: string): number | null {
+  const m = /^(\d{4})\/(\d{2})$/.exec(period)
+  if (!m) return null
+  return Number(m[1]) * 12 + Number(m[2])
+}
+
+function sorteerMappen(rijen: MediaPeriodBucket[], op: MapSortering, omgekeerd: boolean): MediaPeriodBucket[] {
+  const richting = omgekeerd ? -1 : 1
+  const gemiddeld = (r: MediaPeriodBucket) => (r.files > 0 ? r.bytes / r.files : 0)
+
+  return rijen.slice().sort((a, b) => {
+    if (op === 'datum') {
+      const da = datumWaarde(a.period)
+      const db = datumWaarde(b.period)
+      if (da === null && db === null) return a.period.localeCompare(b.period)
+      if (da === null) return 1
+      if (db === null) return -1
+      return (db - da) * richting
+    }
+    const waarde = op === 'aantal' ? (r: MediaPeriodBucket) => r.files
+      : op === 'gemiddeld' ? gemiddeld
+      : (r: MediaPeriodBucket) => r.bytes
+    return (waarde(b) - waarde(a)) * richting
+  })
+}
+
+function SorteerKnop({ op, actief, omgekeerd, onKies }: {
+  op: MapSortering
+  actief: boolean
+  omgekeerd: boolean
+  onKies: (op: MapSortering) => void
+}) {
+  return (
+    <button onClick={() => onKies(op)}
+      className={`text-[10.5px] px-2 py-0.5 rounded-md transition ${
+        actief ? 'bg-sel text-fg font-semibold' : 'text-fg-muted hover:text-fg hover:bg-hover'
+      }`}>
+      {SORTEER_LABEL[op]}
+      {actief && <span className="ml-1 text-fg-faint">{omgekeerd ? '↑' : '↓'}</span>}
+    </button>
+  )
+}
+
 // MappenPaneel laat in pure CSS zien waar de ruimte zit (een chartlibrary zit niet
 // in dit project) en dient tegelijk als selectie: een gerichte scan doorloopt alleen
 // de aangevinkte mappen, wat het duurste onderdeel — de bestandsdoorloop — klein
 // houdt.
 function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: MappenPaneelProps) {
   const [alles, setAlles] = useState(false)
-  const gesorteerd = rijen.slice().sort((a, b) => b.bytes - a.bytes)
+  const [sortering, setSortering] = useState<MapSortering>('grootte')
+  const [omgekeerd, setOmgekeerd] = useState(false)
+
+  const kiesSortering = (op: MapSortering) => {
+    if (op === sortering) {
+      setOmgekeerd(o => !o)
+    } else {
+      setSortering(op)
+      setOmgekeerd(false)
+    }
+  }
+
+  const gesorteerd = useMemo(() => sorteerMappen(rijen, sortering, omgekeerd), [rijen, sortering, omgekeerd])
   const zichtbaar = alles ? gesorteerd : gesorteerd.slice(0, 12)
-  const max = gesorteerd.reduce((m, r) => Math.max(m, r.bytes), 0)
-  const gekozenBytes = gesorteerd.filter(r => selectie.has(r.period)).reduce((n, r) => n + r.bytes, 0)
+  // De balk blijft altijd op grootte geschaald, ook als er op iets anders gesorteerd
+  // wordt: anders verandert de betekenis van de balk per sortering.
+  const max = rijen.reduce((m, r) => Math.max(m, r.bytes), 0)
+  const gekozenBytes = rijen.filter(r => selectie.has(r.period)).reduce((n, r) => n + r.bytes, 0)
   if (!gesorteerd.length) return null
 
   return (
     <div className="bg-panel border border-border rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2.5">
+      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
         <div className="text-[10px] font-semibold tracking-wide text-fg-faint">MAPPEN</div>
         <div className="text-[10px] text-fg-faint">{herkomst}</div>
         {selectie.size > 0 && (
@@ -103,8 +176,16 @@ function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: Ma
         )}
       </div>
 
+      <div className="flex items-center gap-1 mb-2 pb-2 border-b border-border/60">
+        <span className="text-[10px] text-fg-faint mr-1">sorteer op</span>
+        {(['grootte', 'datum', 'aantal', 'gemiddeld'] as MapSortering[]).map(op => (
+          <SorteerKnop key={op} op={op} actief={sortering === op} omgekeerd={omgekeerd} onKies={kiesSortering} />
+        ))}
+      </div>
+
       {zichtbaar.map(r => {
         const aan = selectie.has(r.period)
+        const gem = r.files > 0 ? r.bytes / r.files : 0
         return (
           <label key={r.period} className="flex items-center gap-2 py-[3px] cursor-pointer hover:bg-hover rounded px-1 -mx-1">
             <input type="checkbox" checked={aan} onChange={() => onToggle(r.period)} className="shrink-0 accent-accent" />
@@ -116,6 +197,11 @@ function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: Ma
             </div>
             <span className="font-mono text-[11px] text-fg w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
             <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
+            <span className={`font-mono text-[10.5px] w-[70px] text-right shrink-0 ${
+              sortering === 'gemiddeld' ? 'text-fg' : 'text-fg-faint'
+            }`} title="gemiddelde grootte per bestand">
+              {bytes(gem)}
+            </span>
           </label>
         )
       })}
