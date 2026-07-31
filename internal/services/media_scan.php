@@ -72,6 +72,9 @@ final class RdmMediaScan
     private $totalBytes = 0;
     private $byClass = [];
     private $byPeriod = [];
+    /** Per extensie: aantal en omvang. Maakt het verschil zichtbaar tussen een
+     *  mediabibliotheek en een site die als opslag wordt gebruikt. */
+    private $byExt = [];
     private $largest = [];
 
     private $orphans = [];
@@ -398,6 +401,16 @@ final class RdmMediaScan
             }
             $this->byClass[$klasse]['files']++;
             $this->byClass[$klasse]['bytes'] += $bytes;
+
+            $ext = strtolower(pathinfo($rel, PATHINFO_EXTENSION));
+            if ($ext === '') {
+                $ext = '(geen)';
+            }
+            if (!isset($this->byExt[$ext])) {
+                $this->byExt[$ext] = ['files' => 0, 'bytes' => 0];
+            }
+            $this->byExt[$ext]['files']++;
+            $this->byExt[$ext]['bytes'] += $bytes;
 
             $periode = self::periodeVan($rel);
             if (!isset($this->byPeriod[$periode])) {
@@ -1006,6 +1019,35 @@ final class RdmMediaScan
         return $uit;
     }
 
+    /**
+     * WEBFORMATEN zijn de types die een website normaal zelf gebruikt. Al het andere
+     * is een aanwijzing dat de mediabibliotheek als bestandsopslag dient — precies
+     * waar een fair-use-gesprek over gaat.
+     */
+    private static function isWebformaat($ext)
+    {
+        static $web = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'svg', 'ico', 'pdf',
+            'css', 'js', 'woff', 'woff2', 'ttf', 'eot'];
+        return in_array($ext, $web, true);
+    }
+
+    private function extTotalen()
+    {
+        $uit = [];
+        foreach ($this->byExt as $ext => $t) {
+            $uit[] = [
+                'ext'   => (string) $ext,
+                'files' => $t['files'],
+                'bytes' => $t['bytes'],
+                'web'   => self::isWebformaat((string) $ext),
+            ];
+        }
+        usort($uit, function ($a, $b) {
+            return $b['bytes'] <=> $a['bytes'];
+        });
+        return array_slice($uit, 0, 60);
+    }
+
     private function periodeTotalen()
     {
         $uit = [];
@@ -1047,6 +1089,7 @@ final class RdmMediaScan
             'referencedCount'   => $this->refCount,
             'byClass'           => $this->klasseTotalen(),
             'byPeriod'          => $this->periodeTotalen(),
+            'byExtension'       => $this->extTotalen(),
             'largest'           => $this->largest,
             'categories'        => [
                 $this->categorie('in_use', true, $this->refCount, $this->inUseBytes, $this->inUse),

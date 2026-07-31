@@ -33,11 +33,12 @@ type mediaScanPayload struct {
 	AttachmentCount int      `json:"attachmentCount"`
 	ReferencedCount int      `json:"referencedCount"`
 
-	ByClass    []domain.MediaClassTotals    `json:"byClass"`
-	ByPeriod   []domain.MediaPeriodBucket   `json:"byPeriod"`
-	Largest    []domain.MediaFileRow        `json:"largest"`
-	Categories []domain.MediaCategoryResult `json:"categories"`
-	Detail     []domain.MediaFileRow        `json:"detail"`
+	ByClass     []domain.MediaClassTotals    `json:"byClass"`
+	ByPeriod    []domain.MediaPeriodBucket   `json:"byPeriod"`
+	ByExtension []domain.MediaExtTotals      `json:"byExtension"`
+	Largest     []domain.MediaFileRow        `json:"largest"`
+	Categories  []domain.MediaCategoryResult `json:"categories"`
+	Detail      []domain.MediaFileRow        `json:"detail"`
 
 	TablesScanned     []string       `json:"tablesScanned"`
 	RowsScanned       map[string]int `json:"rowsScanned"`

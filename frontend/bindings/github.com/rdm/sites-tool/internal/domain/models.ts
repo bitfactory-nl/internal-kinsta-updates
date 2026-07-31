@@ -1051,6 +1051,44 @@ export enum MediaEvidence {
 };
 
 /**
+ * MediaExtTotals aggregates one file extension. Web reports whether a website
+ * normally serves this type at all: anything else points at the media library being
+ * used as file storage rather than as site content.
+ */
+export class MediaExtTotals {
+    "ext": string;
+    "files": number;
+    "bytes": number;
+    "web": boolean;
+
+    /** Creates a new MediaExtTotals instance. */
+    constructor($$source: Partial<MediaExtTotals> = {}) {
+        if (!("ext" in $$source)) {
+            this["ext"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("web" in $$source)) {
+            this["web"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaExtTotals instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaExtTotals {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaExtTotals($$parsedSource as Partial<MediaExtTotals>);
+    }
+}
+
+/**
  * MediaFileClass says what produced a file, which is what makes a folder size
  * explainable: generated thumbnails and plugin caches are not media.
  */
@@ -1286,6 +1324,7 @@ export class MediaScanSummary {
     "referencedCount": number;
     "byClass": MediaClassTotals[];
     "byPeriod": MediaPeriodBucket[];
+    "byExtension": MediaExtTotals[];
     "largest": MediaFileRow[];
     "categories": MediaCategoryResult[];
     "scope": MediaScanScope;
@@ -1331,6 +1370,9 @@ export class MediaScanSummary {
         if (!("byPeriod" in $$source)) {
             this["byPeriod"] = [];
         }
+        if (!("byExtension" in $$source)) {
+            this["byExtension"] = [];
+        }
         if (!("largest" in $$source)) {
             this["largest"] = [];
         }
@@ -1350,9 +1392,10 @@ export class MediaScanSummary {
     static createFrom($$source: any = {}): MediaScanSummary {
         const $$createField11_0 = $$createType21;
         const $$createField12_0 = $$createType23;
-        const $$createField13_0 = $$createType17;
-        const $$createField14_0 = $$createType25;
-        const $$createField15_0 = $$createType26;
+        const $$createField13_0 = $$createType25;
+        const $$createField14_0 = $$createType17;
+        const $$createField15_0 = $$createType27;
+        const $$createField16_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("byClass" in $$parsedSource) {
             $$parsedSource["byClass"] = $$createField11_0($$parsedSource["byClass"]);
@@ -1360,14 +1403,17 @@ export class MediaScanSummary {
         if ("byPeriod" in $$parsedSource) {
             $$parsedSource["byPeriod"] = $$createField12_0($$parsedSource["byPeriod"]);
         }
+        if ("byExtension" in $$parsedSource) {
+            $$parsedSource["byExtension"] = $$createField13_0($$parsedSource["byExtension"]);
+        }
         if ("largest" in $$parsedSource) {
-            $$parsedSource["largest"] = $$createField13_0($$parsedSource["largest"]);
+            $$parsedSource["largest"] = $$createField14_0($$parsedSource["largest"]);
         }
         if ("categories" in $$parsedSource) {
-            $$parsedSource["categories"] = $$createField14_0($$parsedSource["categories"]);
+            $$parsedSource["categories"] = $$createField15_0($$parsedSource["categories"]);
         }
         if ("scope" in $$parsedSource) {
-            $$parsedSource["scope"] = $$createField15_0($$parsedSource["scope"]);
+            $$parsedSource["scope"] = $$createField16_0($$parsedSource["scope"]);
         }
         return new MediaScanSummary($$parsedSource as Partial<MediaScanSummary>);
     }
@@ -1582,9 +1628,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType27;
-        const $$createField5_0 = $$createType28;
-        const $$createField6_0 = $$createType29;
+        const $$createField4_0 = $$createType29;
+        const $$createField5_0 = $$createType30;
+        const $$createField6_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1628,11 +1674,11 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType31;
-        const $$createField4_0 = $$createType33;
-        const $$createField5_0 = $$createType35;
-        const $$createField6_0 = $$createType37;
-        const $$createField7_0 = $$createType39;
+        const $$createField3_0 = $$createType33;
+        const $$createField4_0 = $$createType35;
+        const $$createField5_0 = $$createType37;
+        const $$createField6_0 = $$createType39;
+        const $$createField7_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -1833,12 +1879,12 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType41;
-        const $$createField5_0 = $$createType43;
-        const $$createField6_0 = $$createType45;
-        const $$createField7_0 = $$createType47;
-        const $$createField8_0 = $$createType47;
-        const $$createField9_0 = $$createType49;
+        const $$createField4_0 = $$createType43;
+        const $$createField5_0 = $$createType45;
+        const $$createField6_0 = $$createType47;
+        const $$createField7_0 = $$createType49;
+        const $$createField8_0 = $$createType49;
+        const $$createField9_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("acties" in $$parsedSource) {
             $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
@@ -2051,8 +2097,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType51;
-        const $$createField5_0 = $$createType53;
+        const $$createField4_0 = $$createType53;
+        const $$createField5_0 = $$createType55;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -2192,7 +2238,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType55;
+        const $$createField7_0 = $$createType57;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -2224,8 +2270,8 @@ export class TestingCfg {
      */
     static createFrom($$source: any = {}): TestingCfg {
         const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType57;
-        const $$createField2_0 = $$createType59;
+        const $$createField1_0 = $$createType59;
+        const $$createField2_0 = $$createType61;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -2301,7 +2347,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType36;
+        const $$createField1_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -2370,7 +2416,7 @@ export class Vulnerability {
      */
     static createFrom($$source: any = {}): Vulnerability {
         const $$createField7_0 = $$createType0;
-        const $$createField10_0 = $$createType61;
+        const $$createField10_0 = $$createType63;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("researchers" in $$parsedSource) {
             $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
@@ -2407,41 +2453,43 @@ const $$createType20 = MediaClassTotals.createFrom;
 const $$createType21 = $Create.Array($$createType20);
 const $$createType22 = MediaPeriodBucket.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = MediaCategoryResult.createFrom;
+const $$createType24 = MediaExtTotals.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = MediaScanScope.createFrom;
-const $$createType27 = ProjectConfig.createFrom;
-const $$createType28 = DeployConf.createFrom;
-const $$createType29 = GitStatus.createFrom;
-const $$createType30 = KinstaProjectCfg.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = AWSProjectCfg.createFrom;
+const $$createType26 = MediaCategoryResult.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = MediaScanScope.createFrom;
+const $$createType29 = ProjectConfig.createFrom;
+const $$createType30 = DeployConf.createFrom;
+const $$createType31 = GitStatus.createFrom;
+const $$createType32 = KinstaProjectCfg.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = VPSProjectCfg.createFrom;
+const $$createType34 = AWSProjectCfg.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = SSHTarget.createFrom;
+const $$createType36 = VPSProjectCfg.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = TestingCfg.createFrom;
+const $$createType38 = SSHTarget.createFrom;
 const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = ActieRow.createFrom;
-const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = MonitorRow.createFrom;
+const $$createType40 = TestingCfg.createFrom;
+const $$createType41 = $Create.Nullable($$createType40);
+const $$createType42 = ActieRow.createFrom;
 const $$createType43 = $Create.Array($$createType42);
-const $$createType44 = SoftwareRow.createFrom;
+const $$createType44 = MonitorRow.createFrom;
 const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = UpdateRow.createFrom;
+const $$createType46 = SoftwareRow.createFrom;
 const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = AVGRow.createFrom;
+const $$createType48 = UpdateRow.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = Finding.createFrom;
+const $$createType50 = AVGRow.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = Regression.createFrom;
+const $$createType52 = Finding.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = StepResult.createFrom;
+const $$createType54 = Regression.createFrom;
 const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = BasicAuth.createFrom;
-const $$createType57 = $Create.Map($Create.Any, $$createType56);
-const $$createType58 = TestAccount.createFrom;
-const $$createType59 = $Create.Nullable($$createType58);
-const $$createType60 = AffectedSoftware.createFrom;
-const $$createType61 = $Create.Array($$createType60);
+const $$createType56 = StepResult.createFrom;
+const $$createType57 = $Create.Array($$createType56);
+const $$createType58 = BasicAuth.createFrom;
+const $$createType59 = $Create.Map($Create.Any, $$createType58);
+const $$createType60 = TestAccount.createFrom;
+const $$createType61 = $Create.Nullable($$createType60);
+const $$createType62 = AffectedSoftware.createFrom;
+const $$createType63 = $Create.Array($$createType62);

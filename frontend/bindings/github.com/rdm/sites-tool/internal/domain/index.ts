@@ -32,6 +32,7 @@ export {
     MediaCategoryResult,
     MediaClassTotals,
     MediaEvidence,
+    MediaExtTotals,
     MediaFileClass,
     MediaFileRow,
     MediaPeriodBucket,

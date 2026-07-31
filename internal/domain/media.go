@@ -89,6 +89,16 @@ type MediaPeriodBucket struct {
 	Bytes  int64  `json:"bytes"`
 }
 
+// MediaExtTotals aggregates one file extension. Web reports whether a website
+// normally serves this type at all: anything else points at the media library being
+// used as file storage rather than as site content.
+type MediaExtTotals struct {
+	Ext   string `json:"ext"`
+	Files int    `json:"files"`
+	Bytes int64  `json:"bytes"`
+	Web   bool   `json:"web"`
+}
+
 // MediaCategoryResult is the outcome for one category. Samples is capped; the full
 // list lives in the scan's detail file.
 type MediaCategoryResult struct {
@@ -139,10 +149,11 @@ type MediaScanSummary struct {
 	AttachmentCount int   `json:"attachmentCount"`
 	ReferencedCount int   `json:"referencedCount"`
 
-	ByClass    []MediaClassTotals    `json:"byClass"`
-	ByPeriod   []MediaPeriodBucket   `json:"byPeriod"`
-	Largest    []MediaFileRow        `json:"largest"`
-	Categories []MediaCategoryResult `json:"categories"`
+	ByClass     []MediaClassTotals    `json:"byClass"`
+	ByPeriod    []MediaPeriodBucket   `json:"byPeriod"`
+	ByExtension []MediaExtTotals      `json:"byExtension"`
+	Largest     []MediaFileRow        `json:"largest"`
+	Categories  []MediaCategoryResult `json:"categories"`
 
 	Scope MediaScanScope `json:"scope"`
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
-import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBucket } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBucket, MediaExtTotals } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
 interface Props { projectId: string }
@@ -124,6 +124,43 @@ function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: Ma
           {alles ? 'minder tonen' : `alle ${gesorteerd.length} mappen tonen`}
         </button>
       )}
+    </div>
+  )
+}
+
+// TypePaneel scheidt webformaten van de rest. Dat onderscheid is wat een
+// fair-use-gesprek nodig heeft: niet "ongebruikt", maar "dit hoort niet op een
+// website" — archieven, presentaties, video, RAW-beeld.
+function TypePaneel({ rijen, totaal }: { rijen: MediaExtTotals[]; totaal: number }) {
+  if (!rijen.length) return null
+  const geenWeb = rijen.filter(r => !r.web)
+  const geenWebBytes = geenWeb.reduce((n, r) => n + r.bytes, 0)
+
+  return (
+    <div className="bg-panel border border-border rounded-xl p-4">
+      <div className="flex items-baseline gap-2 mb-2.5">
+        <div className="text-[10px] font-semibold tracking-wide text-fg-faint">BESTANDSTYPEN</div>
+        {geenWebBytes > 0 && (
+          <div className="text-[10.5px] text-amber">
+            {bytes(geenWebBytes)} in formaten die een website niet gebruikt
+            {totaal > 0 && ` — ${Math.round((geenWebBytes / totaal) * 100)}% van de map`}
+          </div>
+        )}
+      </div>
+      {rijen.slice(0, 14).map(r => (
+        <div key={r.ext} className="flex items-center gap-2 py-[3px]">
+          <span className={`font-mono text-[11px] w-[70px] shrink-0 ${r.web ? 'text-fg-muted' : 'text-amber'}`}>
+            .{r.ext}
+          </span>
+          {!r.web && <span className="text-[9.5px] font-semibold px-1.5 py-px rounded bg-amber-soft text-amber shrink-0">geen web</span>}
+          <div className="flex-1 h-2 bg-panel-2 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${r.web ? 'bg-accent' : 'bg-amber'}`}
+              style={{ width: `${totaal ? (r.bytes / totaal) * 100 : 0}%` }} />
+          </div>
+          <span className="font-mono text-[11px] text-fg w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
+          <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -365,6 +402,7 @@ export default function MediaTab({ projectId }: Props) {
     ? `uit de volledige scan van ${new Date(volledige.scannedAt).toLocaleDateString('nl-NL')}`
     : ''
 
+  const inGebruikBlok = (scan?.categories ?? []).find(c => c.category === MediaCategory.MediaInUse)
   const gegenereerd = (scan?.byClass ?? []).find(c => c.class === 'generated')
   const systeem = (scan?.byClass ?? []).find(c => c.class === 'system')
 
@@ -432,6 +470,10 @@ export default function MediaTab({ projectId }: Props) {
               {systeem && systeem.bytes > 0 && (
                 <Stat label="Caches en archieven" waarde={bytes(systeem.bytes)} sub="geen media" />
               )}
+              {inGebruikBlok && (
+                <Stat label="Site gebruikt hiervan" waarde={bytes(inGebruikBlok.bytes)}
+                  sub={scan.totalBytes ? `${(inGebruikBlok.bytes / scan.totalBytes * 100).toFixed(1)}% van de map` : undefined} />
+              )}
               {scan.diskUsageBytes > 0 && (
                 <Stat label="Volgens du" waarde={bytes(scan.diskUsageBytes)} sub="blokken op schijf" />
               )}
@@ -444,6 +486,7 @@ export default function MediaTab({ projectId }: Props) {
             </div>
 
             <div className="flex flex-col gap-2.5">
+              <TypePaneel rijen={scan.byExtension ?? []} totaal={scan.totalBytes} />
               <MappenPaneel
                 rijen={mappenlijst}
                 herkomst={mappenHerkomst}
