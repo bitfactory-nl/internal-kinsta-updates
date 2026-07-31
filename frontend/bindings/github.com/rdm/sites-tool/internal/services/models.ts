@@ -711,6 +711,162 @@ export class ProjectWorkflow {
 }
 
 /**
+ * QuarantineBatch is one set of moved files, as recorded on the server.
+ */
+export class QuarantineBatch {
+    "batch": string;
+    "created": string;
+    "files": number;
+    "bytes": number;
+
+    /** Creates a new QuarantineBatch instance. */
+    constructor($$source: Partial<QuarantineBatch> = {}) {
+        if (!("batch" in $$source)) {
+            this["batch"] = "";
+        }
+        if (!("created" in $$source)) {
+            this["created"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineBatch instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineBatch {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QuarantineBatch($$parsedSource as Partial<QuarantineBatch>);
+    }
+}
+
+/**
+ * QuarantineEntry is one moved file.
+ */
+export class QuarantineEntry {
+    "original": string;
+    "stored": string;
+    "bytes": number;
+
+    /** Creates a new QuarantineEntry instance. */
+    constructor($$source: Partial<QuarantineEntry> = {}) {
+        if (!("original" in $$source)) {
+            this["original"] = "";
+        }
+        if (!("stored" in $$source)) {
+            this["stored"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QuarantineEntry($$parsedSource as Partial<QuarantineEntry>);
+    }
+}
+
+/**
+ * QuarantineResult is the outcome of a move or restore.
+ */
+export class QuarantineResult {
+    "batch": string;
+    "moved": QuarantineEntry[];
+    "skipped": QuarantineSkip[];
+    "bytes": number;
+    "quarantineDir": string;
+    "batches": QuarantineBatch[];
+    "error": string;
+
+    /** Creates a new QuarantineResult instance. */
+    constructor($$source: Partial<QuarantineResult> = {}) {
+        if (!("batch" in $$source)) {
+            this["batch"] = "";
+        }
+        if (!("moved" in $$source)) {
+            this["moved"] = [];
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = [];
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("quarantineDir" in $$source)) {
+            this["quarantineDir"] = "";
+        }
+        if (!("batches" in $$source)) {
+            this["batches"] = [];
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineResult {
+        const $$createField1_0 = $$createType8;
+        const $$createField2_0 = $$createType10;
+        const $$createField5_0 = $$createType12;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("moved" in $$parsedSource) {
+            $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
+        }
+        if ("skipped" in $$parsedSource) {
+            $$parsedSource["skipped"] = $$createField2_0($$parsedSource["skipped"]);
+        }
+        if ("batches" in $$parsedSource) {
+            $$parsedSource["batches"] = $$createField5_0($$parsedSource["batches"]);
+        }
+        return new QuarantineResult($$parsedSource as Partial<QuarantineResult>);
+    }
+}
+
+/**
+ * QuarantineSkip is one file that was left alone, with the reason.
+ */
+export class QuarantineSkip {
+    "path": string;
+    "reason": string;
+
+    /** Creates a new QuarantineSkip instance. */
+    constructor($$source: Partial<QuarantineSkip> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("reason" in $$source)) {
+            this["reason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineSkip instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineSkip {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QuarantineSkip($$parsedSource as Partial<QuarantineSkip>);
+    }
+}
+
+/**
  * SSHAccess is what a project knows about reaching its own server. Kinsta's API
  * supplies none of this, so it is entered once and then remembered. The password
  * itself never leaves the keychain — only whether there is one.
@@ -874,7 +1030,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType8;
+        const $$createField4_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1007,11 +1163,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType12;
-        const $$createField4_0 = $$createType12;
-        const $$createField5_0 = $$createType12;
-        const $$createField6_0 = $$createType12;
+        const $$createField2_0 = $$createType16;
+        const $$createField3_0 = $$createType18;
+        const $$createField4_0 = $$createType18;
+        const $$createField5_0 = $$createType18;
+        const $$createField6_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -1242,9 +1398,15 @@ const $$createType3 = PluginUpdateResult.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = WordfenceVulnFinding.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = SecurityFinding.createFrom;
+const $$createType7 = QuarantineEntry.createFrom;
 const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = WPCoreUpdate.createFrom;
+const $$createType9 = QuarantineSkip.createFrom;
 const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = PackageUpdate.createFrom;
+const $$createType11 = QuarantineBatch.createFrom;
 const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = SecurityFinding.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = WPCoreUpdate.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = PackageUpdate.createFrom;
+const $$createType18 = $Create.Array($$createType17);

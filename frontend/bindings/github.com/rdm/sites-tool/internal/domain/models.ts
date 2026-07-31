@@ -1231,6 +1231,13 @@ export class MediaScanScope {
      */
     "rowsScanned"?: { [_ in string]?: number };
     "themeFilesScanned": number;
+
+    /**
+     * ReferenceScanComplete says whether the search for references finished. Without
+     * it, "no reference found" is not a finding but a gap — and no file may be moved
+     * on that basis.
+     */
+    "referenceScanComplete": boolean;
     "revisionsAsProof": boolean;
     "offloadDetected": boolean;
 
@@ -1262,6 +1269,9 @@ export class MediaScanScope {
         if (!("themeFilesScanned" in $$source)) {
             this["themeFilesScanned"] = 0;
         }
+        if (!("referenceScanComplete" in $$source)) {
+            this["referenceScanComplete"] = false;
+        }
         if (!("revisionsAsProof" in $$source)) {
             this["revisionsAsProof"] = false;
         }
@@ -1285,7 +1295,7 @@ export class MediaScanScope {
         const $$createField0_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         const $$createField5_0 = $$createType19;
-        const $$createField11_0 = $$createType0;
+        const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("folders" in $$parsedSource) {
             $$parsedSource["folders"] = $$createField0_0($$parsedSource["folders"]);
@@ -1297,7 +1307,7 @@ export class MediaScanScope {
             $$parsedSource["rowsScanned"] = $$createField5_0($$parsedSource["rowsScanned"]);
         }
         if ("notes" in $$parsedSource) {
-            $$parsedSource["notes"] = $$createField11_0($$parsedSource["notes"]);
+            $$parsedSource["notes"] = $$createField12_0($$parsedSource["notes"]);
         }
         return new MediaScanScope($$parsedSource as Partial<MediaScanScope>);
     }

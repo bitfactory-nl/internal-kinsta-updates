@@ -176,3 +176,46 @@ func (s *MediaScanStore) Detail(projectID, scanID string, category domain.MediaC
 	}
 	return rows, nil
 }
+
+// RowsForCategories streams a scan's detail file and returns the rows of the given
+// categories, keyed by path. The quarantine flow uses this to verify that a requested
+// file really was placed in a safe category by that scan — a check that has to run
+// against what was stored, not against what a caller claims.
+func (s *MediaScanStore) RowsForCategories(projectID, scanID string, cats ...domain.MediaCategory) (map[string]domain.MediaFileRow, error) {
+	gewenst := make(map[domain.MediaCategory]bool, len(cats))
+	for _, c := range cats {
+		gewenst[c] = true
+	}
+
+	f, err := os.Open(filepath.Join(s.scanDir(projectID, scanID), mediaDetailFile))
+	if os.IsNotExist(err) {
+		return map[string]domain.MediaFileRow{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("open detailbestand: %w", err)
+	}
+	defer f.Close()
+
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		return nil, fmt.Errorf("gzip lezen: %w", err)
+	}
+	defer zr.Close()
+
+	uit := map[string]domain.MediaFileRow{}
+	sc := bufio.NewScanner(zr)
+	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for sc.Scan() {
+		var row domain.MediaFileRow
+		if err := json.Unmarshal(sc.Bytes(), &row); err != nil {
+			return nil, fmt.Errorf("parse detailregel: %w", err)
+		}
+		if gewenst[row.Category] {
+			uit[row.Path] = row
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("lees detailbestand: %w", err)
+	}
+	return uit, nil
+}

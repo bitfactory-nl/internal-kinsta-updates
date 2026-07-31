@@ -41,11 +41,20 @@ export function LatestScan(projectID: string): $CancellablePromise<domain$0.Medi
 }
 
 /**
+ * ListQuarantine returns the batches currently in quarantine on the server.
+ */
+export function ListQuarantine(projectID: string, envID: string): $CancellablePromise<$models.QuarantineBatch[]> {
+    return $Call.ByID(1492208993, projectID, envID).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * ListScans returns the stored scans, newest first, so growth over time is visible.
  */
 export function ListScans(projectID: string): $CancellablePromise<domain$0.MediaScanSummary[]> {
     return $Call.ByID(865308785, projectID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -56,7 +65,33 @@ export function ListScans(projectID: string): $CancellablePromise<domain$0.Media
  */
 export function ProbeEnvironment(projectID: string, envID: string): $CancellablePromise<$models.MediaProbe> {
     return $Call.ByID(1194297282, projectID, envID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * QuarantineFiles moves the given files out of uploads into a quarantine directory
+ * and records a manifest so the whole batch can be put back. Nothing is deleted, and
+ * the attachment records in WordPress stay untouched — that is what makes a restore a
+ * matter of moving files back.
+ * 
+ * A path is only accepted when the stored scan itself placed it in a safe category.
+ * That check is the real safety net: it means neither a UI bug nor a stale selection
+ * can reach a file the scan found in use.
+ */
+export function QuarantineFiles(projectID: string, envID: string, scanID: string, paths: string[], minAgeDays: number): $CancellablePromise<$models.QuarantineResult> {
+    return $Call.ByID(3473416408, projectID, envID, scanID, paths, minAgeDays).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * RestoreQuarantine puts a whole batch back where it came from. Files whose original
+ * place is occupied again are left in quarantine and reported, never overwritten.
+ */
+export function RestoreQuarantine(projectID: string, envID: string, batch: string): $CancellablePromise<$models.QuarantineResult> {
+    return $Call.ByID(3271340281, projectID, envID, batch).then(($result: any) => {
+        return $$createType7($result);
     });
 }
 
@@ -78,7 +113,7 @@ export function SaveSSHAccess(projectID: string, user: string, path: string, pas
  */
 export function ScanDetail(projectID: string, scanID: string, category: domain$0.MediaCategory, offset: number, limit: number): $CancellablePromise<domain$0.MediaFileRow[]> {
     return $Call.ByID(372605205, projectID, scanID, category, offset, limit).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType9($result);
     });
 }
 
@@ -98,7 +133,10 @@ export function ScanEnvironment(projectID: string, envID: string, folders: strin
 const $$createType0 = $models.SSHAccess.createFrom;
 const $$createType1 = domain$0.MediaScanSummary.createFrom;
 const $$createType2 = $Create.Nullable($$createType1);
-const $$createType3 = $Create.Array($$createType1);
-const $$createType4 = $models.MediaProbe.createFrom;
-const $$createType5 = domain$0.MediaFileRow.createFrom;
-const $$createType6 = $Create.Array($$createType5);
+const $$createType3 = $models.QuarantineBatch.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Array($$createType1);
+const $$createType6 = $models.MediaProbe.createFrom;
+const $$createType7 = $models.QuarantineResult.createFrom;
+const $$createType8 = domain$0.MediaFileRow.createFrom;
+const $$createType9 = $Create.Array($$createType8);

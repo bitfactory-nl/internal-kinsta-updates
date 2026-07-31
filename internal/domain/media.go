@@ -127,11 +127,15 @@ type MediaScanScope struct {
 	// one, so the count belongs next to the conclusion.
 	RowsScanned       map[string]int `json:"rowsScanned,omitempty"`
 	ThemeFilesScanned int            `json:"themeFilesScanned"`
-	RevisionsAsProof  bool           `json:"revisionsAsProof"`
-	OffloadDetected   bool           `json:"offloadDetected"`
-	Degraded          bool           `json:"degraded"`  // zonder plugins/thema gebootstrapt
-	Truncated         bool           `json:"truncated"` // eigen tijdsbudget geraakt
-	Notes             []string       `json:"notes,omitempty"`
+	// ReferenceScanComplete says whether the search for references finished. Without
+	// it, "no reference found" is not a finding but a gap — and no file may be moved
+	// on that basis.
+	ReferenceScanComplete bool     `json:"referenceScanComplete"`
+	RevisionsAsProof      bool     `json:"revisionsAsProof"`
+	OffloadDetected       bool     `json:"offloadDetected"`
+	Degraded              bool     `json:"degraded"`  // zonder plugins/thema gebootstrapt
+	Truncated             bool     `json:"truncated"` // eigen tijdsbudget geraakt
+	Notes                 []string `json:"notes,omitempty"`
 }
 
 // MediaScanSummary is one completed scan of one environment.

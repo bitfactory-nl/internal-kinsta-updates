@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
 import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBucket, MediaExtTotals } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { QuarantineBatch } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
 interface Props { projectId: string }
@@ -165,6 +166,55 @@ function TypePaneel({ rijen, totaal }: { rijen: MediaExtTotals[]; totaal: number
   )
 }
 
+interface QuarantainePaneelProps {
+  batches: QuarantineBatch[] | null
+  bezig: boolean
+  onOphalen: () => void
+  onHerstel: (batch: string) => void
+}
+
+// QuarantainePaneel toont wat er van de server af is gehaald en biedt per batch een
+// herstelknop. Dat terugzetten één handeling is, is de reden dat verplaatsen
+// verantwoord is waar verwijderen dat niet zou zijn.
+function QuarantainePaneel({ batches, bezig, onOphalen, onHerstel }: QuarantainePaneelProps) {
+  return (
+    <div className="bg-panel border border-border rounded-xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="text-[10px] font-semibold tracking-wide text-fg-faint">QUARANTAINE</div>
+        <button onClick={onOphalen} disabled={bezig}
+          className="ml-auto text-[11.5px] text-fg-muted border border-border rounded-lg px-2.5 py-1 hover:bg-hover transition disabled:opacity-50">
+          {bezig ? 'Bezig…' : batches === null ? 'Ophalen' : 'Vernieuwen'}
+        </button>
+      </div>
+
+      {batches === null ? (
+        <p className="text-[11.5px] text-fg-faint">
+          Nog niet opgehaald. De lijst komt van de server, dus dat kost één verbinding.
+        </p>
+      ) : batches.length === 0 ? (
+        <p className="text-[11.5px] text-fg-faint">Niets in quarantaine.</p>
+      ) : (
+        <div className="divide-y divide-border/40">
+          {batches.map(b => (
+            <div key={b.batch} className="flex items-center gap-2 py-2">
+              <span className="font-mono text-[11.5px] text-fg">{b.batch}</span>
+              <span className="text-[11px] text-fg-faint">
+                {b.created ? new Date(b.created).toLocaleString('nl-NL') : ''}
+              </span>
+              <span className="ml-auto font-mono text-[11.5px] text-fg-muted">{b.files}×</span>
+              <span className="font-mono text-[11.5px] text-fg w-[70px] text-right">{bytes(b.bytes)}</span>
+              <button onClick={() => onHerstel(b.batch)} disabled={bezig}
+                className="text-[11.5px] text-fg-muted border border-border rounded-lg px-2.5 py-1 hover:bg-hover transition disabled:opacity-50">
+                Terugzetten
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ScopeBlok({ scan }: { scan: MediaScanSummary }) {
   const s = scan.scope
   return (
@@ -207,13 +257,25 @@ function ScopeBlok({ scan }: { scan: MediaScanSummary }) {
   )
 }
 
-function CategorieBlok({ projectId, scanId, blok }: { projectId: string; scanId: string; blok: MediaCategoryResult }) {
+interface CategorieBlokProps {
+  projectId: string
+  scanId: string
+  blok: MediaCategoryResult
+  gekozen: Set<string>
+  onToggleRij: (pad: string) => void
+  onToggleZichtbaar: (paden: string[], aan: boolean) => void
+}
+
+function CategorieBlok({ projectId, scanId, blok, gekozen, onToggleRij, onToggleZichtbaar }: CategorieBlokProps) {
   const [open, setOpen] = useState(false)
   const [rijen, setRijen] = useState<MediaFileRow[]>(blok.samples ?? [])
   const [meerBezig, setMeerBezig] = useState(false)
   const [filter, setFilter] = useState('')
 
   const uitleg = CATEGORIE_UITLEG[blok.category] ?? { titel: blok.category, uitleg: '' }
+  // Alleen categorieën waarvan de backend verplaatsen toestaat krijgen vinkjes; de
+  // UI en de poort in de service moeten hetzelfde zeggen.
+  const selecteerbaar = blok.category === MediaCategory.MediaUnreferenced || blok.category === MediaCategory.MediaOrphanFile
 
   const zichtbaar = useMemo(() => {
     const q = filter.trim().toLowerCase()
@@ -251,14 +313,27 @@ function CategorieBlok({ projectId, scanId, blok }: { projectId: string; scanId:
           <p className="text-[11.5px] text-fg-muted mb-3 leading-relaxed">{uitleg.uitleg}</p>
 
           {blok.files > 0 && (
-            <input type="search" value={filter} onChange={e => setFilter(e.target.value)}
-              placeholder="Zoek in bestandsnaam of titel"
-              className="w-full bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12px] text-fg mb-2" />
+            <div className="flex items-center gap-2 mb-2">
+              <input type="search" value={filter} onChange={e => setFilter(e.target.value)}
+                placeholder="Zoek of filter op map, bijv. 2020/01"
+                className="flex-1 bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12px] text-fg" />
+              {selecteerbaar && zichtbaar.length > 0 && (
+                <button
+                  onClick={() => onToggleZichtbaar(zichtbaar.map(r => r.path), !zichtbaar.every(r => gekozen.has(r.path)))}
+                  className="text-[11.5px] text-fg-muted border border-border rounded-lg px-2.5 py-1.5 hover:bg-hover transition whitespace-nowrap">
+                  {zichtbaar.every(r => gekozen.has(r.path)) ? 'selectie wissen' : `selecteer ${zichtbaar.length} zichtbare`}
+                </button>
+              )}
+            </div>
           )}
 
           <div className="divide-y divide-border/40">
             {zichtbaar.map((r, i) => (
               <div key={`${r.path}-${i}`} className="flex items-center gap-2 py-1.5">
+                {selecteerbaar && (
+                  <input type="checkbox" checked={gekozen.has(r.path)} onChange={() => onToggleRij(r.path)}
+                    className="shrink-0 accent-accent" />
+                )}
                 <span className="font-mono text-[11.5px] text-fg truncate flex-1">{r.path}</span>
                 {(r.evidence ?? []).map(e => (
                   <span key={e} className={`text-[9.5px] font-semibold px-1.5 py-px rounded shrink-0 ${
@@ -299,6 +374,11 @@ export default function MediaTab({ projectId }: Props) {
   const [scan, setScan] = useState<MediaScanSummary | null>(null)
   const [scans, setScans] = useState<MediaScanSummary[]>([])
   const [selectie, setSelectie] = useState<Set<string>>(new Set())
+  const [gekozen, setGekozen] = useState<Set<string>>(new Set())
+  const [minLeeftijd, setMinLeeftijd] = useState(90)
+  const [batches, setBatches] = useState<QuarantineBatch[] | null>(null)
+  const [qBezig, setQBezig] = useState(false)
+  const [qMelding, setQMelding] = useState<string | null>(null)
   const [bezig, setBezig] = useState(false)
   const [probeTekst, setProbeTekst] = useState<string | null>(null)
   const [fout, setFout] = useState<string | null>(null)
@@ -311,6 +391,7 @@ export default function MediaTab({ projectId }: Props) {
       .catch(e => setFout(foutTekst(e)))
 
     setWachtwoord(''); setScans([]); setSelectie(new Set())
+    setGekozen(new Set()); setBatches(null); setQMelding(null)
     Services.MediaService.GetSSHAccess(projectId)
       .then(a => { setUser(a.user ?? ''); setPad(a.path ?? ''); setHeeftWachtwoord(a.hasPassword) })
       .catch(() => {})
@@ -339,6 +420,7 @@ export default function MediaTab({ projectId }: Props) {
     if (wachtwoord) {
       setHeeftWachtwoord(true)
       setWachtwoord(''); setScans([]); setSelectie(new Set())
+    setGekozen(new Set()); setBatches(null); setQMelding(null)
     }
   }, [projectId, user, pad, wachtwoord])
 
@@ -367,6 +449,78 @@ export default function MediaTab({ projectId }: Props) {
       setFout(foutTekst(e))
     } finally {
       setBezig(false)
+    }
+  }
+
+  const toggleRij = (pad: string) => {
+    setGekozen(huidig => {
+      const volgende = new Set(huidig)
+      if (volgende.has(pad)) {
+        volgende.delete(pad)
+      } else {
+        volgende.add(pad)
+      }
+      return volgende
+    })
+  }
+
+  const toggleZichtbaar = (paden: string[], aan: boolean) => {
+    setGekozen(huidig => {
+      const volgende = new Set(huidig)
+      paden.forEach(p => (aan ? volgende.add(p) : volgende.delete(p)))
+      return volgende
+    })
+  }
+
+  const haalBatches = useCallback(async () => {
+    setQBezig(true); setFout(null)
+    try {
+      setBatches(await Services.MediaService.ListQuarantine(projectId, envId) ?? [])
+    } catch (e) {
+      setFout(foutTekst(e))
+    } finally {
+      setQBezig(false)
+    }
+  }, [projectId, envId])
+
+  const naarQuarantaine = async () => {
+    if (!scan) return
+    const paden = Array.from(gekozen)
+    const bevestigd = window.confirm(
+      `${paden.length} bestand(en) worden verplaatst naar een quarantainemap buiten de webroot.\n\n` +
+      `De site kan ze daarna niet meer opvragen — dat is de bedoeling, zo zie je wat er stuk gaat. ` +
+      `Terugzetten kan met één knop zolang de batch in quarantaine staat.\n\nDoorgaan?`,
+    )
+    if (!bevestigd) return
+
+    setQBezig(true); setFout(null); setQMelding(null)
+    try {
+      const res = await Services.MediaService.QuarantineFiles(projectId, envId, scan.id, paden, minLeeftijd)
+      const overgeslagen = (res.skipped ?? []).length
+      setQMelding(
+        `${(res.moved ?? []).length} bestand(en) verplaatst (${bytes(res.bytes)}) naar batch ${res.batch}` +
+        (overgeslagen > 0 ? ` · ${overgeslagen} overgeslagen: ${(res.skipped ?? [])[0]?.reason ?? ''}` : ''),
+      )
+      setGekozen(new Set())
+      await haalBatches()
+    } catch (e) {
+      setFout(foutTekst(e))
+    } finally {
+      setQBezig(false)
+    }
+  }
+
+  const herstelBatch = async (batch: string) => {
+    if (!window.confirm(`Batch ${batch} terugzetten op de oorspronkelijke plek?`)) return
+    setQBezig(true); setFout(null); setQMelding(null)
+    try {
+      const res = await Services.MediaService.RestoreQuarantine(projectId, envId, batch)
+      setQMelding(`${(res.moved ?? []).length} bestand(en) teruggezet uit batch ${batch}`)
+      await haalBatches()
+    } catch (e) {
+      setFout(foutTekst(e))
+    } finally {
+      setQBezig(false)
     }
   }
 
@@ -479,13 +633,40 @@ export default function MediaTab({ projectId }: Props) {
               )}
             </div>
 
+            {gekozen.size > 0 && (
+              <div className="sticky top-0 z-10 mb-3 flex items-center gap-2.5 bg-panel-2 border border-amber/40 rounded-xl px-4 py-2.5">
+                <span className="text-[12.5px] font-semibold text-fg">{gekozen.size} bestand{gekozen.size === 1 ? '' : 'en'} gekozen</span>
+                <button onClick={() => setGekozen(new Set())} className="text-[11.5px] text-fg-muted hover:text-fg transition">
+                  selectie wissen
+                </button>
+                <label className="ml-auto flex items-center gap-1.5 text-[11.5px] text-fg-muted"
+                  title="Bestanden jonger dan dit aantal dagen worden geweigerd. Verse uploads zijn het meest kansrijk om ergens vandaan te worden opgevraagd.">
+                  ouder dan
+                  <input type="number" min={0} value={minLeeftijd}
+                    onChange={e => setMinLeeftijd(Math.max(0, Number(e.target.value) || 0))}
+                    className="w-[60px] bg-panel border border-border rounded-lg px-2 py-1 text-[12px] text-fg text-right" />
+                  dagen
+                </label>
+                <button onClick={naarQuarantaine} disabled={qBezig}
+                  className="bg-amber text-white text-[12.5px] font-semibold px-4 py-1.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition">
+                  {qBezig ? 'Bezig…' : 'In quarantaine plaatsen'}
+                </button>
+              </div>
+            )}
+
+            {qMelding && (
+              <div className="mb-3 bg-green-soft text-green px-3 py-2 rounded-lg text-[11.5px]">{qMelding}</div>
+            )}
+
             <div className="flex flex-col gap-2.5 mb-4">
               {(scan.categories ?? []).map(blok => (
-                <CategorieBlok key={blok.category} projectId={projectId} scanId={scan.id} blok={blok} />
+                <CategorieBlok key={blok.category} projectId={projectId} scanId={scan.id} blok={blok}
+                  gekozen={gekozen} onToggleRij={toggleRij} onToggleZichtbaar={toggleZichtbaar} />
               ))}
             </div>
 
             <div className="flex flex-col gap-2.5">
+              <QuarantainePaneel batches={batches} bezig={qBezig} onOphalen={haalBatches} onHerstel={herstelBatch} />
               <TypePaneel rijen={scan.byExtension ?? []} totaal={scan.totalBytes} />
               <MappenPaneel
                 rijen={mappenlijst}
