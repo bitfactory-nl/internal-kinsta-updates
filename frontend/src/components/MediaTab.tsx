@@ -14,6 +14,10 @@ function foutTekst(error: unknown): string {
 // is een heuristiek: het ontbreken van een referentie is geen bewijs dat iets
 // ongebruikt is, en die nuance moet in de UI staan, niet in een handleiding.
 const CATEGORIE_UITLEG: Record<string, { titel: string; uitleg: string }> = {
+  [MediaCategory.MediaInUse]: {
+    titel: 'Wordt gebruikt',
+    uitleg: 'Voor deze media is een concrete verwijzing gevonden. Achter elk bestand staat waar: in de content, in meta, in een ACF-veld, in de instellingen of in themacode.',
+  },
   [MediaCategory.MediaOrphanFile]: {
     titel: 'Staat niet in de mediabibliotheek',
     uitleg: 'Bestanden op de server die WordPress niet kent. Hard feit; vaak restanten van migraties of handmatige uploads.',
@@ -26,6 +30,20 @@ const CATEGORIE_UITLEG: Record<string, { titel: string; uitleg: string }> = {
     titel: 'Geen referentie gevonden',
     uitleg: 'Nergens in de content, meta, opties of themacode een verwijzing gevonden. Dit is een aanwijzing, geen bewijs: sliders, nieuwsbrieven, externe systemen en directe links vallen buiten de scan.',
   },
+}
+
+// BEWIJS_LABEL maakt van een bewijs-bit een leesbare plek.
+const BEWIJS_LABEL: Record<string, string> = {
+  content: 'content',
+  meta: 'meta',
+  acf: 'ACF-veld',
+  options: 'instellingen',
+  termmeta: 'categorie',
+  usermeta: 'gebruiker',
+  theme: 'themacode',
+  extra_table: 'plugin-tabel',
+  revision_only: 'alleen revisie',
+  filename_only: 'alleen bestandsnaam',
 }
 
 function bytes(n: number): string {
@@ -124,6 +142,17 @@ function ScopeBlok({ scan }: { scan: MediaScanSummary }) {
         {s.themeFilesScanned > 0 && `, ${s.themeFilesScanned} bestanden in thema en mu-plugins`}.
         Revisies gelden niet als bewijs.
       </div>
+      {s.rowsScanned && Object.keys(s.rowsScanned).length > 0 && (
+        <div className="mt-1">
+          Doorzochte rijen:{' '}
+          {Object.entries(s.rowsScanned).map(([bron, n], i) => (
+            <span key={bron}>
+              {i > 0 && ' · '}
+              <span className="font-mono text-fg">{(n ?? 0).toLocaleString('nl-NL')}</span> {bron}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="mt-1">
         Niet gescand: externe systemen, nieuwsbrieven, CDN-caches, code buiten thema en mu-plugins,
         en plugins die media in eigen tabellen bewaren.
@@ -175,7 +204,8 @@ function CategorieBlok({ projectId, scanId, blok }: { projectId: string; scanId:
         <span className={`text-[9.5px] font-bold px-2 py-px rounded ${blok.hard ? 'bg-green-soft text-green' : 'bg-amber-soft text-amber'}`}>
           {blok.hard ? 'HARD FEIT' : 'HEURISTIEK'}
         </span>
-        <span className="ml-auto font-mono text-[12px] text-fg-muted">{blok.files}×</span>
+        <span className="ml-auto text-[11px] text-fg-faint">{open ? '' : 'bekijk bestanden'}</span>
+        <span className="font-mono text-[12px] text-fg-muted">{blok.files}×</span>
         <span className="font-mono text-[12px] text-fg w-[80px] text-right">{bytes(blok.bytes)}</span>
       </button>
 
@@ -193,7 +223,14 @@ function CategorieBlok({ projectId, scanId, blok }: { projectId: string; scanId:
             {zichtbaar.map((r, i) => (
               <div key={`${r.path}-${i}`} className="flex items-center gap-2 py-1.5">
                 <span className="font-mono text-[11.5px] text-fg truncate flex-1">{r.path}</span>
-                {r.title && <span className="text-[11px] text-fg-faint truncate max-w-[160px]">{r.title}</span>}
+                {(r.evidence ?? []).map(e => (
+                  <span key={e} className={`text-[9.5px] font-semibold px-1.5 py-px rounded shrink-0 ${
+                    e === 'revision_only' || e === 'filename_only' ? 'bg-amber-soft text-amber' : 'bg-green-soft text-green'
+                  }`}>
+                    {BEWIJS_LABEL[e] ?? e}
+                  </span>
+                ))}
+                {r.title && <span className="text-[11px] text-fg-faint truncate max-w-[140px]">{r.title}</span>}
                 <span className="font-mono text-[11px] text-fg-muted w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
                 <span className="font-mono text-[11px] text-fg-faint w-[90px] text-right shrink-0">{datum(r.modifiedAt)}</span>
               </div>

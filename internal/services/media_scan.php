@@ -81,9 +81,14 @@ final class RdmMediaScan
     private $unref = [];
     private $unrefCount = 0;
     private $unrefBytes = 0;
+    private $inUse = [];
+    private $inUseBytes = 0;
     private $refCount = 0;
 
     private $tables = [];
+    /** Aantal doorzochte rijen per bron: maakt zichtbaar of de referentiescan écht
+     *  door de content is gegaan, in plaats van dat je dat uit een uitkomst moet raden. */
+    private $rowsScanned = [];
     private $themeFiles = 0;
     private $notes = [];
     private $offload = false;
@@ -501,6 +506,14 @@ final class RdmMediaScan
 
     // --- 4. referenties ---
 
+    private function tel($bron, $aantal)
+    {
+        if (!isset($this->rowsScanned[$bron])) {
+            $this->rowsScanned[$bron] = 0;
+        }
+        $this->rowsScanned[$bron] += $aantal;
+    }
+
     /** Zet het bewijs-bit voor elk attachment waar deze tekst naar verwijst. */
     private function collect($tekst, $bron)
     {
@@ -561,18 +574,48 @@ final class RdmMediaScan
         }
     }
 
-    /** Numerieke meta die naar een attachment wijst (uitgelichte afbeelding e.d.). */
+    /**
+     * collectIdMeta pakt attachment-ID's uit meta die geen URL bevat: een los ID
+     * (uitgelichte afbeelding), een kommalijst (WooCommerce-galerij) of een
+     * geserialiseerde array (ACF-galerij). Zonder dit blijft een webshop met al zijn
+     * productfoto's "ongebruikt".
+     */
     private function collectIdMeta($key, $waarde, $bron)
     {
-        if (!ctype_digit(trim((string) $waarde))) {
+        $waarde = trim((string) $waarde);
+        if ($waarde === '' || strlen($waarde) > 100000) {
             return;
         }
-        $id = (int) $waarde;
-        if (!isset($this->byId[$id])) {
+        $mediaKey = $key === '_thumbnail_id'
+            || preg_match('/(image|logo|thumbnail|photo|avatar|icon|file|gallery|galerij|media|attachment|banner|slide|header)/i', $key);
+        if (!$mediaKey) {
             return;
         }
-        if ($key === '_thumbnail_id' || preg_match('/(image|logo|thumbnail|photo|avatar|icon|file)/i', $key)) {
-            $this->refs[$id][$bron] = true;
+
+        $ids = [];
+        if (ctype_digit($waarde)) {
+            $ids[] = (int) $waarde;
+        } elseif (preg_match('/^[\d,\s]+$/', $waarde)) {
+            foreach (preg_split('/[,\s]+/', $waarde) as $deel) {
+                if ($deel !== '') {
+                    $ids[] = (int) $deel;
+                }
+            }
+        } elseif (strpos($waarde, 'a:') === 0 || strpos($waarde, 'i:') === 0) {
+            // Geserialiseerde array: alle gehele getallen eruit halen is ruim, maar
+            // fout gaat de veilige kant op — iets ten onrechte "in gebruik" noemen is
+            // beter dan iets ten onrechte "ongebruikt".
+            if (preg_match_all('/(?:i:|s:\d+:")(\d+)/', $waarde, $m)) {
+                foreach ($m[1] as $ruw) {
+                    $ids[] = (int) $ruw;
+                }
+            }
+        }
+
+        foreach ($ids as $id) {
+            if ($id > 0 && isset($this->byId[$id])) {
+                $this->refs[$id][$bron] = true;
+            }
         }
     }
 
@@ -616,6 +659,7 @@ final class RdmMediaScan
             if (!$rijen) {
                 return;
             }
+            $this->tel('posts', count($rijen));
             foreach ($rijen as $r) {
                 $laatste = (int) $r['ID'];
                 // Revisies gelden niet als bewijs dat iets nu in gebruik is, maar
@@ -644,6 +688,7 @@ final class RdmMediaScan
             if (!$rijen) {
                 return;
             }
+            $this->tel('postmeta', count($rijen));
             foreach ($rijen as $r) {
                 $laatste = (int) $r['meta_id'];
                 $key     = (string) $r['meta_key'];
@@ -671,6 +716,7 @@ final class RdmMediaScan
             if (!$rijen) {
                 return;
             }
+            $this->tel('options', count($rijen));
             foreach ($rijen as $r) {
                 $laatste = (int) $r['option_id'];
                 $this->collect($r['option_value'], 'options');
@@ -696,6 +742,7 @@ final class RdmMediaScan
                 if (!$rijen) {
                     break;
                 }
+                $this->tel($bron, count($rijen));
                 foreach ($rijen as $r) {
                     $laatste = (int) $r['pk'];
                     $this->collect($r['meta_value'], $bron);
@@ -740,8 +787,21 @@ final class RdmMediaScan
     private function findUnreferenced()
     {
         foreach ($this->byId as $id => $a) {
-            if (isset($this->refs[$id])) {
-                $this->refCount++;
+            if (!isset($this->refs[$id])) {
+                continue;
+            }
+            $this->refCount++;
+            $bytes = isset($this->onDisk[self::sleutel($a['file'])]) ? (int) $this->onDisk[self::sleutel($a['file'])] : 0;
+            $this->inUseBytes += $bytes;
+            if (count($this->inUse) < self::DETAIL_CAP) {
+                // Het bewijs mee: zonder "waar is dit gevonden" is een lijst met
+                // gebruikte media niet na te lopen.
+                $this->inUse[] = [
+                    'path' => $a['file'], 'bytes' => $bytes, 'modifiedAt' => $a['date'],
+                    'class' => 'original', 'category' => 'in_use',
+                    'attachmentId' => $id, 'title' => $a['title'], 'mimeType' => $a['mime'],
+                    'evidence' => array_keys($this->refs[$id]),
+                ];
             }
         }
         if (!$this->refScanComplete || !$this->walkComplete) {
@@ -820,12 +880,14 @@ final class RdmMediaScan
             'byPeriod'          => $this->periodeTotalen(),
             'largest'           => $this->largest,
             'categories'        => [
+                $this->categorie('in_use', true, $this->refCount, $this->inUseBytes, $this->inUse),
+                $this->categorie('unreferenced', false, $this->unrefCount, $this->unrefBytes, $this->unref),
                 $this->categorie('orphan_file', true, $this->orphanCount, $this->orphanBytes, $this->orphans),
                 $this->categorie('missing_file', true, $this->missingCount, 0, $this->missing),
-                $this->categorie('unreferenced', false, $this->unrefCount, $this->unrefBytes, $this->unref),
             ],
-            'detail'            => array_merge($this->orphans, $this->missing, $this->unref),
+            'detail'            => array_merge($this->inUse, $this->unref, $this->orphans, $this->missing),
             'tablesScanned'     => array_values(array_unique($this->tables)),
+            'rowsScanned'       => $this->rowsScanned,
             'themeFilesScanned' => $this->themeFiles,
             'referenceScanRan'  => $this->refScanComplete,
             'indexComplete'     => $this->indexComplete,

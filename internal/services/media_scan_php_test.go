@@ -187,8 +187,36 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 		t.Errorf("categorie C bytes = %d, wil 1200 (grootte uit de bestandsdoorloop)", ongebruikt.Bytes)
 	}
 
-	if len(detail) != 4 {
-		t.Errorf("detailregels = %d, wil 4", len(detail))
+	if len(detail) != 6 {
+		t.Errorf("detailregels = %d, wil 6 (2 in gebruik, 2 zonder referentie, 1 zwerver, 1 ontbrekend)", len(detail))
+	}
+
+	// De gebruikte kant moet er óók staan, met het bewijs erbij: zonder "waar is dit
+	// gevonden" valt een lijst niet na te lopen.
+	inGebruik := categorie(t, sum, domain.MediaInUse)
+	if inGebruik.Files != 2 || len(inGebruik.Samples) != 2 {
+		t.Fatalf("categorie in gebruik = %+v; wil attachment 1 en 4", inGebruik)
+	}
+	if !inGebruik.Hard {
+		t.Error("een gevonden referentie is positief bewijs en dus een hard feit")
+	}
+	bewijzen := map[int]string{}
+	for _, r := range inGebruik.Samples {
+		if len(r.Evidence) == 0 {
+			t.Errorf("rij %s heeft geen bewijs", r.Path)
+		}
+		bewijzen[r.AttachmentID] = string(r.Evidence[0])
+	}
+	if bewijzen[1] != "content" {
+		t.Errorf("attachment 1 bewijs = %q, wil content", bewijzen[1])
+	}
+	if bewijzen[4] != "meta" {
+		t.Errorf("attachment 4 bewijs = %q, wil meta (_thumbnail_id)", bewijzen[4])
+	}
+
+	// En de tellers moeten laten zien dat er werkelijk content is doorzocht.
+	if sum.Scope.RowsScanned["posts"] < 1 || sum.Scope.RowsScanned["postmeta"] < 1 {
+		t.Errorf("RowsScanned = %v; wil doorzochte rijen per bron", sum.Scope.RowsScanned)
 	}
 	if sum.Scope.UploadsPath == "" || sum.Scope.Truncated {
 		t.Errorf("scope = %+v; wil een pad en geen afgekapte scan", sum.Scope)

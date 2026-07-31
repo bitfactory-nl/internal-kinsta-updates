@@ -39,13 +39,14 @@ type mediaScanPayload struct {
 	Categories []domain.MediaCategoryResult `json:"categories"`
 	Detail     []domain.MediaFileRow        `json:"detail"`
 
-	TablesScanned     []string `json:"tablesScanned"`
-	ThemeFilesScanned int      `json:"themeFilesScanned"`
-	ReferenceScanRan  bool     `json:"referenceScanRan"`
-	OffloadDetected   bool     `json:"offloadDetected"`
-	Truncated         bool     `json:"truncated"`
-	DurationMS        int64    `json:"durationMs"`
-	Notes             []string `json:"notes"`
+	TablesScanned     []string       `json:"tablesScanned"`
+	RowsScanned       map[string]int `json:"rowsScanned"`
+	ThemeFilesScanned int            `json:"themeFilesScanned"`
+	ReferenceScanRan  bool           `json:"referenceScanRan"`
+	OffloadDetected   bool           `json:"offloadDetected"`
+	Truncated         bool           `json:"truncated"`
+	DurationMS        int64          `json:"durationMs"`
+	Notes             []string       `json:"notes"`
 }
 
 // parseMediaScanOutput pulls the payload out of raw SSH stdout. Whatever the
@@ -126,6 +127,7 @@ func (p mediaScanPayload) summary(scanID, projectID, projectName, env string, at
 			UploadsURL:        p.UploadsURL,
 			Multisite:         p.Multisite,
 			TablesScanned:     p.TablesScanned,
+			RowsScanned:       p.RowsScanned,
 			ThemeFilesScanned: p.ThemeFilesScanned,
 			RevisionsAsProof:  false,
 			OffloadDetected:   p.OffloadDetected,

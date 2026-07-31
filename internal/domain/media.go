@@ -17,11 +17,15 @@ const (
 	// MediaUnreferenced is a library entry with no reference found anywhere.
 	// Heuristic: absence of evidence, not evidence of absence.
 	MediaUnreferenced MediaCategory = "unreferenced"
+	// MediaInUse is a library entry with at least one reference found. Positive
+	// evidence, so a hard fact — and the counterpart the "unused" list needs to be
+	// judged against.
+	MediaInUse MediaCategory = "in_use"
 )
 
 // Hard reports whether a category states a verifiable fact rather than a guess.
 func (c MediaCategory) Hard() bool {
-	return c == MediaOrphanFile || c == MediaMissingFile
+	return c == MediaOrphanFile || c == MediaMissingFile || c == MediaInUse
 }
 
 // MediaFileClass says what produced a file, which is what makes a folder size
@@ -103,17 +107,21 @@ type MediaScanScope struct {
 	// Folders limits a scan to these prefixes inside uploads (empty = everything).
 	// A scoped scan says nothing about the folders it skipped, which is why it is
 	// recorded alongside the numbers rather than inferred from them.
-	Folders           []string `json:"folders,omitempty"`
-	UploadsPath       string   `json:"uploadsPath"`
-	UploadsURL        string   `json:"uploadsUrl"`
-	Multisite         bool     `json:"multisite"`
-	TablesScanned     []string `json:"tablesScanned"`
-	ThemeFilesScanned int      `json:"themeFilesScanned"`
-	RevisionsAsProof  bool     `json:"revisionsAsProof"`
-	OffloadDetected   bool     `json:"offloadDetected"`
-	Degraded          bool     `json:"degraded"`  // zonder plugins/thema gebootstrapt
-	Truncated         bool     `json:"truncated"` // eigen tijdsbudget geraakt
-	Notes             []string `json:"notes,omitempty"`
+	Folders       []string `json:"folders,omitempty"`
+	UploadsPath   string   `json:"uploadsPath"`
+	UploadsURL    string   `json:"uploadsUrl"`
+	Multisite     bool     `json:"multisite"`
+	TablesScanned []string `json:"tablesScanned"`
+	// RowsScanned counts the rows actually examined per source. A reference scan that
+	// looked at almost nothing produces the same "no reference found" as a thorough
+	// one, so the count belongs next to the conclusion.
+	RowsScanned       map[string]int `json:"rowsScanned,omitempty"`
+	ThemeFilesScanned int            `json:"themeFilesScanned"`
+	RevisionsAsProof  bool           `json:"revisionsAsProof"`
+	OffloadDetected   bool           `json:"offloadDetected"`
+	Degraded          bool           `json:"degraded"`  // zonder plugins/thema gebootstrapt
+	Truncated         bool           `json:"truncated"` // eigen tijdsbudget geraakt
+	Notes             []string       `json:"notes,omitempty"`
 }
 
 // MediaScanSummary is one completed scan of one environment.
