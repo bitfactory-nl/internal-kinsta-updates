@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/kinsta"
@@ -67,11 +68,62 @@ func (s *KinstaService) ListSites() ([]kinsta.Site, error) {
 	return c.ListSites(ctx)
 }
 
+// SiteLinkConflict reports a Kinsta site that is linked to more than one project.
+type SiteLinkConflict struct {
+	SiteID   string   `json:"siteId"`
+	Projects []string `json:"projects"`
+}
+
+// SiteLinkConflicts lists Kinsta sites linked to more than one project. Such a
+// duplicate is never harmless: both projects then read the same site's PHP
+// version, plugin list and SSH details, so at least one shows another customer's
+// data — including in generated reports.
+func (s *KinstaService) SiteLinkConflicts() []SiteLinkConflict {
+	perSite := map[string][]string{}
+	for _, p := range s.project.List() {
+		if p.Config.Kinsta == nil || p.Config.Kinsta.SiteID == "" {
+			continue
+		}
+		id := p.Config.Kinsta.SiteID
+		perSite[id] = append(perSite[id], p.DisplayName)
+	}
+
+	out := make([]SiteLinkConflict, 0)
+	for id, names := range perSite {
+		if len(names) < 2 {
+			continue
+		}
+		sort.Strings(names)
+		out = append(out, SiteLinkConflict{SiteID: id, Projects: names})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].SiteID < out[j].SiteID })
+	return out
+}
+
+// projectWithSite returns the display name of another project already linked to
+// siteID, or "" when the site is free.
+func (s *KinstaService) projectWithSite(exceptProjectID, siteID string) string {
+	for _, p := range s.project.List() {
+		if p.ID == exceptProjectID || p.Config.Kinsta == nil {
+			continue
+		}
+		if p.Config.Kinsta.SiteID == siteID {
+			return p.DisplayName
+		}
+	}
+	return ""
+}
+
 // LinkSite saves a Kinsta site_id to the project's .rdm.yml so it persists.
+// Linking a site that already belongs to another project is refused: that is how
+// projects end up reading each other's data.
 func (s *KinstaService) LinkSite(projectID, siteID string) error {
 	p, err := s.projectFor(projectID)
 	if err != nil {
 		return err
+	}
+	if other := s.projectWithSite(projectID, siteID); other != "" {
+		return fmt.Errorf("deze Kinsta-site is al gekoppeld aan %s; maak die koppeling eerst los", other)
 	}
 	cfg := p.Config
 	if cfg.Kinsta == nil {
