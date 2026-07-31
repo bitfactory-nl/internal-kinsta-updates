@@ -21,7 +21,8 @@ import * as domain$0 from "../domain/models.js";
 import * as $models from "./models.js";
 
 /**
- * GetSSHAccess returns the stored SSH username and webroot for a project.
+ * GetSSHAccess returns the stored SSH username, webroot and whether a password is
+ * on file.
  */
 export function GetSSHAccess(projectID: string): $CancellablePromise<$models.SSHAccess> {
     return $Call.ByID(3789049665, projectID).then(($result: any) => {
@@ -61,10 +62,13 @@ export function ProbeEnvironment(projectID: string, envID: string): $Cancellable
 
 /**
  * SaveSSHAccess stores the SSH username and optional webroot in .rdm.yml. An empty
- * path means: find it on the server during the next scan.
+ * path means: find it on the server during the next scan. A non-empty password goes
+ * into the macOS keychain and only a reference to it is written to .rdm.yml —
+ * that file is committed in the customer's repo, so the secret can never live
+ * there. An empty password leaves any stored one untouched.
  */
-export function SaveSSHAccess(projectID: string, user: string, path: string): $CancellablePromise<void> {
-    return $Call.ByID(3968795680, projectID, user, path);
+export function SaveSSHAccess(projectID: string, user: string, path: string, password: string): $CancellablePromise<void> {
+    return $Call.ByID(3968795680, projectID, user, path, password);
 }
 
 /**

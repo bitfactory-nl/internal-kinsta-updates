@@ -26,8 +26,9 @@ type mediaTarget struct {
 
 // mediaSSHTarget builds the SSH target from the project's own config plus the
 // endpoint the Kinsta API reports. The username cannot be derived from the API, so
-// it has to come from .rdm.yml.
-func mediaSSHTarget(p domain.Project, ep EnvSSHEndpoint) (mediaTarget, error) {
+// it has to come from .rdm.yml; the password arrives already resolved from the
+// keychain, and is empty when the login uses a key.
+func mediaSSHTarget(p domain.Project, ep EnvSSHEndpoint, wachtwoord string) (mediaTarget, error) {
 	var user, pad string
 	if p.Config.SSH != nil {
 		user = strings.TrimSpace(p.Config.SSH.User)
@@ -40,7 +41,7 @@ func mediaSSHTarget(p domain.Project, ep EnvSSHEndpoint) (mediaTarget, error) {
 		return mediaTarget{}, fmt.Errorf("geen SSH-adres van Kinsta voor deze omgeving")
 	}
 	return mediaTarget{
-		SSH:     sshadapter.Target{Host: ep.Host, Port: ep.Port, User: user},
+		SSH:     sshadapter.Target{Host: ep.Host, Port: ep.Port, User: user, Password: wachtwoord},
 		Webroot: pad,
 		EnvName: ep.EnvName,
 	}, nil

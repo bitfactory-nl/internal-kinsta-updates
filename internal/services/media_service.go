@@ -29,6 +29,27 @@ type kinstaSSHSource interface {
 	EnvironmentSSH(projectID, envID string) (EnvSSHEndpoint, error)
 }
 
+// secretStore keeps SSH passwords out of config files (test seam). Set takes an
+// account name, Get takes the reference stored in .rdm.yml.
+type secretStore interface {
+	Set(account, secret string) error
+	Get(ref string) (string, error)
+}
+
+// keychainSecrets is the production secretStore: the macOS keychain.
+type keychainSecrets struct{}
+
+func (keychainSecrets) Set(account, secret string) error {
+	return config.KeychainSet(account, secret)
+}
+
+func (keychainSecrets) Get(ref string) (string, error) {
+	if ref == "" {
+		return "", nil
+	}
+	return config.ResolveSecret(ref)
+}
+
 // MediaService analyses wp-content/uploads on a Kinsta environment: what is there,
 // how big it is, and which media have no reference left. It is deliberately
 // read-only — there is no method here that changes anything on the server.
@@ -37,6 +58,7 @@ type MediaService struct {
 	kinsta   kinstaSSHSource
 	store    *MediaScanStore
 	ssh      sshRunner
+	secrets  secretStore
 	now      func() time.Time
 
 	bezigMu sync.Mutex
@@ -49,6 +71,7 @@ func NewMediaService(projects *ProjectService, kinsta *KinstaService, store *Med
 		kinsta:   kinsta,
 		store:    store,
 		ssh:      sshadapter.NewClient(),
+		secrets:  keychainSecrets{},
 		now:      time.Now,
 		bezig:    map[string]bool{},
 	}
@@ -89,7 +112,13 @@ func (s *MediaService) target(projectID, envID string) (mediaTarget, domain.Proj
 	if err != nil {
 		return mediaTarget{}, p, err
 	}
-	tgt, err := mediaSSHTarget(p, ep)
+	var wachtwoord string
+	if p.Config.SSH != nil && p.Config.SSH.Password != "" {
+		if wachtwoord, err = s.secrets.Get(p.Config.SSH.Password); err != nil {
+			return mediaTarget{}, p, fmt.Errorf("wachtwoord uit de keychain halen: %w", err)
+		}
+	}
+	tgt, err := mediaSSHTarget(p, ep, wachtwoord)
 	return tgt, p, err
 }
 
@@ -185,13 +214,16 @@ func (s *MediaService) onthoudWebroot(p domain.Project, root string) {
 }
 
 // SSHAccess is what a project knows about reaching its own server. Kinsta's API
-// supplies neither of these, so they are entered once and then remembered.
+// supplies none of this, so it is entered once and then remembered. The password
+// itself never leaves the keychain — only whether there is one.
 type SSHAccess struct {
-	User string `json:"user"`
-	Path string `json:"path"`
+	User        string `json:"user"`
+	Path        string `json:"path"`
+	HasPassword bool   `json:"hasPassword"`
 }
 
-// GetSSHAccess returns the stored SSH username and webroot for a project.
+// GetSSHAccess returns the stored SSH username, webroot and whether a password is
+// on file.
 func (s *MediaService) GetSSHAccess(projectID string) (SSHAccess, error) {
 	p, err := s.project(projectID)
 	if err != nil {
@@ -200,12 +232,19 @@ func (s *MediaService) GetSSHAccess(projectID string) (SSHAccess, error) {
 	if p.Config.SSH == nil {
 		return SSHAccess{}, nil
 	}
-	return SSHAccess{User: p.Config.SSH.User, Path: p.Config.SSH.Path}, nil
+	return SSHAccess{
+		User:        p.Config.SSH.User,
+		Path:        p.Config.SSH.Path,
+		HasPassword: p.Config.SSH.Password != "",
+	}, nil
 }
 
 // SaveSSHAccess stores the SSH username and optional webroot in .rdm.yml. An empty
-// path means: find it on the server during the next scan.
-func (s *MediaService) SaveSSHAccess(projectID, user, path string) error {
+// path means: find it on the server during the next scan. A non-empty password goes
+// into the macOS keychain and only a reference to it is written to .rdm.yml —
+// that file is committed in the customer's repo, so the secret can never live
+// there. An empty password leaves any stored one untouched.
+func (s *MediaService) SaveSSHAccess(projectID, user, path, password string) error {
 	p, err := s.project(projectID)
 	if err != nil {
 		return err
@@ -221,6 +260,15 @@ func (s *MediaService) SaveSSHAccess(projectID, user, path string) error {
 	}
 	ssh.User = user
 	ssh.Path = strings.TrimSpace(path)
+
+	if password != "" {
+		account := "ssh:" + p.DisplayName
+		if err := s.secrets.Set(account, password); err != nil {
+			return fmt.Errorf("wachtwoord in de keychain zetten: %w", err)
+		}
+		ssh.Password = config.KeychainPrefix + account
+	}
+
 	cfg.SSH = &ssh
 	if err := config.SaveProject(p.Path, cfg); err != nil {
 		return fmt.Errorf("opslaan .rdm.yml: %w", err)

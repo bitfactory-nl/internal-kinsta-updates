@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,24 +20,55 @@ import (
 // fakeSSHRunner vervangt de SSH-adapter: onthoudt het commando en geeft een
 // vooraf bepaalde uitvoer terug.
 type fakeSSHRunner struct {
-	uit     string
-	err     error
-	calls   int
-	laatste string
-	voor    func() // haak om re-entrancy te testen
+	uit           string
+	err           error
+	calls         int
+	laatste       string
+	laatsteTarget sshadapter.Target
+	voor          func() // haak om re-entrancy te testen
 }
 
 func (f *fakeSSHRunner) Upload(context.Context, sshadapter.Target, string, []byte) error {
 	return nil
 }
 
-func (f *fakeSSHRunner) RunCommand(_ context.Context, _ sshadapter.Target, cmd string) (string, error) {
+func (f *fakeSSHRunner) RunCommand(_ context.Context, t sshadapter.Target, cmd string) (string, error) {
 	f.calls++
 	f.laatste = cmd
+	f.laatsteTarget = t
 	if f.voor != nil {
 		f.voor()
 	}
 	return f.uit, f.err
+}
+
+// fakeSecrets vervangt de keychain in tests.
+type fakeSecrets struct {
+	opgeslagen map[string]string
+	zetFout    error
+}
+
+func (f *fakeSecrets) Set(account, secret string) error {
+	if f.zetFout != nil {
+		return f.zetFout
+	}
+	if f.opgeslagen == nil {
+		f.opgeslagen = map[string]string{}
+	}
+	f.opgeslagen[account] = secret
+	return nil
+}
+
+func (f *fakeSecrets) Get(ref string) (string, error) {
+	if ref == "" {
+		return "", nil
+	}
+	account := strings.TrimPrefix(ref, "keychain:")
+	secret, ok := f.opgeslagen[account]
+	if !ok {
+		return "", errors.New("niet in keychain: " + account)
+	}
+	return secret, nil
 }
 
 // fakeKinstaSSH levert een vast SSH-eindpunt zonder de Kinsta-API te raken.
@@ -108,6 +141,7 @@ func newMediaService(t *testing.T, runner sshRunner, projectPad string) (*MediaS
 	svc := NewMediaService(ps, nil, NewMediaScanStore(t.TempDir()))
 	svc.kinsta = fakeKinstaSSH{ep: EnvSSHEndpoint{Host: "1.2.3.4", Port: 12345, EnvName: "live"}}
 	svc.ssh = runner
+	svc.secrets = &fakeSecrets{}
 	svc.now = func() time.Time { return time.Date(2026, 7, 29, 14, 2, 0, 0, time.UTC) }
 	return svc, ps
 }
@@ -259,5 +293,80 @@ func TestMediaProbeZonderWebroot(t *testing.T) {
 	_, err := svc.ProbeEnvironment("p1", "env-1")
 	if err == nil || !strings.Contains(err.Error(), "wp-config.php") {
 		t.Errorf("fout = %v; wil uitleg dat de webroot niet gevonden is", err)
+	}
+}
+
+func TestMediaSaveSSHAccessZetWachtwoordInKeychainNietInConfig(t *testing.T) {
+	repo := t.TempDir()
+	svc, _ := newMediaService(t, &fakeSSHRunner{}, repo)
+	geheim := "Zw3rt-K0nijn!"
+
+	if err := svc.SaveSSHAccess("p1", "steinweg", "/www/site/public", geheim); err != nil {
+		t.Fatalf("SaveSSHAccess: %v", err)
+	}
+
+	// Het wachtwoord hoort in de keychain te staan, onder een leesbare naam.
+	kc := svc.secrets.(*fakeSecrets)
+	if kc.opgeslagen["ssh:web-vanluykennl"] != geheim {
+		t.Errorf("keychain = %+v; wil het wachtwoord onder ssh:web-vanluykennl", kc.opgeslagen)
+	}
+
+	// En absoluut niet in .rdm.yml: dat bestand staat in de klantrepo.
+	data, err := os.ReadFile(filepath.Join(repo, ".rdm.yml"))
+	if err != nil {
+		t.Fatalf("lees .rdm.yml: %v", err)
+	}
+	if strings.Contains(string(data), geheim) {
+		t.Fatalf(".rdm.yml bevat het wachtwoord in platte tekst:\n%s", data)
+	}
+	if !strings.Contains(string(data), "keychain:ssh:web-vanluykennl") {
+		t.Errorf(".rdm.yml mist de keychain-verwijzing:\n%s", data)
+	}
+
+	toegang, err := svc.GetSSHAccess("p1")
+	if err != nil {
+		t.Fatalf("GetSSHAccess: %v", err)
+	}
+	if !toegang.HasPassword || toegang.User != "steinweg" {
+		t.Errorf("toegang = %+v", toegang)
+	}
+}
+
+func TestMediaSaveSSHAccessZonderWachtwoordLaatBestaandeStaan(t *testing.T) {
+	repo := t.TempDir()
+	svc, _ := newMediaService(t, &fakeSSHRunner{}, repo)
+
+	if err := svc.SaveSSHAccess("p1", "steinweg", "", "eerste"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.SaveSSHAccess("p1", "steinweg", "/www/site/public", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	toegang, _ := svc.GetSSHAccess("p1")
+	if !toegang.HasPassword {
+		t.Error("een leeg wachtwoordveld hoort het opgeslagen wachtwoord niet te wissen")
+	}
+	if toegang.Path != "/www/site/public" {
+		t.Errorf("pad = %q", toegang.Path)
+	}
+}
+
+func TestMediaScanGebruiktWachtwoordUitKeychain(t *testing.T) {
+	runner := &fakeSSHRunner{uit: sentinelUitvoer(t, voorbeeldPayload())}
+	svc, _ := newMediaService(t, runner, t.TempDir())
+
+	if err := svc.SaveSSHAccess("p1", "steinweg", "/www/site/public", "Zw3rt-K0nijn!"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.ScanEnvironment("p1", "env-1"); err != nil {
+		t.Fatalf("ScanEnvironment: %v", err)
+	}
+
+	if runner.laatsteTarget.Password != "Zw3rt-K0nijn!" {
+		t.Errorf("wachtwoord niet meegegeven aan de SSH-verbinding: %+v", runner.laatsteTarget.User)
+	}
+	if runner.laatsteTarget.User != "steinweg" {
+		t.Errorf("gebruiker = %q", runner.laatsteTarget.User)
 	}
 }

@@ -712,11 +712,13 @@ export class ProjectWorkflow {
 
 /**
  * SSHAccess is what a project knows about reaching its own server. Kinsta's API
- * supplies neither of these, so they are entered once and then remembered.
+ * supplies none of this, so it is entered once and then remembered. The password
+ * itself never leaves the keychain — only whether there is one.
  */
 export class SSHAccess {
     "user": string;
     "path": string;
+    "hasPassword": boolean;
 
     /** Creates a new SSHAccess instance. */
     constructor($$source: Partial<SSHAccess> = {}) {
@@ -725,6 +727,9 @@ export class SSHAccess {
         }
         if (!("path" in $$source)) {
             this["path"] = "";
+        }
+        if (!("hasPassword" in $$source)) {
+            this["hasPassword"] = false;
         }
 
         Object.assign(this, $$source);

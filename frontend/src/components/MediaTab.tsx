@@ -183,6 +183,8 @@ export default function MediaTab({ projectId }: Props) {
   const [envId, setEnvId] = useState('')
   const [user, setUser] = useState('')
   const [pad, setPad] = useState('')
+  const [wachtwoord, setWachtwoord] = useState('')
+  const [heeftWachtwoord, setHeeftWachtwoord] = useState(false)
   const [scan, setScan] = useState<MediaScanSummary | null>(null)
   const [bezig, setBezig] = useState(false)
   const [probeTekst, setProbeTekst] = useState<string | null>(null)
@@ -195,8 +197,9 @@ export default function MediaTab({ projectId }: Props) {
       .then(id => (id ? Services.KinstaService.GetSiteDetails(id).then(setSite) : undefined))
       .catch(e => setFout(foutTekst(e)))
 
+    setWachtwoord('')
     Services.MediaService.GetSSHAccess(projectId)
-      .then(a => { setUser(a.user ?? ''); setPad(a.path ?? '') })
+      .then(a => { setUser(a.user ?? ''); setPad(a.path ?? ''); setHeeftWachtwoord(a.hasPassword) })
       .catch(() => {})
 
     Services.MediaService.LatestScan(projectId)
@@ -212,14 +215,15 @@ export default function MediaTab({ projectId }: Props) {
     }
   }, [site, envId])
 
+  // Het wachtwoord gaat naar de macOS-keychain; .rdm.yml krijgt alleen een
+  // verwijzing, want dat bestand staat in de repo van de klant.
   const bewaarToegang = useCallback(async () => {
-    setFout(null)
-    try {
-      await Services.MediaService.SaveSSHAccess(projectId, user, pad)
-    } catch (e) {
-      setFout(foutTekst(e))
+    await Services.MediaService.SaveSSHAccess(projectId, user, pad, wachtwoord)
+    if (wachtwoord) {
+      setHeeftWachtwoord(true)
+      setWachtwoord('')
     }
-  }, [projectId, user, pad])
+  }, [projectId, user, pad, wachtwoord])
 
   const testVerbinding = async () => {
     setBezig(true); setFout(null); setProbeTekst(null)
@@ -274,8 +278,12 @@ export default function MediaTab({ projectId }: Props) {
         </select>
         <input value={user} onChange={e => setUser(e.target.value)} placeholder="SSH-gebruiker"
           className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[150px]" />
+        <input type="password" value={wachtwoord} onChange={e => setWachtwoord(e.target.value)}
+          placeholder={heeftWachtwoord ? 'wachtwoord bewaard' : 'wachtwoord'}
+          title="Wordt in de macOS-keychain bewaard; .rdm.yml krijgt alleen een verwijzing. Leeg laten houdt het bestaande wachtwoord."
+          className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[140px]" />
         <input value={pad} onChange={e => setPad(e.target.value)} placeholder="pad (leeg = zelf zoeken)"
-          className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[220px] font-mono" />
+          className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[200px] font-mono" />
         <button onClick={testVerbinding} disabled={bezig || !user}
           className="text-[12.5px] text-fg-muted border border-border rounded-lg px-3 py-1.5 hover:bg-hover transition disabled:opacity-50">
           Verbinding testen
