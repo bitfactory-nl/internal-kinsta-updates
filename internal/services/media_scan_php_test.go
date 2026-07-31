@@ -90,7 +90,15 @@ func mediaFixtureTree(t *testing.T) (uploadsDir, fixturePad string) {
 			// De uitgelichte afbeelding: alleen een ID in meta, nergens een URL.
 			{"meta_id": 2, "meta_key": "_thumbnail_id", "meta_value": "4"},
 		},
-		"options":  []map[string]any{{"option_id": 1, "option_name": "blogname", "option_value": "Voorbeeld"}},
+		"options": []map[string]any{{"option_id": 1, "option_name": "blogname", "option_value": "Voorbeeld"}},
+		// Een vastgoed-/sliderplugin met eigen tabel, die alleen het relatieve pad
+		// bewaart. Zonder die tabel én zonder relatief-pad-patroon lijkt deze foto
+		// ongebruikt.
+		"extraTables": map[string]any{
+			"wp_wpl_items": []map[string]any{
+				{"id": 1, "item_data": `{"gallery":["2024/05/ongebruikt.jpg"]}`},
+			},
+		},
 		"termmeta": []map[string]any{},
 		"usermeta": []map[string]any{},
 		"offload":  0,
@@ -165,8 +173,8 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 	if sum.AttachmentCount != 5 {
 		t.Errorf("AttachmentCount = %d, wil 5", sum.AttachmentCount)
 	}
-	if sum.ReferencedCount != 2 {
-		t.Errorf("ReferencedCount = %d, wil 2: foto.jpg via de content en uitgelicht.jpg via _thumbnail_id", sum.ReferencedCount)
+	if sum.ReferencedCount != 3 {
+		t.Errorf("ReferencedCount = %d, wil 3: via content, via _thumbnail_id en via de plugin-tabel", sum.ReferencedCount)
 	}
 
 	if g := klasse(sum, domain.MediaClassGenerated); g.Files != 1 || g.Bytes != 200 {
@@ -189,26 +197,31 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 		t.Errorf("categorie B = %+v; wil attachment 3", weg)
 	}
 
+	// Attachment 2 staat alleen in de plugin-tabel; die hoort nu als gebruikt te
+	// gelden, zodat alleen de foto uit 2023 zonder referentie overblijft.
 	ongebruikt := categorie(t, sum, domain.MediaUnreferenced)
-	if ongebruikt.Files != 2 {
-		t.Errorf("categorie C = %+v; wil attachment 2 en 5", ongebruikt)
+	if ongebruikt.Files != 1 || ongebruikt.Samples[0].AttachmentID != 5 {
+		t.Errorf("categorie C = %+v; wil alleen attachment 5", ongebruikt)
+	}
+	if !bevatTabel(sum.Scope.TablesScanned, "wp_wpl_items") {
+		t.Errorf("TablesScanned = %v; wil de plugin-tabel erbij", sum.Scope.TablesScanned)
 	}
 	if ongebruikt.Hard {
 		t.Error("categorie C is een heuristiek en mag nooit als hard feit gelden")
 	}
-	if ongebruikt.Bytes != 1200 {
-		t.Errorf("categorie C bytes = %d, wil 1200 (grootte uit de bestandsdoorloop)", ongebruikt.Bytes)
+	if ongebruikt.Bytes != 700 {
+		t.Errorf("categorie C bytes = %d, wil 700", ongebruikt.Bytes)
 	}
 
 	if len(detail) != 7 {
-		t.Errorf("detailregels = %d, wil 7 (2 in gebruik, 2 zonder referentie, 2 zwervers, 1 ontbrekend)", len(detail))
+		t.Errorf("detailregels = %d, wil 7 (3 in gebruik, 1 zonder referentie, 2 zwervers, 1 ontbrekend)", len(detail))
 	}
 
 	// De gebruikte kant moet er óók staan, met het bewijs erbij: zonder "waar is dit
 	// gevonden" valt een lijst niet na te lopen.
 	inGebruik := categorie(t, sum, domain.MediaInUse)
-	if inGebruik.Files != 2 || len(inGebruik.Samples) != 2 {
-		t.Fatalf("categorie in gebruik = %+v; wil attachment 1 en 4", inGebruik)
+	if inGebruik.Files != 3 || len(inGebruik.Samples) != 3 {
+		t.Fatalf("categorie in gebruik = %+v; wil attachment 1, 2 en 4", inGebruik)
 	}
 	if !inGebruik.Hard {
 		t.Error("een gevonden referentie is positief bewijs en dus een hard feit")
@@ -225,6 +238,9 @@ func TestMediaScanPHPTegenStubWordpress(t *testing.T) {
 	}
 	if bewijzen[4] != "meta" {
 		t.Errorf("attachment 4 bewijs = %q, wil meta (_thumbnail_id)", bewijzen[4])
+	}
+	if bewijzen[2] != "extra_table" {
+		t.Errorf("attachment 2 bewijs = %q, wil extra_table (de plugin-tabel)", bewijzen[2])
 	}
 
 	// En de tellers moeten laten zien dat er werkelijk content is doorzocht.
@@ -341,4 +357,13 @@ func TestMediaScanPHPDatabasefoutIsGeenLegeUitkomst(t *testing.T) {
 	if !strings.Contains(gemeld, "databasefout") {
 		t.Errorf("notities = %q; wil de databasefout benoemd hebben", gemeld)
 	}
+}
+
+func bevatTabel(lijst []string, naam string) bool {
+	for _, t := range lijst {
+		if t == naam {
+			return true
+		}
+	}
+	return false
 }

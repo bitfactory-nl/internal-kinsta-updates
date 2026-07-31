@@ -60,6 +60,14 @@ class RdmFakeWpdb
         return addcslashes($text, '_%\\');
     }
 
+    public function get_col($query)
+    {
+        if (strpos($query, 'SHOW TABLES') !== false) {
+            return array_keys($this->fx['extraTables'] ?? []);
+        }
+        return [];
+    }
+
     public function get_var($query)
     {
         if (strpos($query, 'COUNT(*)') !== false && strpos($query, 'wp_options') !== false) {
@@ -70,6 +78,29 @@ class RdmFakeWpdb
 
     public function get_results($query, $mode = null)
     {
+        if (strpos($query, 'SHOW COLUMNS FROM') !== false) {
+            preg_match('/`([^`]+)`/', $query, $m);
+            $tabel = $m[1] ?? '';
+            $uit   = [['Field' => 'id', 'Type' => 'bigint(20)', 'Key' => 'PRI']];
+            foreach (array_keys(($this->fx['extraTables'][$tabel] ?? [[]])[0] ?? []) as $kolom) {
+                if ($kolom !== 'id') {
+                    $uit[] = ['Field' => $kolom, 'Type' => 'longtext', 'Key' => ''];
+                }
+            }
+            return $uit;
+        }
+        if (preg_match('/FROM `([^`]+)`/', $query, $m) && isset($this->fx['extraTables'][$m[1]])) {
+            $rijen = $this->fx['extraTables'][$m[1]];
+            $na    = $this->getal($query, '/>\s*(\d+)/');
+            $uit   = [];
+            foreach ($rijen as $r) {
+                if ((int) ($r['id'] ?? 0) <= $na) {
+                    continue;
+                }
+                $uit[] = array_merge($r, ['rdm_pk' => $r['id'] ?? 0]);
+            }
+            return $uit;
+        }
         // Een gesimuleerde SQL-fout: lege uitkomst mét last_error, precies zoals
         // wpdb zich gedraagt. Zonder dit valt de stille-nul-bug niet te testen.
         $kapot = $this->fx['sqlError'] ?? '';

@@ -579,9 +579,19 @@ final class RdmMediaScan
             }
         }
 
+        // Twee patronen: een pad achter "uploads/" (gewone URL's) én een los
+        // jaar/maand-pad zoals plugins dat bewaren ("2020/04/foto.jpg"). Zonder dat
+        // tweede patroon mist elke plugin die relatieve paden opslaat.
+        $paden = [];
         if (strpos($tekst, 'uploads/') !== false &&
             preg_match_all('#uploads/([A-Za-z0-9._/\-@%]+\.[A-Za-z0-9]{2,5})#', $tekst, $mp)) {
-            foreach ($mp[1] as $rel) {
+            $paden = $mp[1];
+        }
+        if (preg_match_all('#\b((?:19|20)\d{2}/\d{2}/[A-Za-z0-9._\-@%]+\.[A-Za-z0-9]{2,5})#', $tekst, $mr)) {
+            $paden = array_merge($paden, $mr[1]);
+        }
+        if ($paden) {
+            foreach ($paden as $rel) {
                 $rel = rawurldecode($rel);
                 $k   = self::sleutel($rel);
                 if (isset($this->pathToId[$k])) {
@@ -601,15 +611,34 @@ final class RdmMediaScan
         }
     }
 
-    /** Een waarde die precies een bekende bestandsnaam is, geldt als zwak bewijs. */
+    /**
+     * collectBare zoekt bekende bestandsnamen in een waarde. Dat is zwakker bewijs
+     * dan een pad — een naam kan toeval zijn — dus het krijgt zijn eigen label.
+     * Plugins die alleen de bestandsnaam bewaren zijn er genoeg, en die media
+     * "ongebruikt" noemen is het risico niet waard.
+     */
     private function collectBare($waarde)
     {
-        if (!is_string($waarde) || $waarde === '' || strlen($waarde) > 200 || strpos($waarde, '/') !== false) {
+        if (!is_string($waarde) || $waarde === '' || strlen($waarde) > 200000) {
             return;
         }
-        $k = self::sleutel($waarde);
-        if (isset($this->baseToId[$k])) {
-            $this->refs[$this->baseToId[$k]]['filename_only'] = true;
+        $kandidaten = [];
+        $kort = trim($waarde);
+        if (strpos($kort, '/') === false && strlen($kort) <= 200) {
+            $kandidaten[] = $kort;
+        }
+        // Namen mét extensie uit langere tekst; alleen als er een punt in zit, zodat
+        // gewone woorden niet meedoen.
+        if (preg_match_all('/([A-Za-z0-9][A-Za-z0-9._\-@%]{2,150}\.(?:jpe?g|png|gif|webp|avif|svg|pdf|mp4|mov|tif{1,2}|zip|docx?|xlsx?|pptx?))/i', $waarde, $m)) {
+            foreach ($m[1] as $naam) {
+                $kandidaten[] = basename($naam);
+            }
+        }
+        foreach (array_unique($kandidaten) as $naam) {
+            $k = self::sleutel($naam);
+            if (isset($this->baseToId[$k])) {
+                $this->refs[$this->baseToId[$k]]['filename_only'] = true;
+            }
         }
     }
 
@@ -670,6 +699,7 @@ final class RdmMediaScan
             $this->scanOptions();
             $this->scanTermAndUserMeta();
             $this->scanThemeCode();
+            $this->scanExtraTables();
             $this->refScanComplete = !$this->overBudget();
             if (!$this->refScanComplete) {
                 $this->notes[] = 'tijdsbudget geraakt tijdens het zoeken naar referenties';
@@ -784,6 +814,105 @@ final class RdmMediaScan
                     $this->collectIdMeta((string) $r['meta_key'], $r['meta_value'], $bron);
                 }
             }
+        }
+    }
+
+    /**
+     * scanExtraTables doorzoekt tekstkolommen van niet-core tabellen met dezelfde
+     * prefix. Sliders, formulieren en vastgoedplugins bewaren hun media daar, en dat
+     * is de grootste blinde vlek van elke "ongebruikte media"-analyse: zonder deze
+     * pass lijkt de halve mediabibliotheek van zo'n site ongebruikt.
+     */
+    private function scanExtraTables()
+    {
+        $prefix = (string) $this->db->prefix;
+        if ($prefix === '' || $this->overBudget()) {
+            return;
+        }
+        $core = ['posts', 'postmeta', 'options', 'termmeta', 'usermeta', 'users', 'terms',
+            'term_taxonomy', 'term_relationships', 'comments', 'commentmeta', 'links'];
+        $coreNamen = [];
+        foreach ($core as $c) {
+            $coreNamen[] = $prefix . $c;
+        }
+
+        $tabellen = $this->db->get_col("SHOW TABLES LIKE '" . $this->db->esc_like($prefix) . "%'");
+        foreach ((array) $tabellen as $tabel) {
+            if ($this->overBudget()) {
+                return;
+            }
+            // Namen komen uit de database zelf, maar ze belanden in SQL zonder
+            // placeholder, dus alleen doodgewone identifiers toelaten.
+            if (!is_string($tabel) || !preg_match('/^[A-Za-z0-9_]+$/', $tabel) || in_array($tabel, $coreNamen, true)) {
+                continue;
+            }
+            $this->scanEenExtraTabel($tabel);
+        }
+    }
+
+    private function scanEenExtraTabel($tabel)
+    {
+        $kolommen = $this->db->get_results("SHOW COLUMNS FROM `$tabel`", ARRAY_A);
+        $tekst    = [];
+        $pk       = '';
+        foreach ((array) $kolommen as $k) {
+            $naam = isset($k['Field']) ? (string) $k['Field'] : '';
+            $type = isset($k['Type']) ? strtolower((string) $k['Type']) : '';
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $naam)) {
+                continue;
+            }
+            if (preg_match('/(char|text|blob|json)/', $type)) {
+                $tekst[] = $naam;
+            }
+            if ($pk === '' && isset($k['Key']) && $k['Key'] === 'PRI' && strpos($type, 'int') !== false) {
+                $pk = $naam;
+            }
+        }
+        if (!$tekst) {
+            return;
+        }
+
+        $this->tables[] = $tabel;
+        $kolomLijst = '`' . implode('`,`', $tekst) . '`';
+        $gelezen    = 0;
+        $laatste    = 0;
+
+        while (!$this->overBudget() && $gelezen < 50000) {
+            if ($pk !== '') {
+                $sql = $this->db->prepare(
+                    "SELECT `$pk` AS rdm_pk, $kolomLijst FROM `$tabel` WHERE `$pk` > %d ORDER BY `$pk` ASC LIMIT %d",
+                    $laatste,
+                    self::BATCH_CONTENT
+                );
+            } else {
+                // Zonder numerieke primary key kan er niet gepagineerd worden; dan
+                // één begrensde greep, en dat staat in de notities.
+                $sql = $this->db->prepare("SELECT $kolomLijst FROM `$tabel` LIMIT %d", 5000);
+            }
+            $rijen = $this->haalRijen($sql, 'extra:' . $tabel);
+            if (!$rijen) {
+                return;
+            }
+            foreach ($rijen as $r) {
+                if ($pk !== '' && isset($r['rdm_pk'])) {
+                    $laatste = (int) $r['rdm_pk'];
+                }
+                foreach ($tekst as $kolom) {
+                    if (!isset($r[$kolom])) {
+                        continue;
+                    }
+                    $this->collect($r[$kolom], 'extra_table');
+                    $this->collectBare((string) $r[$kolom]);
+                }
+                $gelezen++;
+            }
+            if ($pk === '') {
+                $this->notes[] = 'tabel ' . $tabel . ' heeft geen numerieke sleutel; maximaal 5000 rijen bekeken';
+                return;
+            }
+        }
+        if ($gelezen >= 50000) {
+            $this->notes[] = 'tabel ' . $tabel . ' is groot; eerste 50.000 rijen bekeken';
         }
     }
 
