@@ -290,12 +290,13 @@ func (s *MediaService) ListScans(projectID string) ([]domain.MediaScanSummary, e
 	return s.store.List(projectID)
 }
 
-// ScanDetail returns a window of one category's rows. The category matters: the
-// stored detail file holds all categories in one stream, so paging without it would
-// hand the caller another category's rows.
-func (s *MediaService) ScanDetail(projectID, scanID string, category domain.MediaCategory, offset, limit int) ([]domain.MediaFileRow, error) {
+// ScanDetail returns a window of the stored rows, narrowed by category and/or folder.
+// Both filters matter for paging: the detail file holds every category and every
+// folder in one stream, so an offset only means something once the filter is applied.
+// An empty category or prefix means "no restriction".
+func (s *MediaService) ScanDetail(projectID, scanID string, category domain.MediaCategory, prefix string, offset, limit int) ([]domain.MediaFileRow, error) {
 	if limit <= 0 || limit > 2000 {
 		limit = 500
 	}
-	return s.store.Detail(projectID, scanID, category, offset, limit)
+	return s.store.Detail(projectID, scanID, category, prefix, offset, limit)
 }

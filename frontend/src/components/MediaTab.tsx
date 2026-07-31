@@ -76,6 +76,12 @@ interface MappenPaneelProps {
   onToggle: (period: string) => void
   onScan: () => void
   bezig: boolean
+  // Voor het uitklappen van een map: de bestanden komen uit de opgeslagen scan.
+  projectId: string
+  scanId: string
+  gekozen: Set<string>
+  onToggleRij: (pad: string) => void
+  onToggleZichtbaar: (paden: string[], aan: boolean) => void
 }
 
 type MapSortering = 'grootte' | 'datum' | 'aantal' | 'gemiddeld'
@@ -137,12 +143,110 @@ function SorteerKnop({ op, actief, omgekeerd, onKies }: {
   )
 }
 
+interface MapInhoudProps {
+  projectId: string
+  scanId: string
+  map: string
+  gekozen: Set<string>
+  onToggleRij: (pad: string) => void
+  onToggleZichtbaar: (paden: string[], aan: boolean) => void
+}
+
+// MapInhoud haalt de bestanden van één map op uit de opgeslagen scan. Alleen wat de
+// scan in een veilige categorie zette is aan te vinken; wat in gebruik is staat er
+// bewust wél bij — je wil kunnen zien waarom een map niet leeg kan.
+function MapInhoud({ projectId, scanId, map, gekozen, onToggleRij, onToggleZichtbaar }: MapInhoudProps) {
+  const [rijen, setRijen] = useState<MediaFileRow[] | null>(null)
+  const [fout, setFout] = useState<string | null>(null)
+  const [meer, setMeer] = useState(false)
+
+  useEffect(() => {
+    let levend = true
+    setRijen(null); setFout(null)
+    Services.MediaService.ScanDetail(projectId, scanId, '' as MediaCategory, map, 0, 500)
+      .then(r => { if (levend) setRijen(r ?? []) })
+      .catch(e => { if (levend) setFout(foutTekst(e)) })
+    return () => { levend = false }
+  }, [projectId, scanId, map])
+
+  if (fout) return <div className="pl-7 py-1.5 text-[11.5px] text-red">{fout}</div>
+  if (rijen === null) return <div className="pl-7 py-1.5 text-[11.5px] text-fg-faint">Bestanden laden…</div>
+  if (!rijen.length) {
+    return (
+      <div className="pl-7 py-1.5 text-[11.5px] text-fg-faint">
+        Geen bevindingen in deze map — alles hier is in gebruik of niet beoordeeld.
+      </div>
+    )
+  }
+
+  const kanWeg = (r: MediaFileRow) =>
+    r.category === MediaCategory.MediaUnreferenced || r.category === MediaCategory.MediaOrphanFile
+  const selecteerbaar = rijen.filter(kanWeg)
+  const zichtbaar = meer ? rijen : rijen.slice(0, 25)
+  const allesAan = selecteerbaar.length > 0 && selecteerbaar.every(r => gekozen.has(r.path))
+
+  return (
+    <div className="pl-7 pr-1 pb-2">
+      <div className="flex items-center gap-2 py-1.5">
+        <span className="text-[11px] text-fg-faint">
+          {rijen.length} bevinding{rijen.length === 1 ? '' : 'en'} · {selecteerbaar.length} kan naar quarantaine
+        </span>
+        {selecteerbaar.length > 0 && (
+          <button onClick={() => onToggleZichtbaar(selecteerbaar.map(r => r.path), !allesAan)}
+            className="text-[11px] text-fg-muted border border-border rounded-lg px-2 py-0.5 hover:bg-hover transition">
+            {allesAan ? 'selectie wissen' : `selecteer ${selecteerbaar.length}`}
+          </button>
+        )}
+      </div>
+
+      <div className="divide-y divide-border/30">
+        {zichtbaar.map((r, i) => {
+          const mag = kanWeg(r)
+          return (
+            <div key={`${r.path}-${i}`} className="flex items-center gap-2 py-1">
+              <input type="checkbox" disabled={!mag} checked={gekozen.has(r.path)}
+                onChange={() => onToggleRij(r.path)}
+                title={mag ? '' : 'deze media wordt gebruikt of het bestand bestaat niet meer'}
+                className="shrink-0 accent-accent disabled:opacity-30" />
+              <span className={`font-mono text-[11px] truncate flex-1 ${mag ? 'text-fg' : 'text-fg-faint'}`}>
+                {r.path.startsWith(map + '/') ? r.path.slice(map.length + 1) : r.path}
+              </span>
+              {(r.evidence ?? []).slice(0, 2).map(e => (
+                <span key={e} className="text-[9px] font-semibold px-1.5 py-px rounded bg-green-soft text-green shrink-0">
+                  {BEWIJS_LABEL[e] ?? e}
+                </span>
+              ))}
+              {!mag && !(r.evidence ?? []).length && (
+                <span className="text-[9px] font-semibold px-1.5 py-px rounded bg-panel-2 text-fg-faint shrink-0">
+                  {r.category === MediaCategory.MediaMissingFile ? 'bestand mist' : 'in gebruik'}
+                </span>
+              )}
+              <span className="font-mono text-[10.5px] text-fg-muted w-[65px] text-right shrink-0">{bytes(r.bytes)}</span>
+              <span className="font-mono text-[10.5px] text-fg-faint w-[85px] text-right shrink-0">{datum(r.modifiedAt)}</span>
+            </div>
+          )
+        })}
+      </div>
+
+      {rijen.length > 25 && (
+        <button onClick={() => setMeer(m => !m)} className="mt-1.5 text-[11px] text-fg-muted hover:text-fg transition">
+          {meer ? 'minder tonen' : `alle ${rijen.length} tonen`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // MappenPaneel laat in pure CSS zien waar de ruimte zit (een chartlibrary zit niet
 // in dit project) en dient tegelijk als selectie: een gerichte scan doorloopt alleen
 // de aangevinkte mappen, wat het duurste onderdeel — de bestandsdoorloop — klein
 // houdt.
-function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: MappenPaneelProps) {
+function MappenPaneel({
+  rijen, herkomst, selectie, onToggle, onScan, bezig,
+  projectId, scanId, gekozen, onToggleRij, onToggleZichtbaar,
+}: MappenPaneelProps) {
   const [alles, setAlles] = useState(false)
+  const [openMap, setOpenMap] = useState<string | null>(null)
   const [sortering, setSortering] = useState<MapSortering>('grootte')
   const [omgekeerd, setOmgekeerd] = useState(false)
 
@@ -185,24 +289,40 @@ function MappenPaneel({ rijen, herkomst, selectie, onToggle, onScan, bezig }: Ma
 
       {zichtbaar.map(r => {
         const aan = selectie.has(r.period)
+        const open = openMap === r.period
         const gem = r.files > 0 ? r.bytes / r.files : 0
         return (
-          <label key={r.period} className="flex items-center gap-2 py-[3px] cursor-pointer hover:bg-hover rounded px-1 -mx-1">
-            <input type="checkbox" checked={aan} onChange={() => onToggle(r.period)} className="shrink-0 accent-accent" />
-            <span className={`font-mono text-[11px] w-[110px] shrink-0 truncate ${aan ? 'text-fg' : 'text-fg-muted'}`}>
-              {r.period === '.' ? '(hoofdmap)' : r.period}
-            </span>
-            <div className="flex-1 h-2 bg-panel-2 rounded-full overflow-hidden">
-              <div className="h-full bg-accent rounded-full" style={{ width: `${max ? (r.bytes / max) * 100 : 0}%` }} />
+          <div key={r.period}>
+            <div className="flex items-center gap-2 py-[3px] hover:bg-hover rounded px-1 -mx-1">
+              {/* Het vinkje kiest de map voor een scan; de naam klapt hem open. Twee
+                  verschillende acties, dus geen label om de hele rij. */}
+              <label className="flex items-center shrink-0 cursor-pointer" title="kies deze map voor een gerichte scan">
+                <input type="checkbox" checked={aan} onChange={() => onToggle(r.period)} className="accent-accent" />
+              </label>
+              <button onClick={() => setOpenMap(open ? null : r.period)}
+                title="bestanden in deze map bekijken en selecteren"
+                className={`font-mono text-[11px] w-[110px] shrink-0 truncate text-left hover:underline ${
+                  open ? 'text-fg font-semibold' : aan ? 'text-fg' : 'text-fg-muted'
+                }`}>
+                <span className="text-fg-faint mr-1">{open ? '▾' : '▸'}</span>
+                {r.period === '.' ? '(hoofdmap)' : r.period}
+              </button>
+              <div className="flex-1 h-2 bg-panel-2 rounded-full overflow-hidden">
+                <div className="h-full bg-accent rounded-full" style={{ width: `${max ? (r.bytes / max) * 100 : 0}%` }} />
+              </div>
+              <span className="font-mono text-[11px] text-fg w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
+              <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
+              <span className={`font-mono text-[10.5px] w-[70px] text-right shrink-0 ${
+                sortering === 'gemiddeld' ? 'text-fg' : 'text-fg-faint'
+              }`} title="gemiddelde grootte per bestand">
+                {bytes(gem)}
+              </span>
             </div>
-            <span className="font-mono text-[11px] text-fg w-[70px] text-right shrink-0">{bytes(r.bytes)}</span>
-            <span className="font-mono text-[10.5px] text-fg-faint w-[60px] text-right shrink-0">{r.files}×</span>
-            <span className={`font-mono text-[10.5px] w-[70px] text-right shrink-0 ${
-              sortering === 'gemiddeld' ? 'text-fg' : 'text-fg-faint'
-            }`} title="gemiddelde grootte per bestand">
-              {bytes(gem)}
-            </span>
-          </label>
+            {open && (
+              <MapInhoud projectId={projectId} scanId={scanId} map={r.period}
+                gekozen={gekozen} onToggleRij={onToggleRij} onToggleZichtbaar={onToggleZichtbaar} />
+            )}
+          </div>
         )
       })}
 
@@ -374,7 +494,7 @@ function CategorieBlok({ projectId, scanId, blok, gekozen, onToggleRij, onToggle
   const meerLaden = async () => {
     setMeerBezig(true)
     try {
-      const volgende = await Services.MediaService.ScanDetail(projectId, scanId, blok.category, rijen.length, 500)
+      const volgende = await Services.MediaService.ScanDetail(projectId, scanId, blok.category, '', rijen.length, 500)
       setRijen(huidig => [...huidig, ...(volgende ?? [])])
     } finally {
       setMeerBezig(false)
@@ -761,6 +881,11 @@ export default function MediaTab({ projectId }: Props) {
                 onToggle={toggleMap}
                 onScan={() => scanNu(Array.from(selectie))}
                 bezig={bezig}
+                projectId={projectId}
+                scanId={scan.id}
+                gekozen={gekozen}
+                onToggleRij={toggleRij}
+                onToggleZichtbaar={toggleZichtbaar}
               />
               <ScopeBlok scan={scan} />
             </div>

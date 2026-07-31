@@ -107,12 +107,13 @@ export function SaveSSHAccess(projectID: string, user: string, path: string, pas
 }
 
 /**
- * ScanDetail returns a window of one category's rows. The category matters: the
- * stored detail file holds all categories in one stream, so paging without it would
- * hand the caller another category's rows.
+ * ScanDetail returns a window of the stored rows, narrowed by category and/or folder.
+ * Both filters matter for paging: the detail file holds every category and every
+ * folder in one stream, so an offset only means something once the filter is applied.
+ * An empty category or prefix means "no restriction".
  */
-export function ScanDetail(projectID: string, scanID: string, category: domain$0.MediaCategory, offset: number, limit: number): $CancellablePromise<domain$0.MediaFileRow[]> {
-    return $Call.ByID(372605205, projectID, scanID, category, offset, limit).then(($result: any) => {
+export function ScanDetail(projectID: string, scanID: string, category: domain$0.MediaCategory, prefix: string, offset: number, limit: number): $CancellablePromise<domain$0.MediaFileRow[]> {
+    return $Call.ByID(372605205, projectID, scanID, category, prefix, offset, limit).then(($result: any) => {
         return $$createType9($result);
     });
 }

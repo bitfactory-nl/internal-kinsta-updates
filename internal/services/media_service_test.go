@@ -182,7 +182,7 @@ func TestMediaScanEnvironmentSlaatOp(t *testing.T) {
 	if err != nil || opgeslagen == nil {
 		t.Fatalf("LatestScan = %v, %v", opgeslagen, err)
 	}
-	rijen, err := svc.ScanDetail("p1", opgeslagen.ID, domain.MediaOrphanFile, 0, 10)
+	rijen, err := svc.ScanDetail("p1", opgeslagen.ID, domain.MediaOrphanFile, "", 0, 10)
 	if err != nil {
 		t.Fatalf("ScanDetail: %v", err)
 	}

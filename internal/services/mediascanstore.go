@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -127,11 +128,11 @@ func (s *MediaScanStore) Latest(projectID string) (*domain.MediaScanSummary, err
 }
 
 // Detail returns a window of a scan's per-file rows, optionally limited to one
-// category. The detail file holds every category in one stream, so filtering has to
-// happen while reading: counting rows of all categories would make the offset of a
-// single category's list meaningless. An offset past the end yields an empty slice
+// category and/or one folder prefix. The detail file holds everything in one stream,
+// so filtering has to happen while reading: counting rows that the caller filters out
+// would make the offset meaningless. An offset past the end yields an empty slice
 // rather than an error, so the UI can page until it runs dry.
-func (s *MediaScanStore) Detail(projectID, scanID string, category domain.MediaCategory, offset, limit int) ([]domain.MediaFileRow, error) {
+func (s *MediaScanStore) Detail(projectID, scanID string, category domain.MediaCategory, prefix string, offset, limit int) ([]domain.MediaFileRow, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
@@ -162,6 +163,9 @@ func (s *MediaScanStore) Detail(projectID, scanID string, category domain.MediaC
 		if category != "" && row.Category != category {
 			continue
 		}
+		if prefix != "" && !hoortBijMap(row.Path, prefix) {
+			continue
+		}
 		gezien++
 		if gezien <= offset {
 			continue
@@ -175,6 +179,15 @@ func (s *MediaScanStore) Detail(projectID, scanID string, category domain.MediaC
 		return nil, fmt.Errorf("lees detailbestand: %w", err)
 	}
 	return rows, nil
+}
+
+// hoortBijMap zegt of een pad in de opgegeven map zit. "." is de hoofdmap van
+// uploads: daar horen alleen bestanden zonder submap in.
+func hoortBijMap(pad, prefix string) bool {
+	if prefix == "." {
+		return !strings.Contains(pad, "/")
+	}
+	return strings.HasPrefix(pad, strings.TrimSuffix(prefix, "/")+"/")
 }
 
 // RowsForCategories streams a scan's detail file and returns the rows of the given

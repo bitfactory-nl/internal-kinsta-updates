@@ -60,7 +60,7 @@ func TestMediaScanStoreDetailPaginering(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	eerste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, 0, 2)
+	eerste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, "", 0, 2)
 	if err != nil {
 		t.Fatalf("Detail: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestMediaScanStoreDetailPaginering(t *testing.T) {
 	}
 
 	// Voorbij het einde vragen levert de rest op, geen fout.
-	laatste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, 3, 10)
+	laatste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, "", 3, 10)
 	if err != nil {
 		t.Fatalf("Detail voorbij einde: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestMediaScanStoreDetailPerCategorie(t *testing.T) {
 
 	// Zonder categoriefilter zou offset 0 van "unreferenced" de eerste zwerver geven;
 	// met filter hoort het de eerste rij van díe categorie te zijn.
-	got, err := store.Detail("p1", "s1", domain.MediaUnreferenced, 0, 1)
+	got, err := store.Detail("p1", "s1", domain.MediaUnreferenced, "", 0, 1)
 	if err != nil {
 		t.Fatalf("Detail: %v", err)
 	}
@@ -146,11 +146,52 @@ func TestMediaScanStoreDetailPerCategorie(t *testing.T) {
 		t.Errorf("eerste rij = %+v, wil c.jpg", got)
 	}
 
-	got, err = store.Detail("p1", "s1", domain.MediaUnreferenced, 1, 5)
+	got, err = store.Detail("p1", "s1", domain.MediaUnreferenced, "", 1, 5)
 	if err != nil {
 		t.Fatalf("Detail met offset: %v", err)
 	}
 	if len(got) != 1 || got[0].Path != "d.jpg" {
 		t.Errorf("tweede pagina = %+v, wil d.jpg", got)
+	}
+}
+
+func TestMediaScanStoreDetailPerMap(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	rijen := []domain.MediaFileRow{
+		{Path: "los.jpg", Category: domain.MediaUnreferenced}, // hoofdmap
+		{Path: "2024/05/a.jpg", Category: domain.MediaUnreferenced},
+		{Path: "2024/05/b.jpg", Category: domain.MediaInUse},
+		{Path: "2024/050/c.jpg", Category: domain.MediaUnreferenced}, // lijkt erop, andere map
+		{Path: "2023/01/d.jpg", Category: domain.MediaUnreferenced},
+	}
+	if err := store.Save(mediaSummary("s1", time.Now()), rijen); err != nil {
+		t.Fatal(err)
+	}
+
+	// Alles in één map, ongeacht categorie.
+	got, err := store.Detail("p1", "s1", "", "2024/05", 0, 50)
+	if err != nil {
+		t.Fatalf("Detail per map: %v", err)
+	}
+	if len(got) != 2 {
+		t.Errorf("map 2024/05 = %+v; wil a.jpg en b.jpg, niet 2024/050", got)
+	}
+
+	// Map én categorie samen.
+	got, err = store.Detail("p1", "s1", domain.MediaUnreferenced, "2024/05", 0, 50)
+	if err != nil {
+		t.Fatalf("Detail per map en categorie: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "2024/05/a.jpg" {
+		t.Errorf("gefilterd = %+v; wil alleen a.jpg", got)
+	}
+
+	// De hoofdmap: alleen bestanden zonder submap.
+	got, err = store.Detail("p1", "s1", "", ".", 0, 50)
+	if err != nil {
+		t.Fatalf("Detail hoofdmap: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "los.jpg" {
+		t.Errorf("hoofdmap = %+v; wil alleen los.jpg", got)
 	}
 }
