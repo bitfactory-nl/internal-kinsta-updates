@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/browser"
@@ -169,4 +170,68 @@ func (s *MediaService) vergeetCrawlCache(scanID string) {
 	s.crawlMu.Lock()
 	delete(s.crawlCache, scanID)
 	s.crawlMu.Unlock()
+}
+
+// MediaCrawlConflict is een bestand waarover de twee methodes het oneens zijn: de
+// databasescan vond geen enkele verwijzing, maar de browser vroeg het wél op. Dat is
+// geen foutmelding maar een controlelijst — elke regel is met één klik na te lopen.
+type MediaCrawlConflict struct {
+	Path         string   `json:"path"`
+	Bytes        int64    `json:"bytes"`
+	ModifiedAt   int64    `json:"modifiedAt"`
+	AttachmentID int      `json:"attachmentId,omitempty"`
+	Title        string   `json:"title,omitempty"`
+	Pages        []string `json:"pages"`
+}
+
+// CrawlConflicts lists the files the scan called unreferenced while the crawl saw
+// them being loaded, largest first. These are the files that would have been moved
+// on the database scan alone, so they deserve to be checked by hand.
+func (s *MediaService) CrawlConflicts(projectID, scanID string, offset, limit int) ([]MediaCrawlConflict, error) {
+	if limit <= 0 || limit > 2000 {
+		limit = 200
+	}
+	crawl, err := s.store.GetCrawl(projectID, scanID)
+	if err != nil || crawl == nil {
+		return nil, err
+	}
+	rijen, err := s.store.RowsForCategories(projectID, scanID, domain.MediaUnreferenced)
+	if err != nil {
+		return nil, err
+	}
+
+	uit := make([]MediaCrawlConflict, 0, len(crawl.Pages))
+	for pad, paginas := range crawl.Pages {
+		rij, ok := rijen[pad]
+		if !ok {
+			continue // de scan noemde dit al in gebruik; geen tegenspraak
+		}
+		uit = append(uit, MediaCrawlConflict{
+			Path:         pad,
+			Bytes:        rij.Bytes,
+			ModifiedAt:   rij.ModifiedAt,
+			AttachmentID: rij.AttachmentID,
+			Title:        rij.Title,
+			Pages:        paginas,
+		})
+	}
+
+	// Grootste eerst: die wegen het zwaarst als je ze ten onrechte zou verplaatsen.
+	// Bij gelijke grootte op pad, zodat de volgorde tussen aanroepen stabiel is en
+	// pagineren betrouwbaar werkt.
+	sort.Slice(uit, func(i, j int) bool {
+		if uit[i].Bytes != uit[j].Bytes {
+			return uit[i].Bytes > uit[j].Bytes
+		}
+		return uit[i].Path < uit[j].Path
+	})
+
+	if offset >= len(uit) {
+		return []MediaCrawlConflict{}, nil
+	}
+	eind := offset + limit
+	if eind > len(uit) {
+		eind = len(uit)
+	}
+	return uit[offset:eind], nil
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
 import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBucket, MediaExtTotals } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
-import type { QuarantineBatch, MediaCrawlResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import type { QuarantineBatch, MediaCrawlResult, MediaCrawlConflict } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import ExternalLink from './ExternalLink'
 
@@ -520,6 +520,71 @@ function CrawlPaneel({ crawl, maxPaginas, onMax, onStart, bezig }: CrawlPaneelPr
   )
 }
 
+interface ConflictPaneelProps {
+  conflicten: MediaCrawlConflict[]
+  uploadsUrl: string
+}
+
+// ConflictPaneel toont waar de twee methodes elkaar tegenspreken: de databasescan
+// vond geen verwijzing, de browser vroeg het bestand tóch op. Dit is de lijst om met
+// de hand na te lopen — zonder de crawl waren dit precies de bestanden die ten
+// onrechte verplaatst zouden zijn.
+function ConflictPaneel({ conflicten, uploadsUrl }: ConflictPaneelProps) {
+  const [alles, setAlles] = useState(false)
+  if (!conflicten.length) return null
+  const zichtbaar = alles ? conflicten : conflicten.slice(0, 20)
+  const totaal = conflicten.reduce((n, c) => n + c.bytes, 0)
+
+  return (
+    <div className="bg-panel border border-amber/40 rounded-xl p-4">
+      <div className="flex items-baseline gap-2 mb-1">
+        <div className="text-[10px] font-semibold tracking-wide text-amber">GEVONDEN OP DE SITE, NIET IN DE DATABASE</div>
+        <div className="text-[10.5px] text-fg-muted">
+          {conflicten.length} bestand{conflicten.length === 1 ? '' : 'en'} · {bytes(totaal)}
+        </div>
+      </div>
+      <p className="text-[11.5px] text-fg-muted mb-2.5 leading-relaxed">
+        Deze media stonden als "geen referentie gevonden", maar een pagina vraagt ze wel op.
+        Ze zijn uitgesloten van quarantaine. Loop ze na via de pagina's hiernaast: zo zie je
+        meteen langs welke weg ze worden ingeladen.
+      </p>
+
+      <div className="divide-y divide-border/40">
+        {zichtbaar.map(c => (
+          <div key={c.path} className="flex items-start gap-2.5 py-2">
+            <div className="w-[52px] h-[40px] shrink-0 rounded border border-border bg-panel-2 overflow-hidden flex items-center justify-center">
+              {uploadsUrl ? (
+                <img src={`${uploadsUrl.replace(/\/$/, '')}/${c.path}`} alt=""
+                  className="max-w-full max-h-full object-contain"
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+              ) : null}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-mono text-[11.5px] text-fg truncate">{c.path}</div>
+              <div className="text-[10.5px] text-fg-faint">
+                {bytes(c.bytes)} · {datum(c.modifiedAt)}{c.attachmentId ? ` · id ${c.attachmentId}` : ''}
+              </div>
+            </div>
+            <div className="min-w-0 w-[46%] text-[11px]">
+              {(c.pages ?? []).map(p => (
+                <div key={p} className="truncate">
+                  <ExternalLink href={p} className="text-accent hover:underline">{p}</ExternalLink>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {conflicten.length > 20 && (
+        <button onClick={() => setAlles(a => !a)} className="mt-2 text-[11.5px] text-fg-muted hover:text-fg transition">
+          {alles ? 'minder tonen' : `alle ${conflicten.length} tonen`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 interface QuarantainePaneelProps {
   batches: QuarantineBatch[] | null
   bezig: boolean
@@ -735,6 +800,7 @@ export default function MediaTab({ projectId }: Props) {
   const [qMelding, setQMelding] = useState<string | null>(null)
   const [crawl, setCrawl] = useState<MediaCrawlResult | null>(null)
   const [maxPaginas, setMaxPaginas] = useState(60)
+  const [conflicten, setConflicten] = useState<MediaCrawlConflict[]>([])
   const [bezig, setBezig] = useState(false)
   const [probeTekst, setProbeTekst] = useState<string | null>(null)
   const [fout, setFout] = useState<string | null>(null)
@@ -747,7 +813,7 @@ export default function MediaTab({ projectId }: Props) {
       .catch(e => setFout(foutTekst(e)))
 
     setWachtwoord(''); setScans([]); setSelectie(new Set())
-    setGekozen(new Set()); setBatches(null); setQMelding(null); setCrawl(null)
+    setGekozen(new Set()); setBatches(null); setQMelding(null); setCrawl(null); setConflicten([])
     Services.MediaService.GetSSHAccess(projectId)
       .then(a => { setUser(a.user ?? ''); setPad(a.path ?? ''); setHeeftWachtwoord(a.hasPassword) })
       .catch(() => {})
@@ -776,7 +842,7 @@ export default function MediaTab({ projectId }: Props) {
     if (wachtwoord) {
       setHeeftWachtwoord(true)
       setWachtwoord(''); setScans([]); setSelectie(new Set())
-    setGekozen(new Set()); setBatches(null); setQMelding(null); setCrawl(null)
+    setGekozen(new Set()); setBatches(null); setQMelding(null); setCrawl(null); setConflicten([])
     }
   }, [projectId, user, pad, wachtwoord])
 
@@ -815,6 +881,9 @@ export default function MediaTab({ projectId }: Props) {
     Services.MediaService.CrawlSummary(projectId, scan.id)
       .then(c => { if (levend) setCrawl(c ?? null) })
       .catch(() => { if (levend) setCrawl(null) })
+    Services.MediaService.CrawlConflicts(projectId, scan.id, 0, 500)
+      .then(c => { if (levend) setConflicten(c ?? []) })
+      .catch(() => { if (levend) setConflicten([]) })
     return () => { levend = false }
   }, [projectId, scan])
 
@@ -824,6 +893,7 @@ export default function MediaTab({ projectId }: Props) {
     try {
       const res = await Services.MediaService.CrawlSite(projectId, envId, scan.id, maxPaginas)
       setCrawl(res)
+      setConflicten(await Services.MediaService.CrawlConflicts(projectId, scan.id, 0, 500) ?? [])
       setQMelding(
         `${res.pagesVisited} pagina's bezocht · ${res.uploadsSeen} bestanden echt opgevraagd` +
         (res.unreferencedSeen > 0
@@ -1053,6 +1123,7 @@ export default function MediaTab({ projectId }: Props) {
             <div className="flex flex-col gap-2.5">
               <CrawlPaneel crawl={crawl} maxPaginas={maxPaginas} onMax={setMaxPaginas}
                 onStart={doorzoekSite} bezig={qBezig} />
+              <ConflictPaneel conflicten={conflicten} uploadsUrl={scan.scope.uploadsUrl} />
               <QuarantainePaneel batches={batches} bezig={qBezig} onOphalen={haalBatches} onHerstel={herstelBatch} />
               <TypePaneel rijen={scan.byExtension ?? []} totaal={scan.totalBytes} />
               <MappenPaneel

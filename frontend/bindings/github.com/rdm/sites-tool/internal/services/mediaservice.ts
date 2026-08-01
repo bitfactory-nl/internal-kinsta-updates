@@ -21,13 +21,24 @@ import * as domain$0 from "../domain/models.js";
 import * as $models from "./models.js";
 
 /**
+ * CrawlConflicts lists the files the scan called unreferenced while the crawl saw
+ * them being loaded, largest first. These are the files that would have been moved
+ * on the database scan alone, so they deserve to be checked by hand.
+ */
+export function CrawlConflicts(projectID: string, scanID: string, offset: number, limit: number): $CancellablePromise<$models.MediaCrawlConflict[]> {
+    return $Call.ByID(4018054447, projectID, scanID, offset, limit).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * CrawlSite visits the live site and records which uploads the browser really
  * requests. Anything it finds is proof of use, so those files are excluded from
  * quarantine from that moment on — regardless of what the database scan concluded.
  */
 export function CrawlSite(projectID: string, envID: string, scanID: string, maxPages: number): $CancellablePromise<$models.MediaCrawlResult> {
     return $Call.ByID(4001450055, projectID, envID, scanID, maxPages).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType2($result);
     });
 }
 
@@ -37,7 +48,7 @@ export function CrawlSite(projectID: string, envID: string, scanID: string, maxP
  */
 export function CrawlSummary(projectID: string, scanID: string): $CancellablePromise<$models.MediaCrawlResult | null> {
     return $Call.ByID(1003076, projectID, scanID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType3($result);
     });
 }
 
@@ -48,7 +59,7 @@ export function CrawlSummary(projectID: string, scanID: string): $CancellablePro
  */
 export function FileUsage(projectID: string, scanID: string, path: string): $CancellablePromise<string[]> {
     return $Call.ByID(1705440958, projectID, scanID, path).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType4($result);
     });
 }
 
@@ -58,7 +69,7 @@ export function FileUsage(projectID: string, scanID: string, path: string): $Can
  */
 export function GetSSHAccess(projectID: string): $CancellablePromise<$models.SSHAccess> {
     return $Call.ByID(3789049665, projectID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType5($result);
     });
 }
 
@@ -68,7 +79,7 @@ export function GetSSHAccess(projectID: string): $CancellablePromise<$models.SSH
  */
 export function LatestScan(projectID: string): $CancellablePromise<domain$0.MediaScanSummary | null> {
     return $Call.ByID(2408727983, projectID).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
     });
 }
 
@@ -77,7 +88,7 @@ export function LatestScan(projectID: string): $CancellablePromise<domain$0.Medi
  */
 export function ListQuarantine(projectID: string, envID: string): $CancellablePromise<$models.QuarantineBatch[]> {
     return $Call.ByID(1492208993, projectID, envID).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -86,7 +97,7 @@ export function ListQuarantine(projectID: string, envID: string): $CancellablePr
  */
 export function ListScans(projectID: string): $CancellablePromise<domain$0.MediaScanSummary[]> {
     return $Call.ByID(865308785, projectID).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType10($result);
     });
 }
 
@@ -97,7 +108,7 @@ export function ListScans(projectID: string): $CancellablePromise<domain$0.Media
  */
 export function ProbeEnvironment(projectID: string, envID: string): $CancellablePromise<$models.MediaProbe> {
     return $Call.ByID(1194297282, projectID, envID).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -113,7 +124,7 @@ export function ProbeEnvironment(projectID: string, envID: string): $Cancellable
  */
 export function QuarantineFiles(projectID: string, envID: string, scanID: string, paths: string[], minAgeDays: number): $CancellablePromise<$models.QuarantineResult> {
     return $Call.ByID(3473416408, projectID, envID, scanID, paths, minAgeDays).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -123,7 +134,7 @@ export function QuarantineFiles(projectID: string, envID: string, scanID: string
  */
 export function RestoreQuarantine(projectID: string, envID: string, batch: string): $CancellablePromise<$models.QuarantineResult> {
     return $Call.ByID(3271340281, projectID, envID, batch).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType12($result);
     });
 }
 
@@ -146,7 +157,7 @@ export function SaveSSHAccess(projectID: string, user: string, path: string, pas
  */
 export function ScanDetail(projectID: string, scanID: string, category: domain$0.MediaCategory, prefix: string, offset: number, limit: number): $CancellablePromise<domain$0.MediaFileRow[]> {
     return $Call.ByID(372605205, projectID, scanID, category, prefix, offset, limit).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -158,21 +169,23 @@ export function ScanDetail(projectID: string, scanID: string, category: domain$0
  */
 export function ScanEnvironment(projectID: string, envID: string, folders: string[]): $CancellablePromise<domain$0.MediaScanSummary> {
     return $Call.ByID(3796140597, projectID, envID, folders).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType6($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.MediaCrawlResult.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = $models.SSHAccess.createFrom;
-const $$createType4 = domain$0.MediaScanSummary.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.QuarantineBatch.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = $Create.Array($$createType4);
-const $$createType9 = $models.MediaProbe.createFrom;
-const $$createType10 = $models.QuarantineResult.createFrom;
-const $$createType11 = domain$0.MediaFileRow.createFrom;
-const $$createType12 = $Create.Array($$createType11);
+const $$createType0 = $models.MediaCrawlConflict.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = $models.MediaCrawlResult.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $models.SSHAccess.createFrom;
+const $$createType6 = domain$0.MediaScanSummary.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = $models.QuarantineBatch.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = $Create.Array($$createType6);
+const $$createType11 = $models.MediaProbe.createFrom;
+const $$createType12 = $models.QuarantineResult.createFrom;
+const $$createType13 = domain$0.MediaFileRow.createFrom;
+const $$createType14 = $Create.Array($$createType13);

@@ -268,3 +268,61 @@ func TestQuarantaineWeigertWatDeCrawlZag(t *testing.T) {
 		t.Errorf("rij = %+v; wil bewijs 'rendered' bij de regel", rijen)
 	}
 }
+
+func TestCrawlConflictsGeeftBestandMetVindplaatsen(t *testing.T) {
+	svc, _ := newMediaService(t, &fakeSSHRunner{}, t.TempDir())
+	scanMetRijen(t, svc, "s1", nil, []domain.MediaFileRow{
+		{Path: "2020/01/groot.jpg", Bytes: 5000, Category: domain.MediaUnreferenced, AttachmentID: 7, Title: "Groot"},
+		{Path: "2020/01/klein.jpg", Bytes: 100, Category: domain.MediaUnreferenced},
+		{Path: "2020/01/stil.jpg", Bytes: 900, Category: domain.MediaUnreferenced},
+		{Path: "2020/01/bekend.jpg", Bytes: 4000, Category: domain.MediaInUse},
+	})
+	if err := svc.store.SaveCrawl("p1", "s1", MediaCrawlResult{ScanID: "s1", Pages: map[string][]string{
+		"2020/01/groot.jpg":  {"https://klant.nl/over-ons", "https://klant.nl/contact"},
+		"2020/01/klein.jpg":  {"https://klant.nl/"},
+		"2020/01/bekend.jpg": {"https://klant.nl/"}, // scan zei al "in gebruik": geen tegenspraak
+	}}); err != nil {
+		t.Fatal(err)
+	}
+
+	conflicten, err := svc.CrawlConflicts("p1", "s1", 0, 50)
+	if err != nil {
+		t.Fatalf("CrawlConflicts: %v", err)
+	}
+	if len(conflicten) != 2 {
+		t.Fatalf("conflicten = %+v; wil alleen groot.jpg en klein.jpg", conflicten)
+	}
+	// Grootste eerst, want die weegt het zwaarst bij een verkeerde beslissing.
+	if conflicten[0].Path != "2020/01/groot.jpg" || conflicten[1].Path != "2020/01/klein.jpg" {
+		t.Errorf("volgorde = %+v; wil grootste eerst", conflicten)
+	}
+	if len(conflicten[0].Pages) != 2 || conflicten[0].AttachmentID != 7 {
+		t.Errorf("eerste conflict = %+v; wil beide vindplaatsen en het attachment-id", conflicten[0])
+	}
+
+	// stil.jpg is door de crawl niet gezien en hoort dus niet in de lijst.
+	for _, c := range conflicten {
+		if c.Path == "2020/01/stil.jpg" {
+			t.Error("een bestand dat de crawl niet zag hoort geen conflict te zijn")
+		}
+	}
+
+	// Pagineren moet stabiel zijn.
+	tweede, err := svc.CrawlConflicts("p1", "s1", 1, 50)
+	if err != nil || len(tweede) != 1 || tweede[0].Path != "2020/01/klein.jpg" {
+		t.Errorf("tweede pagina = %+v, %v", tweede, err)
+	}
+}
+
+func TestCrawlConflictsZonderCrawl(t *testing.T) {
+	svc, _ := newMediaService(t, &fakeSSHRunner{}, t.TempDir())
+	scanMetRijen(t, svc, "s1", nil, []domain.MediaFileRow{oudeRij("2020/01/oud.jpg", domain.MediaUnreferenced)})
+
+	conflicten, err := svc.CrawlConflicts("p1", "s1", 0, 50)
+	if err != nil {
+		t.Fatalf("zonder crawl mag dit geen fout geven: %v", err)
+	}
+	if len(conflicten) != 0 {
+		t.Errorf("conflicten = %+v, wil leeg", conflicten)
+	}
+}

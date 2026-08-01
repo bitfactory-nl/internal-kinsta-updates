@@ -55,6 +55,7 @@ export {
     InventoryProjectRef,
     MakeResult,
     MakeTarget,
+    MediaCrawlConflict,
     MediaCrawlResult,
     MediaProbe,
     PackageUpdate,

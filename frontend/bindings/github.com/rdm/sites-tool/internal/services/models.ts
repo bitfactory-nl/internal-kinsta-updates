@@ -430,6 +430,50 @@ export class MakeTarget {
 }
 
 /**
+ * MediaCrawlConflict is een bestand waarover de twee methodes het oneens zijn: de
+ * databasescan vond geen enkele verwijzing, maar de browser vroeg het wél op. Dat is
+ * geen foutmelding maar een controlelijst — elke regel is met één klik na te lopen.
+ */
+export class MediaCrawlConflict {
+    "path": string;
+    "bytes": number;
+    "modifiedAt": number;
+    "attachmentId"?: number;
+    "title"?: string;
+    "pages": string[];
+
+    /** Creates a new MediaCrawlConflict instance. */
+    constructor($$source: Partial<MediaCrawlConflict> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("modifiedAt" in $$source)) {
+            this["modifiedAt"] = 0;
+        }
+        if (!("pages" in $$source)) {
+            this["pages"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaCrawlConflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaCrawlConflict {
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pages" in $$parsedSource) {
+            $$parsedSource["pages"] = $$createField5_0($$parsedSource["pages"]);
+        }
+        return new MediaCrawlConflict($$parsedSource as Partial<MediaCrawlConflict>);
+    }
+}
+
+/**
  * MediaCrawlResult is what a rendered crawl established. The counts are the point:
  * they say how much of the "no reference found" list is actually served to visitors,
  * which is the one check a database scan cannot perform.
