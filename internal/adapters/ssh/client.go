@@ -29,6 +29,9 @@ type Target struct {
 	Port         int
 	User         string
 	IdentityFile string // optional; used when the ssh-agent has no usable key
+	// Password is the plaintext secret, resolved from the keychain right before
+	// dialing. It is never stored in a config file and never logged.
+	Password string
 }
 
 func (t Target) addr() string {
@@ -347,9 +350,26 @@ func (c *Client) authMethods(t Target) ([]ssh.AuthMethod, func(), error) {
 		}
 	}
 
+	// Wachtwoord als laatste: een sleutel is sterker, maar een deel van de hosts
+	// (waaronder Kinsta) biedt alleen een wachtwoord aan. Beide varianten worden
+	// aangeboden omdat sommige servers wachtwoorden uitsluitend via
+	// keyboard-interactive accepteren.
+	if t.Password != "" {
+		methods = append(methods, ssh.Password(t.Password))
+		methods = append(methods, ssh.KeyboardInteractive(
+			func(_, _ string, questions []string, _ []bool) ([]string, error) {
+				antwoorden := make([]string, len(questions))
+				for i := range antwoorden {
+					antwoorden[i] = t.Password
+				}
+				return antwoorden, nil
+			},
+		))
+	}
+
 	if len(methods) == 0 {
 		cleanup()
-		return nil, func() {}, errors.New("geen SSH-authenticatie beschikbaar: laad een sleutel in ssh-agent of stel een identity file in")
+		return nil, func() {}, errors.New("geen SSH-authenticatie beschikbaar: laad een sleutel in ssh-agent, stel een identity file in, of bewaar een wachtwoord")
 	}
 	return methods, cleanup, nil
 }

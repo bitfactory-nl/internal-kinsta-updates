@@ -17,6 +17,7 @@ import SshTerminalTab from './SshTerminalTab'
 import UpdatesTab from './UpdatesTab'
 import SecurityTab from './SecurityTab'
 import TestsTab from './TestsTab'
+import MediaTab from './MediaTab'
 import ReportTab from './ReportTab'
 
 export interface ProjectDetailProps {
@@ -24,7 +25,7 @@ export interface ProjectDetailProps {
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'terminal' | 'updates' | 'security' | 'tests' | 'report'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'terminal' | 'updates' | 'security' | 'tests' | 'report'
 
 interface NavItem {
   id: TabId
@@ -134,6 +135,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       items: [
         ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
         ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
+        ...(isKinsta ? [{ id: 'media' as TabId, label: 'Media' }] : []),
         ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
         ...(status?.isRepo ? [{ id: 'security' as TabId, label: 'Security' }] : []),
         ...(status?.isRepo ? [{ id: 'tests' as TabId, label: 'Tests' }] : []),
@@ -252,6 +254,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} />}
           {activeTab === 'security' && <SecurityTab projectId={project.id} />}
           {activeTab === 'tests' && <TestsTab projectId={project.id} />}
+          {activeTab === 'media' && <MediaTab projectId={project.id} />}
           {activeTab === 'report' && <ReportTab projectId={project.id} />}
         </div>
       </div>

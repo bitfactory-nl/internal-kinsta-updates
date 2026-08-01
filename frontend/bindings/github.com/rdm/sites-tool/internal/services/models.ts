@@ -162,6 +162,39 @@ export class CoreUpdateResult {
     }
 }
 
+/**
+ * EnvSSHEndpoint is one environment's SSH endpoint as Kinsta reports it. The API
+ * has no username field, so that has to come from the project's own config.
+ */
+export class EnvSSHEndpoint {
+    "host": string;
+    "port": number;
+    "envName": string;
+
+    /** Creates a new EnvSSHEndpoint instance. */
+    constructor($$source: Partial<EnvSSHEndpoint> = {}) {
+        if (!("host" in $$source)) {
+            this["host"] = "";
+        }
+        if (!("port" in $$source)) {
+            this["port"] = 0;
+        }
+        if (!("envName" in $$source)) {
+            this["envName"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EnvSSHEndpoint instance from a string or object.
+     */
+    static createFrom($$source: any = {}): EnvSSHEndpoint {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EnvSSHEndpoint($$parsedSource as Partial<EnvSSHEndpoint>);
+    }
+}
+
 export class FeedMeta {
     "fetchedAt": time$0.Time;
     "count": number;
@@ -397,6 +430,153 @@ export class MakeTarget {
 }
 
 /**
+ * MediaCrawlConflict is een bestand waarover de twee methodes het oneens zijn: de
+ * databasescan vond geen enkele verwijzing, maar de browser vroeg het wél op. Dat is
+ * geen foutmelding maar een controlelijst — elke regel is met één klik na te lopen.
+ */
+export class MediaCrawlConflict {
+    "path": string;
+    "bytes": number;
+    "modifiedAt": number;
+    "attachmentId"?: number;
+    "title"?: string;
+    "pages": string[];
+
+    /** Creates a new MediaCrawlConflict instance. */
+    constructor($$source: Partial<MediaCrawlConflict> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("modifiedAt" in $$source)) {
+            this["modifiedAt"] = 0;
+        }
+        if (!("pages" in $$source)) {
+            this["pages"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaCrawlConflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaCrawlConflict {
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pages" in $$parsedSource) {
+            $$parsedSource["pages"] = $$createField5_0($$parsedSource["pages"]);
+        }
+        return new MediaCrawlConflict($$parsedSource as Partial<MediaCrawlConflict>);
+    }
+}
+
+/**
+ * MediaCrawlResult is what a rendered crawl established. The counts are the point:
+ * they say how much of the "no reference found" list is actually served to visitors,
+ * which is the one check a database scan cannot perform.
+ */
+export class MediaCrawlResult {
+    "scanId": string;
+    "siteUrl": string;
+    "crawledAt": time$0.Time;
+    "pagesVisited": number;
+    "pagesPlanned": number;
+    "uploadsSeen": number;
+    "unreferencedSeen": number;
+    "errors": string[];
+    "pages"?: { [_ in string]?: string[] };
+
+    /** Creates a new MediaCrawlResult instance. */
+    constructor($$source: Partial<MediaCrawlResult> = {}) {
+        if (!("scanId" in $$source)) {
+            this["scanId"] = "";
+        }
+        if (!("siteUrl" in $$source)) {
+            this["siteUrl"] = "";
+        }
+        if (!("crawledAt" in $$source)) {
+            this["crawledAt"] = null;
+        }
+        if (!("pagesVisited" in $$source)) {
+            this["pagesVisited"] = 0;
+        }
+        if (!("pagesPlanned" in $$source)) {
+            this["pagesPlanned"] = 0;
+        }
+        if (!("uploadsSeen" in $$source)) {
+            this["uploadsSeen"] = 0;
+        }
+        if (!("unreferencedSeen" in $$source)) {
+            this["unreferencedSeen"] = 0;
+        }
+        if (!("errors" in $$source)) {
+            this["errors"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaCrawlResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaCrawlResult {
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("errors" in $$parsedSource) {
+            $$parsedSource["errors"] = $$createField7_0($$parsedSource["errors"]);
+        }
+        if ("pages" in $$parsedSource) {
+            $$parsedSource["pages"] = $$createField8_0($$parsedSource["pages"]);
+        }
+        return new MediaCrawlResult($$parsedSource as Partial<MediaCrawlResult>);
+    }
+}
+
+/**
+ * MediaProbe is the outcome of a connection check against one environment.
+ */
+export class MediaProbe {
+    "user": string;
+    "home": string;
+    "webroot": string;
+    "wpCli": string;
+    "uploadsKb": number;
+
+    /** Creates a new MediaProbe instance. */
+    constructor($$source: Partial<MediaProbe> = {}) {
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("home" in $$source)) {
+            this["home"] = "";
+        }
+        if (!("webroot" in $$source)) {
+            this["webroot"] = "";
+        }
+        if (!("wpCli" in $$source)) {
+            this["wpCli"] = "";
+        }
+        if (!("uploadsKb" in $$source)) {
+            this["uploadsKb"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaProbe instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaProbe {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaProbe($$parsedSource as Partial<MediaProbe>);
+    }
+}
+
+/**
  * PackageUpdate is a single package version change (or availability).
  */
 export class PackageUpdate {
@@ -534,7 +714,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType4;
+        const $$createField5_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -579,7 +759,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType6;
+        const $$createField3_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -634,6 +814,196 @@ export class ProjectWorkflow {
     static createFrom($$source: any = {}): ProjectWorkflow {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ProjectWorkflow($$parsedSource as Partial<ProjectWorkflow>);
+    }
+}
+
+/**
+ * QuarantineBatch is one set of moved files, as recorded on the server.
+ */
+export class QuarantineBatch {
+    "batch": string;
+    "created": string;
+    "files": number;
+    "bytes": number;
+
+    /** Creates a new QuarantineBatch instance. */
+    constructor($$source: Partial<QuarantineBatch> = {}) {
+        if (!("batch" in $$source)) {
+            this["batch"] = "";
+        }
+        if (!("created" in $$source)) {
+            this["created"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineBatch instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineBatch {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QuarantineBatch($$parsedSource as Partial<QuarantineBatch>);
+    }
+}
+
+/**
+ * QuarantineEntry is one moved file.
+ */
+export class QuarantineEntry {
+    "original": string;
+    "stored": string;
+    "bytes": number;
+
+    /** Creates a new QuarantineEntry instance. */
+    constructor($$source: Partial<QuarantineEntry> = {}) {
+        if (!("original" in $$source)) {
+            this["original"] = "";
+        }
+        if (!("stored" in $$source)) {
+            this["stored"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QuarantineEntry($$parsedSource as Partial<QuarantineEntry>);
+    }
+}
+
+/**
+ * QuarantineResult is the outcome of a move or restore.
+ */
+export class QuarantineResult {
+    "batch": string;
+    "moved": QuarantineEntry[];
+    "skipped": QuarantineSkip[];
+    "bytes": number;
+    "quarantineDir": string;
+    "batches": QuarantineBatch[];
+    "error": string;
+
+    /** Creates a new QuarantineResult instance. */
+    constructor($$source: Partial<QuarantineResult> = {}) {
+        if (!("batch" in $$source)) {
+            this["batch"] = "";
+        }
+        if (!("moved" in $$source)) {
+            this["moved"] = [];
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = [];
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("quarantineDir" in $$source)) {
+            this["quarantineDir"] = "";
+        }
+        if (!("batches" in $$source)) {
+            this["batches"] = [];
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineResult {
+        const $$createField1_0 = $$createType9;
+        const $$createField2_0 = $$createType11;
+        const $$createField5_0 = $$createType13;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("moved" in $$parsedSource) {
+            $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
+        }
+        if ("skipped" in $$parsedSource) {
+            $$parsedSource["skipped"] = $$createField2_0($$parsedSource["skipped"]);
+        }
+        if ("batches" in $$parsedSource) {
+            $$parsedSource["batches"] = $$createField5_0($$parsedSource["batches"]);
+        }
+        return new QuarantineResult($$parsedSource as Partial<QuarantineResult>);
+    }
+}
+
+/**
+ * QuarantineSkip is one file that was left alone, with the reason.
+ */
+export class QuarantineSkip {
+    "path": string;
+    "reason": string;
+
+    /** Creates a new QuarantineSkip instance. */
+    constructor($$source: Partial<QuarantineSkip> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("reason" in $$source)) {
+            this["reason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QuarantineSkip instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QuarantineSkip {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new QuarantineSkip($$parsedSource as Partial<QuarantineSkip>);
+    }
+}
+
+/**
+ * SSHAccess is what a project knows about reaching its own server. Kinsta's API
+ * supplies none of this, so it is entered once and then remembered. The password
+ * itself never leaves the keychain — only whether there is one.
+ */
+export class SSHAccess {
+    "user": string;
+    "path": string;
+    "hasPassword": boolean;
+
+    /** Creates a new SSHAccess instance. */
+    constructor($$source: Partial<SSHAccess> = {}) {
+        if (!("user" in $$source)) {
+            this["user"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("hasPassword" in $$source)) {
+            this["hasPassword"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SSHAccess instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SSHAccess {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SSHAccess($$parsedSource as Partial<SSHAccess>);
     }
 }
 
@@ -767,12 +1137,44 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType8;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
         }
         return new SecurityScanResult($$parsedSource as Partial<SecurityScanResult>);
+    }
+}
+
+/**
+ * SiteLinkConflict reports a Kinsta site that is linked to more than one project.
+ */
+export class SiteLinkConflict {
+    "siteId": string;
+    "projects": string[];
+
+    /** Creates a new SiteLinkConflict instance. */
+    constructor($$source: Partial<SiteLinkConflict> = {}) {
+        if (!("siteId" in $$source)) {
+            this["siteId"] = "";
+        }
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SiteLinkConflict instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SiteLinkConflict {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
+        }
+        return new SiteLinkConflict($$parsedSource as Partial<SiteLinkConflict>);
     }
 }
 
@@ -868,11 +1270,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType12;
-        const $$createField4_0 = $$createType12;
-        const $$createField5_0 = $$createType12;
-        const $$createField6_0 = $$createType12;
+        const $$createField2_0 = $$createType17;
+        const $$createField3_0 = $$createType19;
+        const $$createField4_0 = $$createType19;
+        const $$createField5_0 = $$createType19;
+        const $$createField6_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -1099,13 +1501,20 @@ export class WordfenceVulnFinding {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = InventoryProjectRef.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = PluginUpdateResult.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = WordfenceVulnFinding.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = SecurityFinding.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = WPCoreUpdate.createFrom;
-const $$createType10 = $Create.Array($$createType9);
-const $$createType11 = PackageUpdate.createFrom;
-const $$createType12 = $Create.Array($$createType11);
+const $$createType3 = $Create.Map($Create.Any, $$createType0);
+const $$createType4 = PluginUpdateResult.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = WordfenceVulnFinding.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = QuarantineEntry.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = QuarantineSkip.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = QuarantineBatch.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = SecurityFinding.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = WPCoreUpdate.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = PackageUpdate.createFrom;
+const $$createType19 = $Create.Array($$createType18);

@@ -1,0 +1,210 @@
+<?php
+/**
+ * Stub-WordPress zodat media_scan.php lokaal getest kan worden, zonder site en
+ * zonder database. De fixture komt als JSON binnen via RDM_TEST_FIXTURE; de
+ * uploads-map is een echte tijdelijke map die de Go-test aanmaakt.
+ *
+ * Alleen voor tests: dit bestand hoort niet op een server.
+ */
+
+$fixturePad = getenv('RDM_TEST_FIXTURE');
+if (!$fixturePad || !is_file($fixturePad)) {
+    fwrite(STDERR, "RDM_TEST_FIXTURE ontbreekt\n");
+    exit(1);
+}
+$fixture = json_decode(file_get_contents($fixturePad), true);
+
+define('ABSPATH', $fixture['content'] . '/');
+define('WP_CONTENT_DIR', $fixture['content']);
+define('ARRAY_A', 'ARRAY_A');
+define('OBJECT', 'OBJECT');
+
+function wp_get_upload_dir()
+{
+    global $fixture;
+    return ['basedir' => $fixture['uploads'], 'baseurl' => 'https://voorbeeld.test/wp-content/uploads'];
+}
+
+function is_multisite()
+{
+    return false;
+}
+
+/** Fake $wpdb die de queries van het scanscript herkent op kenmerkende tekst. */
+class RdmFakeWpdb
+{
+    public $posts    = 'wp_posts';
+    public $postmeta = 'wp_postmeta';
+    public $options  = 'wp_options';
+    public $termmeta = 'wp_termmeta';
+    public $usermeta = 'wp_usermeta';
+    public $prefix   = 'wp_';
+    /** Zoals de echte wpdb: laatste SQL-fout, leeg als het goed ging. */
+    public $last_error = '';
+
+    private $fx;
+
+    public function __construct(array $fx)
+    {
+        $this->fx = $fx;
+    }
+
+    public function prepare($query, ...$args)
+    {
+        // wpdb zet zelf quotes om %s heen; vsprintf doet dat niet.
+        return vsprintf(str_replace('%s', "'%s'", $query), $args);
+    }
+
+    public function esc_like($text)
+    {
+        return addcslashes($text, '_%\\');
+    }
+
+    public function get_col($query)
+    {
+        if (strpos($query, 'SHOW TABLES') !== false) {
+            return array_keys($this->fx['extraTables'] ?? []);
+        }
+        return [];
+    }
+
+    public function get_var($query)
+    {
+        if (strpos($query, 'COUNT(*)') !== false && strpos($query, 'wp_options') !== false) {
+            return (string) ($this->fx['offload'] ?? 0);
+        }
+        return '0';
+    }
+
+    public function get_results($query, $mode = null)
+    {
+        if (strpos($query, 'SHOW COLUMNS FROM') !== false) {
+            preg_match('/`([^`]+)`/', $query, $m);
+            $tabel = $m[1] ?? '';
+            $uit   = [['Field' => 'id', 'Type' => 'bigint(20)', 'Key' => 'PRI']];
+            foreach (array_keys(($this->fx['extraTables'][$tabel] ?? [[]])[0] ?? []) as $kolom) {
+                if ($kolom !== 'id') {
+                    $uit[] = ['Field' => $kolom, 'Type' => 'longtext', 'Key' => ''];
+                }
+            }
+            return $uit;
+        }
+        if (preg_match('/FROM `([^`]+)`/', $query, $m) && isset($this->fx['extraTables'][$m[1]])) {
+            $rijen = $this->fx['extraTables'][$m[1]];
+            $na    = $this->getal($query, '/>\s*(\d+)/');
+            $uit   = [];
+            foreach ($rijen as $r) {
+                if ((int) ($r['id'] ?? 0) <= $na) {
+                    continue;
+                }
+                $uit[] = array_merge($r, ['rdm_pk' => $r['id'] ?? 0]);
+            }
+            return $uit;
+        }
+        // Een gesimuleerde SQL-fout: lege uitkomst mét last_error, precies zoals
+        // wpdb zich gedraagt. Zonder dit valt de stille-nul-bug niet te testen.
+        $kapot = $this->fx['sqlError'] ?? '';
+        if ($kapot !== '' && strpos($query, $kapot) !== false) {
+            $this->last_error = 'Table is full';
+            return [];
+        }
+        list($rows, $pk) = $this->bron($query);
+        $rows  = $this->mapFilter($query, $rows);
+        $na    = $this->getal($query, '/>\s*(\d+)/');
+        $limit = $this->getal($query, '/LIMIT\s+(\d+)/') ?: 1000;
+
+        $out = [];
+        foreach ($rows as $r) {
+            if ($pk !== null && (int) $r[$pk] <= $na) {
+                continue;
+            }
+            $out[] = $r;
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * mapFilter bootst de LIKE-filter na waarmee een gerichte scan de index beperkt.
+     * Zonder dit zou een test over mapselectie niets bewijzen: de fake zou gewoon
+     * alle rijen teruggeven.
+     */
+    private function mapFilter($query, $rows)
+    {
+        $heeftLike = strpos($query, 'meta_value LIKE') !== false;
+        $heeftRoot = strpos($query, "meta_value NOT LIKE '%/%'") !== false;
+        if (!$heeftLike && !$heeftRoot) {
+            return $rows;
+        }
+        preg_match_all("/meta_value LIKE '([^']*)%'/", $query, $m);
+        $prefixen = array_map('stripcslashes', $m[1]);
+
+        $uit = [];
+        foreach ($rows as $r) {
+            $bestand = (string) ($r['file'] ?? '');
+            if ($heeftRoot && strpos($bestand, '/') === false) {
+                $uit[] = $r;
+                continue;
+            }
+            foreach ($prefixen as $p) {
+                if ($p !== '' && strpos($bestand, $p) === 0) {
+                    $uit[] = $r;
+                    break;
+                }
+            }
+        }
+        return $uit;
+    }
+
+    /** Welke fixture-lijst hoort bij deze query, en op welke kolom loopt de cursor? */
+    private function bron($query)
+    {
+        // Let op de volgorde: de gewone postmeta-query noemt óók de meta_keys die
+        // ze uitsluit, dus die moet eerst worden herkend.
+        if (strpos($query, 'meta_key NOT IN') !== false) {
+            return [$this->fx['postmeta'] ?? [], 'meta_id'];
+        }
+        if (strpos($query, "meta_key IN ('_wp_attachment_metadata'") !== false) {
+            return [$this->fx['attachmentMeta'] ?? [], 'meta_id'];
+        }
+        if (strpos($query, '_wp_attached_file') !== false) {
+            return [$this->fx['attachments'] ?? [], 'ID'];
+        }
+        if (strpos($query, "post_type <> 'attachment'") !== false) {
+            return [$this->fx['posts'] ?? [], 'ID'];
+        }
+        if (strpos($query, 'wp_options') !== false) {
+            return [$this->fx['options'] ?? [], 'option_id'];
+        }
+        if (strpos($query, 'wp_termmeta') !== false) {
+            return [$this->fx['termmeta'] ?? [], 'pk'];
+        }
+        if (strpos($query, 'wp_usermeta') !== false) {
+            return [$this->fx['usermeta'] ?? [], 'pk'];
+        }
+        return [[], null];
+    }
+
+    private function getal($query, $patroon)
+    {
+        return preg_match($patroon, $query, $m) ? (int) $m[1] : 0;
+    }
+}
+
+$wpdb = new RdmFakeWpdb($fixture);
+
+// Ruis vóór het resultaat: op een echte site printen WP-CLI en plugins dit ook,
+// en de parser moet er niet op omvallen.
+echo "PHP Warning: testruis op stdout\n";
+
+// BELANGRIJK: includen BINNEN een functie, precies zoals `wp eval-file` doet.
+// Op globaal niveau includen verbergt juist de fout die dit script ooit maakte —
+// top-level variabelen zijn hier lokaal, dus `global $x` levert niets op.
+function rdm_include_zoals_wp_cli($pad)
+{
+    include $pad;
+}
+
+rdm_include_zoals_wp_cli(dirname(__DIR__) . '/media_scan.php');

@@ -903,6 +903,539 @@ export class KinstaProjectCfg {
 }
 
 /**
+ * MediaCategory groups a media finding by what kind of claim it makes. The three
+ * differ fundamentally in how much they can be trusted, so they are never merged
+ * into one "cleanup" list.
+ */
+export enum MediaCategory {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * MediaOrphanFile is a file on disk that the media library does not know.
+     * Hard fact.
+     */
+    MediaOrphanFile = "orphan_file",
+
+    /**
+     * MediaMissingFile is a library entry whose file is gone. Hard fact, unless an
+     * offload plugin moved the file off the server.
+     */
+    MediaMissingFile = "missing_file",
+
+    /**
+     * MediaUnreferenced is a library entry with no reference found anywhere.
+     * Heuristic: absence of evidence, not evidence of absence.
+     */
+    MediaUnreferenced = "unreferenced",
+
+    /**
+     * MediaInUse is a library entry with at least one reference found. Positive
+     * evidence, so a hard fact — and the counterpart the "unused" list needs to be
+     * judged against.
+     */
+    MediaInUse = "in_use",
+};
+
+/**
+ * MediaCategoryResult is the outcome for one category. Samples is capped; the full
+ * list lives in the scan's detail file.
+ */
+export class MediaCategoryResult {
+    "category": MediaCategory;
+    "hard": boolean;
+    "files": number;
+    "bytes": number;
+    "samples": MediaFileRow[];
+    "truncated": boolean;
+
+    /** Creates a new MediaCategoryResult instance. */
+    constructor($$source: Partial<MediaCategoryResult> = {}) {
+        if (!("category" in $$source)) {
+            this["category"] = MediaCategory.$zero;
+        }
+        if (!("hard" in $$source)) {
+            this["hard"] = false;
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("samples" in $$source)) {
+            this["samples"] = [];
+        }
+        if (!("truncated" in $$source)) {
+            this["truncated"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaCategoryResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaCategoryResult {
+        const $$createField4_0 = $$createType17;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("samples" in $$parsedSource) {
+            $$parsedSource["samples"] = $$createField4_0($$parsedSource["samples"]);
+        }
+        return new MediaCategoryResult($$parsedSource as Partial<MediaCategoryResult>);
+    }
+}
+
+/**
+ * MediaClassTotals aggregates one file class.
+ */
+export class MediaClassTotals {
+    "class": MediaFileClass;
+    "files": number;
+    "bytes": number;
+
+    /** Creates a new MediaClassTotals instance. */
+    constructor($$source: Partial<MediaClassTotals> = {}) {
+        if (!("class" in $$source)) {
+            this["class"] = MediaFileClass.$zero;
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaClassTotals instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaClassTotals {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaClassTotals($$parsedSource as Partial<MediaClassTotals>);
+    }
+}
+
+/**
+ * MediaEvidence names a place where a reference to an attachment was found, so the
+ * UI can show why something counts as in use.
+ */
+export enum MediaEvidence {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    EvidenceContent = "content",
+    EvidenceMeta = "meta",
+    EvidenceACF = "acf",
+    EvidenceOptions = "options",
+    EvidenceTermMeta = "termmeta",
+    EvidenceUserMeta = "usermeta",
+    EvidenceThemeCode = "theme",
+
+    /**
+     * EvidenceRendered means a browser actually requested the file while loading a
+     * page — the only evidence that covers sliders, page builders and lazy loading.
+     */
+    EvidenceRendered = "rendered",
+    EvidenceExtraTable = "extra_table",
+
+    /**
+     * alleen in een oude revisie
+     */
+    EvidenceRevisionOnly = "revision_only",
+
+    /**
+     * losse bestandsnaam, zwak bewijs
+     */
+    EvidenceFilenameOnly = "filename_only",
+};
+
+/**
+ * MediaExtTotals aggregates one file extension. Web reports whether a website
+ * normally serves this type at all: anything else points at the media library being
+ * used as file storage rather than as site content.
+ */
+export class MediaExtTotals {
+    "ext": string;
+    "files": number;
+    "bytes": number;
+    "web": boolean;
+
+    /** Creates a new MediaExtTotals instance. */
+    constructor($$source: Partial<MediaExtTotals> = {}) {
+        if (!("ext" in $$source)) {
+            this["ext"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("web" in $$source)) {
+            this["web"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaExtTotals instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaExtTotals {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaExtTotals($$parsedSource as Partial<MediaExtTotals>);
+    }
+}
+
+/**
+ * MediaFileClass says what produced a file, which is what makes a folder size
+ * explainable: generated thumbnails and plugin caches are not media.
+ */
+export enum MediaFileClass {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    MediaClassOriginal = "original",
+
+    /**
+     * -300x200 en soortgelijke formaten
+     */
+    MediaClassGenerated = "generated",
+
+    /**
+     * -scaled naast een bewaard origineel
+     */
+    MediaClassScaled = "scaled",
+
+    /**
+     * .webp/.avif naast een bekend bestand
+     */
+    MediaClassNextGen = "nextgen",
+
+    /**
+     * -e<timestamp> uit de afbeeldingseditor
+     */
+    MediaClassEditorBackup = "editor_backup",
+
+    /**
+     * caches, exports, backup-archieven
+     */
+    MediaClassSystem = "system",
+    MediaClassUnknown = "unknown",
+};
+
+/**
+ * MediaFileRow is one file or attachment in a category listing. Paths are relative
+ * to the uploads directory; ModifiedAt is a unix timestamp because it comes
+ * straight from the server's filesystem.
+ */
+export class MediaFileRow {
+    "path": string;
+    "bytes": number;
+    "modifiedAt": number;
+    "class": MediaFileClass;
+    "category"?: MediaCategory;
+    "attachmentId"?: number;
+    "title"?: string;
+    "mimeType"?: string;
+    "evidence"?: MediaEvidence[];
+
+    /** Creates a new MediaFileRow instance. */
+    constructor($$source: Partial<MediaFileRow> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+        if (!("modifiedAt" in $$source)) {
+            this["modifiedAt"] = 0;
+        }
+        if (!("class" in $$source)) {
+            this["class"] = MediaFileClass.$zero;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaFileRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaFileRow {
+        const $$createField8_0 = $$createType18;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("evidence" in $$parsedSource) {
+            $$parsedSource["evidence"] = $$createField8_0($$parsedSource["evidence"]);
+        }
+        return new MediaFileRow($$parsedSource as Partial<MediaFileRow>);
+    }
+}
+
+/**
+ * MediaPeriodBucket aggregates one uploads subfolder, usually a year/month pair
+ * ("2024/05") or a named bucket for everything outside that layout.
+ */
+export class MediaPeriodBucket {
+    "period": string;
+    "files": number;
+    "bytes": number;
+
+    /** Creates a new MediaPeriodBucket instance. */
+    constructor($$source: Partial<MediaPeriodBucket> = {}) {
+        if (!("period" in $$source)) {
+            this["period"] = "";
+        }
+        if (!("files" in $$source)) {
+            this["files"] = 0;
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaPeriodBucket instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaPeriodBucket {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MediaPeriodBucket($$parsedSource as Partial<MediaPeriodBucket>);
+    }
+}
+
+/**
+ * MediaScanScope records what the scan looked at and what it could not see. It is
+ * shown alongside every result: without it, "no reference found" reads as
+ * "unused", which is exactly the mistake that deletes something in use.
+ */
+export class MediaScanScope {
+    /**
+     * Folders limits a scan to these prefixes inside uploads (empty = everything).
+     * A scoped scan says nothing about the folders it skipped, which is why it is
+     * recorded alongside the numbers rather than inferred from them.
+     */
+    "folders"?: string[];
+    "uploadsPath": string;
+    "uploadsUrl": string;
+    "multisite": boolean;
+    "tablesScanned": string[];
+
+    /**
+     * RowsScanned counts the rows actually examined per source. A reference scan that
+     * looked at almost nothing produces the same "no reference found" as a thorough
+     * one, so the count belongs next to the conclusion.
+     */
+    "rowsScanned"?: { [_ in string]?: number };
+    "themeFilesScanned": number;
+
+    /**
+     * ReferenceScanComplete says whether the search for references finished. Without
+     * it, "no reference found" is not a finding but a gap — and no file may be moved
+     * on that basis.
+     */
+    "referenceScanComplete": boolean;
+    "revisionsAsProof": boolean;
+    "offloadDetected": boolean;
+
+    /**
+     * zonder plugins/thema gebootstrapt
+     */
+    "degraded": boolean;
+
+    /**
+     * eigen tijdsbudget geraakt
+     */
+    "truncated": boolean;
+    "notes"?: string[];
+
+    /** Creates a new MediaScanScope instance. */
+    constructor($$source: Partial<MediaScanScope> = {}) {
+        if (!("uploadsPath" in $$source)) {
+            this["uploadsPath"] = "";
+        }
+        if (!("uploadsUrl" in $$source)) {
+            this["uploadsUrl"] = "";
+        }
+        if (!("multisite" in $$source)) {
+            this["multisite"] = false;
+        }
+        if (!("tablesScanned" in $$source)) {
+            this["tablesScanned"] = [];
+        }
+        if (!("themeFilesScanned" in $$source)) {
+            this["themeFilesScanned"] = 0;
+        }
+        if (!("referenceScanComplete" in $$source)) {
+            this["referenceScanComplete"] = false;
+        }
+        if (!("revisionsAsProof" in $$source)) {
+            this["revisionsAsProof"] = false;
+        }
+        if (!("offloadDetected" in $$source)) {
+            this["offloadDetected"] = false;
+        }
+        if (!("degraded" in $$source)) {
+            this["degraded"] = false;
+        }
+        if (!("truncated" in $$source)) {
+            this["truncated"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaScanScope instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaScanScope {
+        const $$createField0_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        const $$createField5_0 = $$createType19;
+        const $$createField12_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("folders" in $$parsedSource) {
+            $$parsedSource["folders"] = $$createField0_0($$parsedSource["folders"]);
+        }
+        if ("tablesScanned" in $$parsedSource) {
+            $$parsedSource["tablesScanned"] = $$createField4_0($$parsedSource["tablesScanned"]);
+        }
+        if ("rowsScanned" in $$parsedSource) {
+            $$parsedSource["rowsScanned"] = $$createField5_0($$parsedSource["rowsScanned"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField12_0($$parsedSource["notes"]);
+        }
+        return new MediaScanScope($$parsedSource as Partial<MediaScanScope>);
+    }
+}
+
+/**
+ * MediaScanSummary is one completed scan of one environment.
+ */
+export class MediaScanSummary {
+    "id": string;
+    "projectId": string;
+    "projectName": string;
+    "environment": string;
+    "scannedAt": time$0.Time;
+    "durationMs": number;
+    "totalFiles": number;
+    "totalBytes": number;
+
+    /**
+     * uit du, als controle op de som
+     */
+    "diskUsageBytes": number;
+    "attachmentCount": number;
+    "referencedCount": number;
+    "byClass": MediaClassTotals[];
+    "byPeriod": MediaPeriodBucket[];
+    "byExtension": MediaExtTotals[];
+    "largest": MediaFileRow[];
+    "categories": MediaCategoryResult[];
+    "scope": MediaScanScope;
+
+    /** Creates a new MediaScanSummary instance. */
+    constructor($$source: Partial<MediaScanSummary> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("environment" in $$source)) {
+            this["environment"] = "";
+        }
+        if (!("scannedAt" in $$source)) {
+            this["scannedAt"] = null;
+        }
+        if (!("durationMs" in $$source)) {
+            this["durationMs"] = 0;
+        }
+        if (!("totalFiles" in $$source)) {
+            this["totalFiles"] = 0;
+        }
+        if (!("totalBytes" in $$source)) {
+            this["totalBytes"] = 0;
+        }
+        if (!("diskUsageBytes" in $$source)) {
+            this["diskUsageBytes"] = 0;
+        }
+        if (!("attachmentCount" in $$source)) {
+            this["attachmentCount"] = 0;
+        }
+        if (!("referencedCount" in $$source)) {
+            this["referencedCount"] = 0;
+        }
+        if (!("byClass" in $$source)) {
+            this["byClass"] = [];
+        }
+        if (!("byPeriod" in $$source)) {
+            this["byPeriod"] = [];
+        }
+        if (!("byExtension" in $$source)) {
+            this["byExtension"] = [];
+        }
+        if (!("largest" in $$source)) {
+            this["largest"] = [];
+        }
+        if (!("categories" in $$source)) {
+            this["categories"] = [];
+        }
+        if (!("scope" in $$source)) {
+            this["scope"] = (new MediaScanScope());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaScanSummary instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaScanSummary {
+        const $$createField11_0 = $$createType21;
+        const $$createField12_0 = $$createType23;
+        const $$createField13_0 = $$createType25;
+        const $$createField14_0 = $$createType17;
+        const $$createField15_0 = $$createType27;
+        const $$createField16_0 = $$createType28;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("byClass" in $$parsedSource) {
+            $$parsedSource["byClass"] = $$createField11_0($$parsedSource["byClass"]);
+        }
+        if ("byPeriod" in $$parsedSource) {
+            $$parsedSource["byPeriod"] = $$createField12_0($$parsedSource["byPeriod"]);
+        }
+        if ("byExtension" in $$parsedSource) {
+            $$parsedSource["byExtension"] = $$createField13_0($$parsedSource["byExtension"]);
+        }
+        if ("largest" in $$parsedSource) {
+            $$parsedSource["largest"] = $$createField14_0($$parsedSource["largest"]);
+        }
+        if ("categories" in $$parsedSource) {
+            $$parsedSource["categories"] = $$createField15_0($$parsedSource["categories"]);
+        }
+        if ("scope" in $$parsedSource) {
+            $$parsedSource["scope"] = $$createField16_0($$parsedSource["scope"]);
+        }
+        return new MediaScanSummary($$parsedSource as Partial<MediaScanSummary>);
+    }
+}
+
+/**
  * ModelTier is a logical model choice; mapped to a concrete Anthropic model id
  * in the claude adapter (Plan 3).
  */
@@ -1111,9 +1644,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType16;
-        const $$createField5_0 = $$createType17;
-        const $$createField6_0 = $$createType18;
+        const $$createField4_0 = $$createType29;
+        const $$createField5_0 = $$createType30;
+        const $$createField6_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1157,11 +1690,11 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType20;
-        const $$createField4_0 = $$createType22;
-        const $$createField5_0 = $$createType24;
-        const $$createField6_0 = $$createType26;
-        const $$createField7_0 = $$createType28;
+        const $$createField3_0 = $$createType33;
+        const $$createField4_0 = $$createType35;
+        const $$createField5_0 = $$createType37;
+        const $$createField6_0 = $$createType39;
+        const $$createField7_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -1362,12 +1895,12 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType30;
-        const $$createField5_0 = $$createType32;
-        const $$createField6_0 = $$createType34;
-        const $$createField7_0 = $$createType36;
-        const $$createField8_0 = $$createType36;
-        const $$createField9_0 = $$createType38;
+        const $$createField4_0 = $$createType43;
+        const $$createField5_0 = $$createType45;
+        const $$createField6_0 = $$createType47;
+        const $$createField7_0 = $$createType49;
+        const $$createField8_0 = $$createType49;
+        const $$createField9_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("acties" in $$parsedSource) {
             $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
@@ -1580,8 +2113,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType40;
-        const $$createField5_0 = $$createType42;
+        const $$createField4_0 = $$createType53;
+        const $$createField5_0 = $$createType55;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1721,7 +2254,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType44;
+        const $$createField7_0 = $$createType57;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -1753,8 +2286,8 @@ export class TestingCfg {
      */
     static createFrom($$source: any = {}): TestingCfg {
         const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType46;
-        const $$createField2_0 = $$createType48;
+        const $$createField1_0 = $$createType59;
+        const $$createField2_0 = $$createType61;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -1830,7 +2363,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType25;
+        const $$createField1_0 = $$createType38;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -1899,7 +2432,7 @@ export class Vulnerability {
      */
     static createFrom($$source: any = {}): Vulnerability {
         const $$createField7_0 = $$createType0;
-        const $$createField10_0 = $$createType50;
+        const $$createField10_0 = $$createType63;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("researchers" in $$parsedSource) {
             $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
@@ -1928,38 +2461,51 @@ const $$createType12 = GraphEdge.createFrom;
 const $$createType13 = $Create.Array($$createType12);
 const $$createType14 = KinstaEnvBinding.createFrom;
 const $$createType15 = $Create.Map($Create.Any, $$createType14);
-const $$createType16 = ProjectConfig.createFrom;
-const $$createType17 = DeployConf.createFrom;
-const $$createType18 = GitStatus.createFrom;
-const $$createType19 = KinstaProjectCfg.createFrom;
-const $$createType20 = $Create.Nullable($$createType19);
-const $$createType21 = AWSProjectCfg.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = VPSProjectCfg.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = SSHTarget.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = TestingCfg.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = ActieRow.createFrom;
-const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = MonitorRow.createFrom;
-const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = SoftwareRow.createFrom;
-const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = UpdateRow.createFrom;
-const $$createType36 = $Create.Array($$createType35);
-const $$createType37 = AVGRow.createFrom;
-const $$createType38 = $Create.Array($$createType37);
-const $$createType39 = Finding.createFrom;
-const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = Regression.createFrom;
-const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = StepResult.createFrom;
-const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = BasicAuth.createFrom;
-const $$createType46 = $Create.Map($Create.Any, $$createType45);
-const $$createType47 = TestAccount.createFrom;
-const $$createType48 = $Create.Nullable($$createType47);
-const $$createType49 = AffectedSoftware.createFrom;
-const $$createType50 = $Create.Array($$createType49);
+const $$createType16 = MediaFileRow.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $Create.Array($Create.Any);
+const $$createType19 = $Create.Map($Create.Any, $Create.Any);
+const $$createType20 = MediaClassTotals.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = MediaPeriodBucket.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = MediaExtTotals.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = MediaCategoryResult.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = MediaScanScope.createFrom;
+const $$createType29 = ProjectConfig.createFrom;
+const $$createType30 = DeployConf.createFrom;
+const $$createType31 = GitStatus.createFrom;
+const $$createType32 = KinstaProjectCfg.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = AWSProjectCfg.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = VPSProjectCfg.createFrom;
+const $$createType37 = $Create.Nullable($$createType36);
+const $$createType38 = SSHTarget.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = TestingCfg.createFrom;
+const $$createType41 = $Create.Nullable($$createType40);
+const $$createType42 = ActieRow.createFrom;
+const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = MonitorRow.createFrom;
+const $$createType45 = $Create.Array($$createType44);
+const $$createType46 = SoftwareRow.createFrom;
+const $$createType47 = $Create.Array($$createType46);
+const $$createType48 = UpdateRow.createFrom;
+const $$createType49 = $Create.Array($$createType48);
+const $$createType50 = AVGRow.createFrom;
+const $$createType51 = $Create.Array($$createType50);
+const $$createType52 = Finding.createFrom;
+const $$createType53 = $Create.Array($$createType52);
+const $$createType54 = Regression.createFrom;
+const $$createType55 = $Create.Array($$createType54);
+const $$createType56 = StepResult.createFrom;
+const $$createType57 = $Create.Array($$createType56);
+const $$createType58 = BasicAuth.createFrom;
+const $$createType59 = $Create.Map($Create.Any, $$createType58);
+const $$createType60 = TestAccount.createFrom;
+const $$createType61 = $Create.Nullable($$createType60);
+const $$createType62 = AffectedSoftware.createFrom;
+const $$createType63 = $Create.Array($$createType62);

@@ -9,7 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const keychainPrefix = "keychain:"
+// KeychainPrefix marks a config value as a reference to a keychain entry rather
+// than a literal secret.
+const KeychainPrefix = "keychain:"
 
 func GlobalConfigPath() string {
 	home, _ := os.UserHomeDir()
@@ -50,10 +52,10 @@ func SaveGlobal(g Global) error {
 // For keychain: references it calls the macOS security CLI.
 // For plain strings it returns as-is (dev/test only).
 func ResolveSecret(value string) (string, error) {
-	if !strings.HasPrefix(value, keychainPrefix) {
+	if !strings.HasPrefix(value, KeychainPrefix) {
 		return value, nil
 	}
-	key := strings.TrimPrefix(value, keychainPrefix)
+	key := strings.TrimPrefix(value, KeychainPrefix)
 	return keychainGet(key)
 }
 

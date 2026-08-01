@@ -18,9 +18,9 @@ type DeployLinks struct {
 }
 
 type DeployConf struct {
-	Type  string            `json:"type"`
-	Link  DeployLinks       `json:"link"`
-	Vars  map[string]string `json:"vars,omitempty"`
+	Type string            `json:"type"`
+	Link DeployLinks       `json:"link"`
+	Vars map[string]string `json:"vars,omitempty"`
 }
 
 type Project struct {
@@ -39,6 +39,10 @@ type SSHTarget struct {
 	Port int    `json:"port" yaml:"port"`
 	User string `json:"user" yaml:"user"`
 	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+	// Password holds a keychain reference ("keychain:<account>"), never the secret
+	// itself: .rdm.yml lives in the customer's git repo. It is kept out of JSON so
+	// it cannot leak to the frontend either.
+	Password string `json:"-" yaml:"password,omitempty"`
 }
 
 type KinstaProjectCfg struct {

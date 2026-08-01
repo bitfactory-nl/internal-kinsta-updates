@@ -1,0 +1,197 @@
+package services
+
+import (
+	"fmt"
+	"testing"
+	"time"
+
+	"github.com/rdm/sites-tool/internal/domain"
+)
+
+func mediaSummary(id string, at time.Time) domain.MediaScanSummary {
+	return domain.MediaScanSummary{
+		ID:          id,
+		ProjectID:   "p1",
+		ProjectName: "web-vanluykennl",
+		Environment: "live",
+		ScannedAt:   at,
+		TotalFiles:  3,
+		TotalBytes:  1024,
+		Scope:       domain.MediaScanScope{UploadsPath: "/www/site/public/wp-content/uploads"},
+	}
+}
+
+func mediaRows(n int) []domain.MediaFileRow {
+	rows := make([]domain.MediaFileRow, 0, n)
+	for i := 0; i < n; i++ {
+		rows = append(rows, domain.MediaFileRow{
+			Path:     fmt.Sprintf("2024/05/foto-%d.jpg", i),
+			Bytes:    int64(100 + i),
+			Class:    domain.MediaClassOriginal,
+			Category: domain.MediaUnreferenced,
+		})
+	}
+	return rows
+}
+
+func TestMediaScanStoreRoundTrip(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	at := time.Date(2026, 7, 29, 14, 2, 0, 0, time.UTC)
+
+	if err := store.Save(mediaSummary("20260729-140200", at), mediaRows(5)); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	got, err := store.Get("p1", "20260729-140200")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.ProjectName != "web-vanluykennl" || got.TotalBytes != 1024 {
+		t.Errorf("samenvatting niet rond: %+v", got)
+	}
+	if !got.ScannedAt.Equal(at) {
+		t.Errorf("ScannedAt = %v, wil %v", got.ScannedAt, at)
+	}
+}
+
+func TestMediaScanStoreDetailPaginering(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	if err := store.Save(mediaSummary("s1", time.Now()), mediaRows(5)); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	eerste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, "", 0, 2)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(eerste) != 2 || eerste[0].Path != "2024/05/foto-0.jpg" {
+		t.Errorf("eerste pagina = %+v", eerste)
+	}
+
+	// Voorbij het einde vragen levert de rest op, geen fout.
+	laatste, err := store.Detail("p1", "s1", domain.MediaUnreferenced, "", 3, 10)
+	if err != nil {
+		t.Fatalf("Detail voorbij einde: %v", err)
+	}
+	if len(laatste) != 2 || laatste[1].Path != "2024/05/foto-4.jpg" {
+		t.Errorf("laatste pagina = %+v", laatste)
+	}
+}
+
+func TestMediaScanStoreListNieuwsteEerst(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	oud := time.Date(2026, 7, 1, 9, 0, 0, 0, time.UTC)
+	nieuw := time.Date(2026, 7, 29, 9, 0, 0, 0, time.UTC)
+
+	if err := store.Save(mediaSummary("20260701-090000", oud), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(mediaSummary("20260729-090000", nieuw), nil); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err := store.List("p1")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 2 || !list[0].ScannedAt.Equal(nieuw) {
+		t.Fatalf("wil nieuwste eerst, kreeg %+v", list)
+	}
+
+	laatste, err := store.Latest("p1")
+	if err != nil {
+		t.Fatalf("Latest: %v", err)
+	}
+	if laatste == nil || !laatste.ScannedAt.Equal(nieuw) {
+		t.Errorf("Latest = %+v, wil de scan van %v", laatste, nieuw)
+	}
+}
+
+func TestMediaScanStoreZonderScans(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+
+	list, err := store.List("onbekend")
+	if err != nil || len(list) != 0 {
+		t.Errorf("List zonder scans = %v, %v; wil leeg en geen fout", list, err)
+	}
+
+	laatste, err := store.Latest("onbekend")
+	if err != nil {
+		t.Errorf("Latest zonder scans mag geen fout geven: %v", err)
+	}
+	if laatste != nil {
+		t.Errorf("Latest = %+v, wil nil", laatste)
+	}
+}
+
+func TestMediaScanStoreDetailPerCategorie(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	rijen := []domain.MediaFileRow{
+		{Path: "a.jpg", Category: domain.MediaOrphanFile},
+		{Path: "b.jpg", Category: domain.MediaOrphanFile},
+		{Path: "c.jpg", Category: domain.MediaUnreferenced},
+		{Path: "d.jpg", Category: domain.MediaUnreferenced},
+	}
+	if err := store.Save(mediaSummary("s1", time.Now()), rijen); err != nil {
+		t.Fatal(err)
+	}
+
+	// Zonder categoriefilter zou offset 0 van "unreferenced" de eerste zwerver geven;
+	// met filter hoort het de eerste rij van díe categorie te zijn.
+	got, err := store.Detail("p1", "s1", domain.MediaUnreferenced, "", 0, 1)
+	if err != nil {
+		t.Fatalf("Detail: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "c.jpg" {
+		t.Errorf("eerste rij = %+v, wil c.jpg", got)
+	}
+
+	got, err = store.Detail("p1", "s1", domain.MediaUnreferenced, "", 1, 5)
+	if err != nil {
+		t.Fatalf("Detail met offset: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "d.jpg" {
+		t.Errorf("tweede pagina = %+v, wil d.jpg", got)
+	}
+}
+
+func TestMediaScanStoreDetailPerMap(t *testing.T) {
+	store := NewMediaScanStore(t.TempDir())
+	rijen := []domain.MediaFileRow{
+		{Path: "los.jpg", Category: domain.MediaUnreferenced}, // hoofdmap
+		{Path: "2024/05/a.jpg", Category: domain.MediaUnreferenced},
+		{Path: "2024/05/b.jpg", Category: domain.MediaInUse},
+		{Path: "2024/050/c.jpg", Category: domain.MediaUnreferenced}, // lijkt erop, andere map
+		{Path: "2023/01/d.jpg", Category: domain.MediaUnreferenced},
+	}
+	if err := store.Save(mediaSummary("s1", time.Now()), rijen); err != nil {
+		t.Fatal(err)
+	}
+
+	// Alles in één map, ongeacht categorie.
+	got, err := store.Detail("p1", "s1", "", "2024/05", 0, 50)
+	if err != nil {
+		t.Fatalf("Detail per map: %v", err)
+	}
+	if len(got) != 2 {
+		t.Errorf("map 2024/05 = %+v; wil a.jpg en b.jpg, niet 2024/050", got)
+	}
+
+	// Map én categorie samen.
+	got, err = store.Detail("p1", "s1", domain.MediaUnreferenced, "2024/05", 0, 50)
+	if err != nil {
+		t.Fatalf("Detail per map en categorie: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "2024/05/a.jpg" {
+		t.Errorf("gefilterd = %+v; wil alleen a.jpg", got)
+	}
+
+	// De hoofdmap: alleen bestanden zonder submap.
+	got, err = store.Detail("p1", "s1", "", ".", 0, 50)
+	if err != nil {
+		t.Fatalf("Detail hoofdmap: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != "los.jpg" {
+		t.Errorf("hoofdmap = %+v; wil alleen los.jpg", got)
+	}
+}

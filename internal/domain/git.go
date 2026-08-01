@@ -113,13 +113,13 @@ type BlameLine struct {
 }
 
 type ProjectStatusSummary struct {
-	ProjectID   string    `json:"projectId"`
-	DisplayName string    `json:"displayName"`
-	Branch      string    `json:"branch"`
-	Ahead       int       `json:"ahead"`
-	Behind      int       `json:"behind"`
-	Dirty       bool      `json:"dirty"`
-	IsRepo      bool      `json:"isRepo"`
+	ProjectID   string `json:"projectId"`
+	DisplayName string `json:"displayName"`
+	Branch      string `json:"branch"`
+	Ahead       int    `json:"ahead"`
+	Behind      int    `json:"behind"`
+	Dirty       bool   `json:"dirty"`
+	IsRepo      bool   `json:"isRepo"`
 	// DeployType is the `type` from deploy_conf.json (e.g. wordpress_kinsta).
 	DeployType string `json:"deployType"`
 }
