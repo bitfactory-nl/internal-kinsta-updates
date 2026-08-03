@@ -459,6 +459,7 @@ export class LocalPaidPlugin {
     "slug": string;
     "version": string;
     "fileName": string;
+    "isDir": boolean;
     "modifiedAt": number;
     "error"?: string;
 
@@ -472,6 +473,9 @@ export class LocalPaidPlugin {
         }
         if (!("fileName" in $$source)) {
             this["fileName"] = "";
+        }
+        if (!("isDir" in $$source)) {
+            this["isDir"] = false;
         }
         if (!("modifiedAt" in $$source)) {
             this["modifiedAt"] = 0;
@@ -536,6 +540,12 @@ export class LocalPluginRow {
      */
     "projectVersion": string;
     "newer": boolean;
+
+    /**
+     * Error maakt een onbruikbare bron zichtbaar in het paneel zelf; een regel die
+     * stil wegvalt leest als "de tool ziet mijn map niet".
+     */
+    "error"?: string;
 
     /** Creates a new LocalPluginRow instance. */
     constructor($$source: Partial<LocalPluginRow> = {}) {

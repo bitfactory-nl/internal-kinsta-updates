@@ -100,10 +100,15 @@ Doorgaan?`,
       {overzicht === null ? (
         <div className="text-[11.5px] text-fg-faint">Map lezen…</div>
       ) : rijen.length === 0 ? (
-        <div className="text-[11.5px] text-fg-faint">Geen leesbare pluginzips in de ingestelde map.</div>
+        <div className="text-[11.5px] text-fg-faint">Geen plugins gevonden in de ingestelde map (mappen of zips).</div>
       ) : (
         <div className="divide-y divide-border/40">
-          {rijen.map(r => (
+          {rijen.map(r => r.error ? (
+            <div key={r.fileName} className="flex items-center gap-2 py-1 px-1 -mx-1">
+              <span className="font-mono text-[11.5px] text-fg-faint truncate">{r.fileName}</span>
+              <span className="text-[10.5px] text-amber truncate">{r.error}</span>
+            </div>
+          ) : (
             <label key={r.slug} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-hover rounded px-1 -mx-1">
               <input type="checkbox" checked={gekozen.has(r.slug)} onChange={() => toggle(r.slug)}
                 className="shrink-0 accent-accent" />

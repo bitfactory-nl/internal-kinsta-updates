@@ -227,3 +227,100 @@ func TestApplyLocalPluginsOnbekendeSlug(t *testing.T) {
 		t.Errorf("resultaat = %+v", res.Plugins)
 	}
 }
+
+// lokalePluginMap legt een uitgepakte pluginmap neer, zoals de gebruiker ze bewaart.
+func lokalePluginMap(t *testing.T, root, slug, version string) {
+	t.Helper()
+	dir := filepath.Join(root, slug)
+	if err := os.MkdirAll(filepath.Join(dir, "includes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	kop := "<?php\n/**\n * @wordpress-plugin\n * Plugin Name: " + slug + "\n * Version: " + version + "\n */\n"
+	if err := os.WriteFile(filepath.Join(dir, slug+".php"), []byte(kop), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "includes", "extra.php"), []byte("<?php // extra"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// macOS-rommel die niet mee mag naar de klantrepo.
+	if err := os.WriteFile(filepath.Join(dir, ".DS_Store"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListLocalPaidPluginsMetMappen(t *testing.T) {
+	root := t.TempDir()
+	lokalePluginMap(t, root, "advanced-custom-fields-pro", "6.8.6")
+	// Een map zonder header, zoals een half uitgepakte download.
+	if err := os.MkdirAll(filepath.Join(root, "leeg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	svc := &PluginService{cfg: &config.Global{}}
+	svc.cfg.PluginRepo.LocalDir = root
+
+	lijst, err := svc.ListLocalPaidPlugins()
+	if err != nil {
+		t.Fatalf("ListLocalPaidPlugins: %v", err)
+	}
+	if len(lijst) != 2 {
+		t.Fatalf("lijst = %+v, wil de pluginmap en de lege map", lijst)
+	}
+	perNaam := map[string]LocalPaidPlugin{}
+	for _, r := range lijst {
+		perNaam[r.FileName] = r
+	}
+	acf := perNaam["advanced-custom-fields-pro"]
+	if acf.Slug != "advanced-custom-fields-pro" || acf.Version != "6.8.6" || !acf.IsDir {
+		t.Errorf("acf = %+v", acf)
+	}
+	if perNaam["leeg"].Error == "" {
+		t.Error("een map zonder pluginheader hoort een zichtbare fout te zijn")
+	}
+}
+
+func TestApplyLocalPluginsVanuitMap(t *testing.T) {
+	ps, projectID, projectDir := setupApplyTestProject(t, "acf-pro", "6.3.0")
+	root := t.TempDir()
+	lokalePluginMap(t, root, "acf-pro", "6.8.6")
+	svc := lokalePluginService(t, ps, root)
+
+	res, err := svc.ApplyLocalPlugins(projectID, []string{"acf-pro"})
+	if err != nil {
+		t.Fatalf("ApplyLocalPlugins: %v", err)
+	}
+	if len(res.Plugins) != 1 || res.Plugins[0].Status != "updated" || res.Plugins[0].To != "6.8.6" {
+		t.Fatalf("resultaat = %+v", res.Plugins)
+	}
+
+	geplaatst := filepath.Join(projectDir, "public", "wp-content", "plugins", "acf-pro")
+	inhoud, err := os.ReadFile(filepath.Join(geplaatst, "acf-pro.php"))
+	if err != nil || !strings.Contains(string(inhoud), "Version: 6.8.6") {
+		t.Errorf("hoofdbestand niet bijgewerkt: %v %s", err, inhoud)
+	}
+	if _, err := os.Stat(filepath.Join(geplaatst, "includes", "extra.php")); err != nil {
+		t.Error("submap niet meegekopieerd")
+	}
+	if _, err := os.Stat(filepath.Join(geplaatst, ".DS_Store")); !os.IsNotExist(err) {
+		t.Error(".DS_Store is meegekopieerd naar de klantrepo")
+	}
+	if bericht := runGitApply(t, projectDir, "log", "-1", "--format=%s"); !strings.Contains(bericht, "6.8.6") {
+		t.Errorf("commitbericht = %q", bericht)
+	}
+}
+
+func TestLocalPluginDiffToontOnleesbareBron(t *testing.T) {
+	ps, projectID, _ := setupApplyTestProject(t, "acf-pro", "6.3.0")
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "kapotte-map"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	svc := lokalePluginService(t, ps, root)
+
+	overzicht, err := svc.LocalPluginDiff(projectID)
+	if err != nil {
+		t.Fatalf("LocalPluginDiff: %v", err)
+	}
+	if len(overzicht.Rows) != 1 || overzicht.Rows[0].Error == "" || overzicht.Rows[0].FileName != "kapotte-map" {
+		t.Errorf("rows = %+v; een onleesbare bron moet mét reden in het paneel staan", overzicht.Rows)
+	}
+}

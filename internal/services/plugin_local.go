@@ -28,6 +28,7 @@ type LocalPaidPlugin struct {
 	Slug       string `json:"slug"`
 	Version    string `json:"version"`
 	FileName   string `json:"fileName"`
+	IsDir      bool   `json:"isDir"`
 	ModifiedAt int64  `json:"modifiedAt"`
 	Error      string `json:"error,omitempty"`
 }
@@ -39,6 +40,9 @@ type LocalPluginRow struct {
 	FolderVersion  string `json:"folderVersion"`
 	ProjectVersion string `json:"projectVersion"` // leeg = niet in dit project
 	Newer          bool   `json:"newer"`
+	// Error maakt een onbruikbare bron zichtbaar in het paneel zelf; een regel die
+	// stil wegvalt leest als "de tool ziet mijn map niet".
+	Error string `json:"error,omitempty"`
 }
 
 // LocalPluginOverview is wat de Plugins-tab nodig heeft: de rijen plus de branch
@@ -83,26 +87,38 @@ func (s *PluginService) ListLocalPaidPlugins() ([]LocalPaidPlugin, error) {
 
 	var uit []LocalPaidPlugin
 	for _, e := range entries {
-		if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".zip") {
-			continue
+		if strings.HasPrefix(e.Name(), ".") {
+			continue // .DS_Store, .git en soortgenoten
 		}
-		rij := LocalPaidPlugin{FileName: e.Name()}
+		rij := LocalPaidPlugin{FileName: e.Name(), IsDir: e.IsDir()}
 		if info, ierr := e.Info(); ierr == nil {
 			rij.ModifiedAt = info.ModTime().Unix()
 		}
-		data, rerr := os.ReadFile(filepath.Join(dir, e.Name()))
-		if rerr != nil {
-			rij.Error = rerr.Error()
-			uit = append(uit, rij)
-			continue
+		switch {
+		case e.IsDir():
+			// Een uitgepakte pluginmap: de mapnaam is de slug, de versie komt uit
+			// de header van het hoofdbestand — net als bij een zip.
+			versie, perr := leesPluginDirInfo(filepath.Join(dir, e.Name()))
+			if perr != nil {
+				rij.Error = perr.Error()
+			} else {
+				rij.Slug, rij.Version = e.Name(), versie
+			}
+		case strings.EqualFold(filepath.Ext(e.Name()), ".zip"):
+			data, rerr := os.ReadFile(filepath.Join(dir, e.Name()))
+			if rerr != nil {
+				rij.Error = rerr.Error()
+				break
+			}
+			slug, versie, perr := leesPluginZipInfo(data)
+			if perr != nil {
+				rij.Error = perr.Error()
+				break
+			}
+			rij.Slug, rij.Version = slug, versie
+		default:
+			continue // losse bestanden die geen zip zijn horen hier niet bij
 		}
-		slug, versie, perr := leesPluginZipInfo(data)
-		if perr != nil {
-			rij.Error = perr.Error()
-			uit = append(uit, rij)
-			continue
-		}
-		rij.Slug, rij.Version = slug, versie
 		uit = append(uit, rij)
 	}
 	sort.Slice(uit, func(i, j int) bool { return uit[i].FileName < uit[j].FileName })
@@ -129,7 +145,8 @@ func (s *PluginService) LocalPluginDiff(projectID string) (LocalPluginOverview, 
 	pluginsDir := wpplugins.PluginsDir(p.Path)
 	for _, z := range lijst {
 		if z.Error != "" {
-			continue // onleesbare zips staan in ListLocalPaidPlugins, niet in de diff
+			overzicht.Rows = append(overzicht.Rows, LocalPluginRow{FileName: z.FileName, Error: z.Error})
+			continue
 		}
 		rij := LocalPluginRow{
 			Slug:           z.Slug,
@@ -194,16 +211,20 @@ func (s *PluginService) ApplyLocalPlugins(projectID string, slugs []string) (Loc
 		pr.From = currentVersion(pluginsDir, slug)
 		pr.To = z.Version
 
-		data, rerr := os.ReadFile(filepath.Join(dir, z.FileName))
-		if rerr != nil {
-			pr.Status = "error"
-			pr.Error = rerr.Error()
-			res.Plugins = append(res.Plugins, pr)
-			continue
+		var installErr error
+		if z.IsDir {
+			installErr = kopieerMapReplace(filepath.Join(dir, z.FileName), pluginsDir, slug)
+		} else {
+			data, rerr := os.ReadFile(filepath.Join(dir, z.FileName))
+			if rerr != nil {
+				installErr = rerr
+			} else {
+				installErr = extractZipReplace(data, pluginsDir, slug)
+			}
 		}
-		if err := extractZipReplace(data, pluginsDir, slug); err != nil {
+		if installErr != nil {
 			pr.Status = "error"
-			pr.Error = err.Error()
+			pr.Error = installErr.Error()
 			res.Plugins = append(res.Plugins, pr)
 			continue
 		}
@@ -281,4 +302,115 @@ func leesPluginZipInfo(zipData []byte) (slug, version string, err error) {
 		}
 	}
 	return "", "", fmt.Errorf("geen pluginheader (Plugin Name + Version) gevonden in %s/", slug)
+}
+
+// leesPluginDirInfo reads the version from an unpacked plugin folder: the PHP file
+// directly in the folder that carries "Plugin Name:" also carries the version. The
+// folder name is the slug, same convention as a zip's top-level directory.
+func leesPluginDirInfo(dir string) (string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", fmt.Errorf("map lezen: %w", err)
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.EqualFold(filepath.Ext(e.Name()), ".php") {
+			continue
+		}
+		f, oerr := os.Open(filepath.Join(dir, e.Name()))
+		if oerr != nil {
+			continue
+		}
+		kop, _ := io.ReadAll(io.LimitReader(f, 8192))
+		f.Close()
+		if !rePluginName.Match(kop) {
+			continue
+		}
+		if m := rePluginVersion.FindSubmatch(kop); m != nil {
+			return strings.TrimSpace(string(m[1])), nil
+		}
+	}
+	return "", fmt.Errorf("geen pluginheader (Plugin Name + Version) gevonden in %s/", filepath.Base(dir))
+}
+
+// kopieerMapReplace copies an unpacked plugin folder into pluginsDir/<slug> with
+// the same discipline as extractZipReplace: stage the full copy first, only then
+// swap the old folder out. macOS droppings (.DS_Store), VCS folders and symlinks
+// stay behind — those belong to the source machine, not in a customer repo.
+func kopieerMapReplace(srcDir, pluginsDir, slug string) error {
+	src, err := os.Stat(srcDir)
+	if err != nil || !src.IsDir() {
+		return fmt.Errorf("bronmap ontbreekt: %s", srcDir)
+	}
+
+	temp, err := os.MkdirTemp(pluginsDir, "."+slug+".tmp-copy-")
+	if err != nil {
+		return fmt.Errorf("tijdelijke map aanmaken: %w", err)
+	}
+	defer os.RemoveAll(temp)
+	staged := filepath.Join(temp, slug)
+
+	err = filepath.WalkDir(srcDir, func(pad string, d os.DirEntry, werr error) error {
+		if werr != nil {
+			return werr
+		}
+		naam := d.Name()
+		if naam == ".git" || naam == ".svn" || naam == "node_modules" {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if naam == ".DS_Store" {
+			return nil
+		}
+		if d.Type()&os.ModeSymlink != 0 {
+			return nil // symlinks kunnen buiten de bron wijzen; overslaan is veilig
+		}
+		rel, rerr := filepath.Rel(srcDir, pad)
+		if rerr != nil {
+			return rerr
+		}
+		dest := filepath.Join(staged, rel)
+		if d.IsDir() {
+			return os.MkdirAll(dest, 0o755)
+		}
+		return kopieerBestand(pad, dest)
+	})
+	if err != nil {
+		return fmt.Errorf("kopiëren: %w", err)
+	}
+
+	// Zelfde slot als extractZipReplace: pas als de kopie compleet klaarstaat gaat
+	// de oude map weg.
+	target := filepath.Join(pluginsDir, slug)
+	if info, err := os.Stat(staged); err != nil || !info.IsDir() {
+		return fmt.Errorf("kopie is niet compleet klaargezet")
+	}
+	if err := os.RemoveAll(target); err != nil {
+		return fmt.Errorf("oude plugin verwijderen: %w", err)
+	}
+	if err := os.Rename(staged, target); err != nil {
+		return fmt.Errorf("kopie op zijn plek zetten: %w", err)
+	}
+	return nil
+}
+
+func kopieerBestand(src, dest string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
