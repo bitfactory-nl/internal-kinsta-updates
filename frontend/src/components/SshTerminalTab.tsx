@@ -6,6 +6,7 @@ import '@xterm/xterm/css/xterm.css'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { SSHTarget } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import type { Environment } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
+import Foutvak from './Foutvak'
 
 interface Props {
   projectId: string
@@ -214,9 +215,7 @@ export default function SshTerminalTab({ projectId }: Props) {
           )}
         </div>
 
-        {error && (
-          <div className="m-3 bg-red-soft text-red border border-border px-3 py-2 rounded-[9px] text-[12.5px]">{error}</div>
-        )}
+        {error && <Foutvak fout={error} className="m-3 border border-border" />}
 
         {/* Terminal chrome — always dark, regardless of theme */}
         <div className="flex-1 min-h-0 flex flex-col bg-[#0b0c0e]">

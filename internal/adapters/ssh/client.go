@@ -410,8 +410,23 @@ func (c *Client) hostKeyCallback() (ssh.HostKeyCallback, error) {
 			return nil
 		}
 		var keyErr *knownhosts.KeyError
-		if errors.As(err, &keyErr) && len(keyErr.Want) == 0 {
-			return c.appendKnownHost(hostname, remote, key)
+		if errors.As(err, &keyErr) {
+			if len(keyErr.Want) == 0 {
+				return c.appendKnownHost(hostname, remote, key)
+			}
+			// Een echte mismatch. Op Kinsta is dit meestal onschuldig: containers
+			// verhuizen en poorten worden hergebruikt, dus de opgeslagen sleutel kan
+			// van een vorige container of zelfs een andere site zijn. De weigering
+			// blijft — dit is wat een wachtwoord tegen een verkeerde server
+			// beschermt — maar de melding vertelt precies hoe je verder komt.
+			adres := knownhosts.Normalize(hostname)
+			return fmt.Errorf(
+				"de server op %s heeft een andere hostsleutel dan eerder is opgeslagen.\n\n"+
+					"Bij Kinsta gebeurt dit als een container verhuist of een poort wordt hergebruikt. "+
+					"Controleer in MyKinsta dat host en poort nog kloppen, verwijder dan de oude sleutel:\n\n"+
+					"  ssh-keygen -R %q -f %q\n\n"+
+					"en probeer opnieuw; de nieuwe sleutel wordt dan vastgelegd.",
+				adres, adres, c.knownHostsPath)
 		}
 		return err
 	}, nil

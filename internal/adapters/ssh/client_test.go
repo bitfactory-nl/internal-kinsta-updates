@@ -309,8 +309,14 @@ func TestHostKeyMismatchRejected(t *testing.T) {
 		t.Fatalf("seed known_hosts: %v", err)
 	}
 
-	if _, err := c.RunCommand(context.Background(), tgt, "echo"); err == nil {
+	_, err := c.RunCommand(context.Background(), tgt, "echo")
+	if err == nil {
 		t.Fatal("expected host key mismatch to be rejected")
+	}
+	// De weigering moet uitleggen wat er speelt en letterlijk vertellen hoe je de
+	// oude sleutel opruimt — "key mismatch" alleen stuurt niemand de goede kant op.
+	if !strings.Contains(err.Error(), "ssh-keygen -R") || !strings.Contains(err.Error(), "andere hostsleutel") {
+		t.Errorf("melding = %v; wil uitleg met het ssh-keygen -R commando", err)
 	}
 }
 
