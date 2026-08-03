@@ -3,8 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
@@ -22,10 +20,7 @@ const crawlPageTimeoutMs = 20000
 
 // CrawlScriptPath returns the crawl sidecar path, overridable via RDM_CRAWL.
 func CrawlScriptPath() string {
-	if p := os.Getenv("RDM_CRAWL"); p != "" {
-		return p
-	}
-	return filepath.Join("sidecar", "crawl.mjs")
+	return vindSidecar("crawl.mjs", "RDM_CRAWL")
 }
 
 // siteCrawler is the subset of *browser.Crawler MediaService needs (test seam).

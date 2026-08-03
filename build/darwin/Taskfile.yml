@@ -148,7 +148,30 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      - task: bundle:sidecar
+        vars:
+          APP_DIR: '{{.BIN_DIR}}/{{.APP_NAME}}.app'
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
+
+  bundle:sidecar:
+    summary: Copies the Playwright sidecar into the app bundle
+    internal: true
+    desc: |
+      Zonder deze stap zit er geen runner.mjs, pdf.mjs of crawl.mjs in de .app, en
+      falen de PDF-export, de tests en de mediacrawl met "Cannot find module".
+      De scripts komen in Contents/Resources/sidecar, waar de tool ze als eerste zoekt.
+      Dit moet vóór het codesignen gebeuren, anders klopt de signatuur niet meer.
+    cmds:
+      - mkdir -p "{{.APP_DIR}}/Contents/Resources/sidecar"
+      - cp sidecar/*.mjs sidecar/package.json "{{.APP_DIR}}/Contents/Resources/sidecar/"
+      - |
+        if [ -d sidecar/node_modules ]; then
+          cp -R sidecar/node_modules "{{.APP_DIR}}/Contents/Resources/sidecar/"
+        else
+          echo "LET OP: sidecar/node_modules ontbreekt. Draai eerst (cd sidecar && npm install),"
+          echo "anders werken de PDF-export, de tests en de mediacrawl niet in deze build."
+          exit 1
+        fi
 
   codesign:adhoc:
     summary: Ad-hoc signs the app bundle (macOS only)
@@ -173,6 +196,9 @@ tasks:
         fi
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - task: bundle:sidecar
+        vars:
+          APP_DIR: '{{.BIN_DIR}}/{{.APP_NAME}}.dev.app'
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
