@@ -38,7 +38,7 @@ func (r *PDFRunner) script() string {
 }
 
 func NewPDFRunner(scriptPath string) *PDFRunner {
-	return &PDFRunner{Bin: "node", Args: []string{scriptPath}}
+	return &PDFRunner{Bin: NodeBin(), Args: []string{scriptPath}}
 }
 
 // RenderPDF sends {html, path} to the sidecar on stdin and expects
@@ -64,7 +64,10 @@ func (r *PDFRunner) RenderPDF(ctx context.Context, html, outPath string) error {
 		return fmt.Errorf("parse pdf sidecar response: %w", err)
 	}
 	if resp.Error != "" {
-		return fmt.Errorf("pdf sidecar reported: %s", resp.Error)
+		// Ook door verduidelijk(): de sidecar vangt een ontbrekende browser zelf af
+		// en meldt hem als JSON met exitcode 0, dus dit pad — niet de exec-fout — is
+		// waar die melding in de praktijk langskomt.
+		return verduidelijk(r.script(), fmt.Errorf("pdf sidecar reported: %s", resp.Error), "")
 	}
 	if !resp.OK {
 		return fmt.Errorf("pdf sidecar did not report ok")

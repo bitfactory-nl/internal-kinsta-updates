@@ -24,7 +24,9 @@ func TestVerduidelijk(t *testing.T) {
 			naam:    "browser niet geïnstalleerd",
 			err:     errors.New("sidecar exec: exit status 1"),
 			uitvoer: "browserType.launch: Executable doesn't exist at /Users/x/Library/Caches/ms-playwright/chromium-1140",
-			wil:     "npx playwright install chromium",
+			// Het commando moet werken zonder npx en zonder de broncode: dus de
+			// meegeleverde playwright-cli, met het pad van de sidecar erin.
+			wil: "node_modules/playwright/cli.js install chromium",
 		},
 		{
 			naam:    "node ontbreekt",
