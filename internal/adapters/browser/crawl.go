@@ -39,6 +39,14 @@ func NewCrawler(scriptPath string) *Crawler {
 	return &Crawler{Bin: "node", Args: []string{scriptPath}}
 }
 
+// script is het scriptpad uit Args, voor foutmeldingen.
+func (c *Crawler) script() string {
+	if len(c.Args) > 0 {
+		return c.Args[len(c.Args)-1]
+	}
+	return "sidecar"
+}
+
 // Crawl visits the site and returns which uploads it saw. A crawl that could not
 // reach a single page is an error; partial failures come back in Errors, because a
 // site with a few broken pages should still yield its evidence.
@@ -54,7 +62,7 @@ func (c *Crawler) Crawl(ctx context.Context, req CrawlRequest) (CrawlResponse, e
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
 	if err := cmd.Run(); err != nil {
-		return CrawlResponse{}, fmt.Errorf("crawl-sidecar: %w: %s", err, errb.String())
+		return CrawlResponse{}, verduidelijk(c.script(), fmt.Errorf("crawl-sidecar: %w", err), errb.String())
 	}
 
 	var resp CrawlResponse

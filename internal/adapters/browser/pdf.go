@@ -29,6 +29,14 @@ type PDFRunner struct {
 }
 
 // NewPDFRunner returns a PDFRunner that invokes `node <scriptPath>`.
+// script is het scriptpad uit Args, voor foutmeldingen.
+func (r *PDFRunner) script() string {
+	if len(r.Args) > 0 {
+		return r.Args[len(r.Args)-1]
+	}
+	return "sidecar"
+}
+
 func NewPDFRunner(scriptPath string) *PDFRunner {
 	return &PDFRunner{Bin: "node", Args: []string{scriptPath}}
 }
@@ -48,7 +56,7 @@ func (r *PDFRunner) RenderPDF(ctx context.Context, html, outPath string) error {
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("pdf sidecar exec: %w: %s", err, errb.String())
+		return verduidelijk(r.script(), fmt.Errorf("pdf sidecar exec: %w", err), errb.String())
 	}
 
 	var resp pdfResponse
