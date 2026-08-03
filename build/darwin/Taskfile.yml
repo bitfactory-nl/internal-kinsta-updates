@@ -156,6 +156,8 @@ tasks:
   bundle:sidecar:
     summary: Copies the Playwright sidecar into the app bundle
     internal: true
+    deps:
+      - task: common:install:sidecar:deps
     desc: |
       Zonder deze stap zit er geen runner.mjs, pdf.mjs of crawl.mjs in de .app, en
       falen de PDF-export, de tests en de mediacrawl met "Cannot find module".

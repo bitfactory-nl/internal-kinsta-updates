@@ -19,6 +19,14 @@ func NewRunner(scriptPath string) *Runner {
 	return &Runner{Bin: "node", Args: []string{scriptPath}}
 }
 
+// script is het scriptpad uit Args, voor foutmeldingen.
+func (r *Runner) script() string {
+	if len(r.Args) > 0 {
+		return r.Args[len(r.Args)-1]
+	}
+	return "sidecar"
+}
+
 // Run sends req to the sidecar as JSON on stdin and parses the RunResponse from
 // stdout. A non-zero exit or unparseable output is an error (stderr included).
 func (r *Runner) Run(ctx context.Context, req RunRequest) (RunResponse, error) {
@@ -33,7 +41,7 @@ func (r *Runner) Run(ctx context.Context, req RunRequest) (RunResponse, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &errb
 	if err := cmd.Run(); err != nil {
-		return RunResponse{}, fmt.Errorf("sidecar exec: %w: %s", err, errb.String())
+		return RunResponse{}, verduidelijk(r.script(), fmt.Errorf("sidecar exec: %w", err), errb.String())
 	}
 
 	var resp RunResponse
