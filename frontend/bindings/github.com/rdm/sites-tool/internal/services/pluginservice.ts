@@ -15,13 +15,29 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 // @ts-ignore: Unused imports
 import * as domain$0 from "../domain/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
+/**
+ * ApplyLocalPlugins extracts the chosen zips into the project's plugin folder and
+ * commits each plugin on the branch the project is on right now — no new branch,
+ * per the workflow: the checkout is where the update belongs. Pushing stays a
+ * deliberate, separate action.
+ */
+export function ApplyLocalPlugins(projectID: string, slugs: string[]): $CancellablePromise<$models.LocalApplyResult> {
+    return $Call.ByID(1793763367, projectID, slugs).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 /**
  * Diff compares the plugins installed on a Kinsta environment against the
  * paid-plugin manifest.
  */
 export function Diff(envID: string): $CancellablePromise<domain$0.PluginDiff[]> {
     return $Call.ByID(525779441, envID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -33,11 +49,38 @@ export function IsConfigured(): $CancellablePromise<boolean> {
 }
 
 /**
+ * ListLocalPaidPlugins scans the configured folder for plugin zips. No folder
+ * configured yields (nil, nil): that is the normal state, not an error.
+ */
+export function ListLocalPaidPlugins(): $CancellablePromise<$models.LocalPaidPlugin[]> {
+    return $Call.ByID(3196361941).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * ListPaidPlugins returns the manifest, cached after the first fetch.
  */
 export function ListPaidPlugins(): $CancellablePromise<domain$0.PaidPlugin[]> {
     return $Call.ByID(508849748).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * LocalDirConfigured reports whether the local folder option is set.
+ */
+export function LocalDirConfigured(): $CancellablePromise<boolean> {
+    return $Call.ByID(2247065168);
+}
+
+/**
+ * LocalPluginDiff compares every readable zip in the folder against the plugin
+ * versions in the project's working tree.
+ */
+export function LocalPluginDiff(projectID: string): $CancellablePromise<$models.LocalPluginOverview> {
+    return $Call.ByID(992548869, projectID).then(($result: any) => {
+        return $$createType7($result);
     });
 }
 
@@ -58,7 +101,11 @@ export function UpdateViaSSH(target: domain$0.SSHTarget, slug: string): $Cancell
 }
 
 // Private type creation functions
-const $$createType0 = domain$0.PluginDiff.createFrom;
-const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = domain$0.PaidPlugin.createFrom;
-const $$createType3 = $Create.Array($$createType2);
+const $$createType0 = $models.LocalApplyResult.createFrom;
+const $$createType1 = domain$0.PluginDiff.createFrom;
+const $$createType2 = $Create.Array($$createType1);
+const $$createType3 = $models.LocalPaidPlugin.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = domain$0.PaidPlugin.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $models.LocalPluginOverview.createFrom;

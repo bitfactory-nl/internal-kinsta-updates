@@ -4,10 +4,126 @@ import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/inter
 import type { PluginDiff } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import { DiffStatus, PluginSource } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
+import type { LocalPluginOverview, LocalApplyResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import { bevestig } from '../lib/bevestig'
+
 interface Props { projectId: string }
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+// LokaleMapPanel is de (tijdelijke) map-op-deze-Mac-variant naast de plugin-repo:
+// zips uit de ingestelde map vergeleken met wat er in de projectrepo staat, met per
+// plugin een vinkje. Plaatsen = uitpakken in public/wp-content/plugins + één commit
+// per plugin op de branch waar het project nú op staat — daarom staat die branch
+// groot in beeld. Pushen blijft een bewuste, aparte handeling.
+function LokaleMapPanel({ projectId }: Props) {
+  const [overzicht, setOverzicht] = useState<LocalPluginOverview | null>(null)
+  const [actief, setActief] = useState(false)
+  const [gekozen, setGekozen] = useState<Set<string>>(new Set())
+  const [bezig, setBezig] = useState(false)
+  const [melding, setMelding] = useState<string | null>(null)
+  const [fout, setFout] = useState<string | null>(null)
+
+  const laden = useCallback(() => {
+    Services.PluginService.LocalPluginDiff(projectId)
+      .then(o => setOverzicht(o))
+      .catch(e => { setOverzicht(null); setFout(getErrorMessage(e)) })
+  }, [projectId])
+
+  useEffect(() => {
+    setOverzicht(null); setGekozen(new Set()); setMelding(null); setFout(null); setActief(false)
+    Services.PluginService.LocalDirConfigured()
+      .then(aan => { setActief(aan); if (aan) laden() })
+      .catch(() => setActief(false))
+  }, [projectId, laden])
+
+  if (!actief) return null
+
+  const rijen = overzicht?.rows ?? []
+  const toggle = (slug: string) => {
+    setGekozen(huidig => {
+      const v = new Set(huidig)
+      if (v.has(slug)) { v.delete(slug) } else { v.add(slug) }
+      return v
+    })
+  }
+
+  const plaats = async () => {
+    if (!overzicht) return
+    const slugs = Array.from(gekozen)
+    const ok = await bevestig('Plugins in project zetten',
+      `${slugs.length} plugin(s) worden in het project gezet en per plugin gecommit op branch "${overzicht.branch}".\n\n` +
+      `Er wordt niet gepusht; dat blijft een aparte handeling.`)
+    if (!ok) return
+    setBezig(true); setFout(null); setMelding(null)
+    try {
+      const res: LocalApplyResult = await Services.PluginService.ApplyLocalPlugins(projectId, slugs)
+      const gelukt = (res.plugins ?? []).filter(p => p.status === 'updated')
+      const mislukt = (res.plugins ?? []).filter(p => p.status !== 'updated')
+      setMelding(
+        `${gelukt.length} plugin(s) gecommit op ${res.branch}` +
+        (mislukt.length ? ` · ${mislukt.length} mislukt: ${mislukt[0].slug} — ${mislukt[0].error}` : ''),
+      )
+      setGekozen(new Set())
+      laden()
+    } catch (e) {
+      setFout(getErrorMessage(e))
+    } finally {
+      setBezig(false)
+    }
+  }
+
+  return (
+    <div className="shrink-0 border-b border-border bg-panel px-4 py-3 max-h-[40%] overflow-y-auto">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] font-semibold tracking-wide text-fg-faint">UIT LOKALE MAP</span>
+        <span className="text-[10.5px] text-fg-faint">
+          commit komt op <span className="font-mono text-fg">{overzicht?.branch || '…'}</span>
+        </span>
+        {gekozen.size > 0 && (
+          <button onClick={plaats} disabled={bezig}
+            className="ml-auto bg-accent text-white text-[11.5px] font-semibold px-3 py-1 rounded-lg hover:brightness-110 disabled:opacity-50 transition">
+            {bezig ? 'Bezig…' : `Zet ${gekozen.size} in project & commit`}
+          </button>
+        )}
+      </div>
+
+      {fout && <div className="mb-1.5 bg-red-soft text-red px-2.5 py-1.5 rounded-lg text-[11px]">{fout}</div>}
+      {melding && <div className="mb-1.5 bg-green-soft text-green px-2.5 py-1.5 rounded-lg text-[11px]">{melding}</div>}
+
+      {overzicht === null ? (
+        <div className="text-[11.5px] text-fg-faint">Map lezen…</div>
+      ) : rijen.length === 0 ? (
+        <div className="text-[11.5px] text-fg-faint">Geen plugins gevonden in de ingestelde map (mappen of zips).</div>
+      ) : (
+        <div className="divide-y divide-border/40">
+          {rijen.map(r => r.error ? (
+            <div key={r.fileName} className="flex items-center gap-2 py-1 px-1 -mx-1">
+              <span className="font-mono text-[11.5px] text-fg-faint truncate">{r.fileName}</span>
+              <span className="text-[10.5px] text-amber truncate">{r.error}</span>
+            </div>
+          ) : (
+            <label key={r.slug} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-hover rounded px-1 -mx-1">
+              <input type="checkbox" checked={gekozen.has(r.slug)} onChange={() => toggle(r.slug)}
+                className="shrink-0 accent-accent" />
+              <span className="font-mono text-[11.5px] text-fg truncate flex-1">{r.slug}</span>
+              <span className="font-mono text-[11px] text-fg-faint w-[70px] text-right shrink-0">
+                {r.projectVersion || 'niet aanwezig'}
+              </span>
+              <span className={`font-mono text-[11px] w-[86px] text-right shrink-0 ${r.newer ? 'text-green font-semibold' : 'text-fg-muted'}`}>
+                → {r.folderVersion}
+              </span>
+              {r.newer && (
+                <span className="text-[9.5px] font-bold px-1.5 py-px rounded bg-green-soft text-green shrink-0">NIEUWER</span>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function PluginsTab({ projectId }: Props) {
@@ -69,6 +185,7 @@ export default function PluginsTab({ projectId }: Props) {
     }
   }, [selectedEnvId])
 
+  const kinstaInhoud = () => {
   if (configured === null) return <Spinner />
 
   if (configured === false) {
@@ -171,6 +288,14 @@ export default function PluginsTab({ projectId }: Props) {
           </div>
         ) : null}
       </div>
+    </div>
+  )
+  }
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <LokaleMapPanel projectId={projectId} />
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{kinstaInhoud()}</div>
     </div>
   )
 }

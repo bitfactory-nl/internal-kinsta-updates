@@ -5,6 +5,7 @@ import type { MediaScanSummary, MediaCategoryResult, MediaFileRow, MediaPeriodBu
 import type { QuarantineBatch, MediaCrawlResult, MediaCrawlConflict } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import ExternalLink from './ExternalLink'
+import { bevestig } from '../lib/bevestig'
 
 interface Props { projectId: string }
 
@@ -941,11 +942,10 @@ export default function MediaTab({ projectId }: Props) {
   const naarQuarantaine = async () => {
     if (!scan) return
     const paden = Array.from(gekozen)
-    const bevestigd = window.confirm(
+    const bevestigd = await bevestig('In quarantaine plaatsen',
       `${paden.length} bestand(en) worden verplaatst naar een quarantainemap buiten de webroot.\n\n` +
       `De site kan ze daarna niet meer opvragen — dat is de bedoeling, zo zie je wat er stuk gaat. ` +
-      `Terugzetten kan met één knop zolang de batch in quarantaine staat.\n\nDoorgaan?`,
-    )
+      `Terugzetten kan met één knop zolang de batch in quarantaine staat.`)
     if (!bevestigd) return
 
     setQBezig(true); setFout(null); setQMelding(null)
@@ -966,7 +966,7 @@ export default function MediaTab({ projectId }: Props) {
   }
 
   const herstelBatch = async (batch: string) => {
-    if (!window.confirm(`Batch ${batch} terugzetten op de oorspronkelijke plek?`)) return
+    if (!await bevestig('Quarantaine terugzetten', `Batch ${batch} terugzetten op de oorspronkelijke plek?`)) return
     setQBezig(true); setFout(null); setQMelding(null)
     try {
       const res = await Services.MediaService.RestoreQuarantine(projectId, envId, batch)

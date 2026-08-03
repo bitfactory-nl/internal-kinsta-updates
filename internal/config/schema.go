@@ -21,6 +21,9 @@ type PluginRepo struct {
 	GithubToken string `yaml:"github_token"` // keychain:rdm.github.token
 	Repo        string `yaml:"repo"`         // org/repo-name
 	Ref         string `yaml:"ref"`          // branch/tag, default: main
+	// LocalDir is een (tijdelijke) map op deze machine met de nieuwste zips van
+	// betaalde plugins; een alternatief naast de repo, niet in plaats daarvan.
+	LocalDir string `yaml:"local_dir,omitempty"`
 }
 
 type Notifications struct {

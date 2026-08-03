@@ -188,6 +188,15 @@ export default function SettingsPage({ onClose }: Props) {
                 className={inputClass}
               />
             </div>
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Lokale map</label>
+              <input
+                value={settings.pluginLocalDir}
+                onChange={e => update('pluginLocalDir', e.target.value)}
+                placeholder="/Users/naam/Downloads/plugin-updates (tijdelijk, naast de repo)"
+                className={inputClass}
+              />
+            </div>
             <div className="px-4 py-2.5">
               <p className="text-[11.5px] text-fg-muted">
                 Personal access token met leestoegang tot de bitfactory-nl repositories

@@ -24,9 +24,11 @@ type sshRunner interface {
 // PluginService compares the paid-plugin repo manifest against the plugins
 // installed on a Kinsta environment.
 type PluginService struct {
-	cfg    *config.Global
-	kinsta *KinstaService
-	ssh    sshRunner
+	cfg      *config.Global
+	kinsta   *KinstaService
+	ssh      sshRunner
+	projects *ProjectService
+	git      *GitService
 
 	// downloadZip is a test seam; when nil, the GitHub client is used.
 	downloadZip func(ctx context.Context, path string) ([]byte, error)
@@ -36,8 +38,8 @@ type PluginService struct {
 	cached bool
 }
 
-func NewPluginService(cfg *config.Global, kinsta *KinstaService) *PluginService {
-	return &PluginService{cfg: cfg, kinsta: kinsta, ssh: sshadapter.NewClient()}
+func NewPluginService(cfg *config.Global, kinsta *KinstaService, projects *ProjectService, git *GitService) *PluginService {
+	return &PluginService{cfg: cfg, kinsta: kinsta, ssh: sshadapter.NewClient(), projects: projects, git: git}
 }
 
 func (s *PluginService) client() (*github.Client, error) {
