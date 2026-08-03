@@ -81,10 +81,7 @@ func (s *ReportService) SetApp(app *application.App) {
 // PDFScriptPath returns the pdf.mjs sidecar path, overridable via
 // RDM_PDF_SIDECAR (mirrors SidecarScriptPath/RDM_SIDECAR).
 func PDFScriptPath() string {
-	if p := os.Getenv("RDM_PDF_SIDECAR"); p != "" {
-		return p
-	}
-	return filepath.Join("sidecar", "pdf.mjs")
+	return vindSidecar("pdf.mjs", "RDM_PDF_SIDECAR")
 }
 
 // DefaultReportsDir is ~/.config/rdm/reports.

@@ -59,10 +59,7 @@ func (s *TestService) defaultVision(override domain.ModelTier) (visionClient, er
 
 // SidecarScriptPath returns the runner.mjs path, overridable via RDM_SIDECAR.
 func SidecarScriptPath() string {
-	if p := os.Getenv("RDM_SIDECAR"); p != "" {
-		return p
-	}
-	return filepath.Join("sidecar", "runner.mjs")
+	return vindSidecar("runner.mjs", "RDM_SIDECAR")
 }
 
 // DefaultRunHistoryDir is ~/.config/rdm/test-runs.
