@@ -19,6 +19,7 @@ export class AppSettings {
     "githubToken": string;
     "pluginRepo": string;
     "pluginRepoRef": string;
+    "pluginLocalDir": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
     "anthropicApiKey": string;
@@ -43,6 +44,9 @@ export class AppSettings {
         }
         if (!("pluginRepoRef" in $$source)) {
             this["pluginRepoRef"] = "";
+        }
+        if (!("pluginLocalDir" in $$source)) {
+            this["pluginLocalDir"] = "";
         }
         if (!("gitDefaultRemote" in $$source)) {
             this["gitDefaultRemote"] = "";
@@ -374,6 +378,196 @@ export class InventoryProjectRef {
 }
 
 /**
+ * LocalApplyPlugin is het resultaat voor één plugin.
+ */
+export class LocalApplyPlugin {
+    "slug": string;
+    "from": string;
+    "to": string;
+
+    /**
+     * updated | error
+     */
+    "status": string;
+    "error"?: string;
+
+    /** Creates a new LocalApplyPlugin instance. */
+    constructor($$source: Partial<LocalApplyPlugin> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalApplyPlugin instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalApplyPlugin {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocalApplyPlugin($$parsedSource as Partial<LocalApplyPlugin>);
+    }
+}
+
+/**
+ * LocalApplyResult is het resultaat van één plaatsing.
+ */
+export class LocalApplyResult {
+    "branch": string;
+    "plugins": LocalApplyPlugin[];
+
+    /** Creates a new LocalApplyResult instance. */
+    constructor($$source: Partial<LocalApplyResult> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("plugins" in $$source)) {
+            this["plugins"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalApplyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalApplyResult {
+        const $$createField1_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("plugins" in $$parsedSource) {
+            $$parsedSource["plugins"] = $$createField1_0($$parsedSource["plugins"]);
+        }
+        return new LocalApplyResult($$parsedSource as Partial<LocalApplyResult>);
+    }
+}
+
+/**
+ * LocalPaidPlugin is één zip uit de lokale map. Een onleesbare zip krijgt een
+ * Error in plaats van dat hij stil verdwijnt — een typefout in een download wil je
+ * zien, niet raden.
+ */
+export class LocalPaidPlugin {
+    "slug": string;
+    "version": string;
+    "fileName": string;
+    "modifiedAt": number;
+    "error"?: string;
+
+    /** Creates a new LocalPaidPlugin instance. */
+    constructor($$source: Partial<LocalPaidPlugin> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("fileName" in $$source)) {
+            this["fileName"] = "";
+        }
+        if (!("modifiedAt" in $$source)) {
+            this["modifiedAt"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalPaidPlugin instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalPaidPlugin {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocalPaidPlugin($$parsedSource as Partial<LocalPaidPlugin>);
+    }
+}
+
+/**
+ * LocalPluginOverview is wat de Plugins-tab nodig heeft: de rijen plus de branch
+ * waarop een commit terecht zou komen. Die branch tonen is geen detail — de commit
+ * gaat op de huidige checkout, dus de gebruiker moet zien welke dat is.
+ */
+export class LocalPluginOverview {
+    "branch": string;
+    "rows": LocalPluginRow[];
+
+    /** Creates a new LocalPluginOverview instance. */
+    constructor($$source: Partial<LocalPluginOverview> = {}) {
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("rows" in $$source)) {
+            this["rows"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalPluginOverview instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalPluginOverview {
+        const $$createField1_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("rows" in $$parsedSource) {
+            $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
+        }
+        return new LocalPluginOverview($$parsedSource as Partial<LocalPluginOverview>);
+    }
+}
+
+/**
+ * LocalPluginRow is de vergelijking van één zip met wat er in het project staat.
+ */
+export class LocalPluginRow {
+    "slug": string;
+    "fileName": string;
+    "folderVersion": string;
+
+    /**
+     * leeg = niet in dit project
+     */
+    "projectVersion": string;
+    "newer": boolean;
+
+    /** Creates a new LocalPluginRow instance. */
+    constructor($$source: Partial<LocalPluginRow> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("fileName" in $$source)) {
+            this["fileName"] = "";
+        }
+        if (!("folderVersion" in $$source)) {
+            this["folderVersion"] = "";
+        }
+        if (!("projectVersion" in $$source)) {
+            this["projectVersion"] = "";
+        }
+        if (!("newer" in $$source)) {
+            this["newer"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalPluginRow instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalPluginRow {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocalPluginRow($$parsedSource as Partial<LocalPluginRow>);
+    }
+}
+
+/**
  * MakeResult holds the stdout/stderr output of a make invocation.
  */
 export class MakeResult {
@@ -524,7 +718,7 @@ export class MediaCrawlResult {
      */
     static createFrom($$source: any = {}): MediaCrawlResult {
         const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType3;
+        const $$createField8_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField7_0($$parsedSource["errors"]);
@@ -714,7 +908,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType5;
+        const $$createField5_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -759,7 +953,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType7;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -928,9 +1122,9 @@ export class QuarantineResult {
      * Creates a new QuarantineResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QuarantineResult {
-        const $$createField1_0 = $$createType9;
-        const $$createField2_0 = $$createType11;
-        const $$createField5_0 = $$createType13;
+        const $$createField1_0 = $$createType13;
+        const $$createField2_0 = $$createType15;
+        const $$createField5_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("moved" in $$parsedSource) {
             $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
@@ -1137,7 +1331,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType15;
+        const $$createField4_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1270,11 +1464,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType17;
-        const $$createField3_0 = $$createType19;
-        const $$createField4_0 = $$createType19;
-        const $$createField5_0 = $$createType19;
-        const $$createField6_0 = $$createType19;
+        const $$createField2_0 = $$createType21;
+        const $$createField3_0 = $$createType23;
+        const $$createField4_0 = $$createType23;
+        const $$createField5_0 = $$createType23;
+        const $$createField6_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -1501,20 +1695,24 @@ export class WordfenceVulnFinding {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = InventoryProjectRef.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $Create.Map($Create.Any, $$createType0);
-const $$createType4 = PluginUpdateResult.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = WordfenceVulnFinding.createFrom;
-const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = QuarantineEntry.createFrom;
+const $$createType3 = LocalApplyPlugin.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = LocalPluginRow.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = $Create.Map($Create.Any, $$createType0);
+const $$createType8 = PluginUpdateResult.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = QuarantineSkip.createFrom;
+const $$createType10 = WordfenceVulnFinding.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = QuarantineBatch.createFrom;
+const $$createType12 = QuarantineEntry.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = SecurityFinding.createFrom;
+const $$createType14 = QuarantineSkip.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = WPCoreUpdate.createFrom;
+const $$createType16 = QuarantineBatch.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = PackageUpdate.createFrom;
+const $$createType18 = SecurityFinding.createFrom;
 const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = WPCoreUpdate.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = PackageUpdate.createFrom;
+const $$createType23 = $Create.Array($$createType22);

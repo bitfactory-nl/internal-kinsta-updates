@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rdm/sites-tool/internal/config"
 )
@@ -14,6 +15,7 @@ type AppSettings struct {
 	GithubToken      string `json:"githubToken"`
 	PluginRepo       string `json:"pluginRepo"`
 	PluginRepoRef    string `json:"pluginRepoRef"`
+	PluginLocalDir   string `json:"pluginLocalDir"`
 	GitDefaultRemote string `json:"gitDefaultRemote"`
 	GitPruneOnFetch  bool   `json:"gitPruneOnFetch"`
 	AnthropicAPIKey  string `json:"anthropicApiKey"`
@@ -37,6 +39,7 @@ func (s *SettingsService) Get() AppSettings {
 		GithubToken:      s.cfg.PluginRepo.GithubToken,
 		PluginRepo:       s.cfg.PluginRepo.Repo,
 		PluginRepoRef:    s.cfg.PluginRepo.Ref,
+		PluginLocalDir:   s.cfg.PluginRepo.LocalDir,
 		GitDefaultRemote: s.cfg.Git.DefaultRemote,
 		GitPruneOnFetch:  s.cfg.Git.PruneOnFetch,
 		AnthropicAPIKey:  s.cfg.AI.APIKey,
@@ -57,6 +60,7 @@ func (s *SettingsService) Save(settings AppSettings) error {
 	if settings.PluginRepoRef != "" {
 		s.cfg.PluginRepo.Ref = settings.PluginRepoRef
 	}
+	s.cfg.PluginRepo.LocalDir = strings.TrimSpace(settings.PluginLocalDir)
 	if settings.GitDefaultRemote != "" {
 		s.cfg.Git.DefaultRemote = settings.GitDefaultRemote
 	}

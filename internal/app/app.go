@@ -72,7 +72,7 @@ func NewServices(cfg Config) *Services {
 		Search:   services.NewSearchService(project),
 		Settings: services.NewSettingsService(&cfg.Global),
 		Make:     services.NewMakeService(project),
-		Plugin:   services.NewPluginService(&cfg.Global, kinsta),
+		Plugin:   services.NewPluginService(&cfg.Global, kinsta, project, git),
 		SSH:      services.NewSSHService(),
 		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
 		Security: security,
