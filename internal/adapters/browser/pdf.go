@@ -38,7 +38,7 @@ func (r *PDFRunner) script() string {
 }
 
 func NewPDFRunner(scriptPath string) *PDFRunner {
-	return &PDFRunner{Bin: "node", Args: []string{scriptPath}}
+	return &PDFRunner{Bin: NodeBin(), Args: []string{scriptPath}}
 }
 
 // RenderPDF sends {html, path} to the sidecar on stdin and expects

@@ -2,6 +2,7 @@ package browser
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,8 +25,12 @@ func verduidelijk(script string, err error, uitvoer string) error {
 	case strings.Contains(alles, "Executable doesn't exist"),
 		strings.Contains(alles, "playwright install"),
 		strings.Contains(alles, "browserType.launch"):
-		return fmt.Errorf("de browser van Playwright is niet geïnstalleerd op deze machine. "+
-			"Draai eenmalig: cd sidecar && npx playwright install chromium (oorspronkelijke fout: %w)", err)
+		// Het commando met de meegeleverde Playwright en de gevonden node erin, zodat
+		// het werkt zonder npx en zonder de broncode. De browsers staan per gebruiker
+		// in ~/Library/Caches/ms-playwright en kunnen dus niet mee in de app.
+		return fmt.Errorf("de browser van Playwright is nog niet gedownload voor deze gebruiker. "+
+			"Draai dit eenmalig in een terminal:\n\n  cd %q && %q node_modules/playwright/cli.js install chromium\n\n"+
+			"(oorspronkelijke fout: %w)", filepath.Dir(script), NodeBin(), err)
 
 	case strings.Contains(alles, "executable file not found"), strings.Contains(alles, "\"node\": executable"):
 		return fmt.Errorf("Node.js is niet gevonden. Installeer Node 20 of nieuwer en start de tool opnieuw (oorspronkelijke fout: %w)", err)

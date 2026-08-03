@@ -16,7 +16,7 @@ type Runner struct {
 
 // NewRunner returns a Runner that invokes `node <scriptPath>`.
 func NewRunner(scriptPath string) *Runner {
-	return &Runner{Bin: "node", Args: []string{scriptPath}}
+	return &Runner{Bin: NodeBin(), Args: []string{scriptPath}}
 }
 
 // script is het scriptpad uit Args, voor foutmeldingen.

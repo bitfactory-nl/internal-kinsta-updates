@@ -36,7 +36,7 @@ type Crawler struct {
 
 // NewCrawler returns a Crawler that invokes `node <scriptPath>`.
 func NewCrawler(scriptPath string) *Crawler {
-	return &Crawler{Bin: "node", Args: []string{scriptPath}}
+	return &Crawler{Bin: NodeBin(), Args: []string{scriptPath}}
 }
 
 // script is het scriptpad uit Args, voor foutmeldingen.
