@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 // CrawlRequest is the input for the crawl sidecar (JSON on stdin).
@@ -74,7 +75,7 @@ func (c *Crawler) Crawl(ctx context.Context, req CrawlRequest) (CrawlResponse, e
 		if len(resp.Errors) > 0 {
 			melding = resp.Errors[0]
 		}
-		return resp, fmt.Errorf("crawl mislukte: %s", melding)
+		return resp, verduidelijk(c.script(), fmt.Errorf("crawl mislukte: %s", melding), strings.Join(resp.Errors, " "))
 	}
 	return resp, nil
 }

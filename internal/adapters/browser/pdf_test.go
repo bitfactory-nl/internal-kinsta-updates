@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -16,7 +17,10 @@ func writeFakePDFSidecar(t *testing.T, stdout string, exitCode int) string {
 	script := filepath.Join(dir, "fake-pdf.sh")
 	body := "#!/bin/sh\ncat >/dev/null\n"
 	if stdout != "" {
-		body += "printf '%s' '" + stdout + "'\n"
+		// Apostrofs shell-veilig maken: de echte Playwright-melding bevat "doesn't",
+		// en die willen we letterlijk in tests kunnen gebruiken.
+		veilig := strings.ReplaceAll(stdout, "'", `'\''`)
+		body += "printf '%s' '" + veilig + "'\n"
 	}
 	if exitCode != 0 {
 		body += "exit 1\n"
@@ -68,5 +72,26 @@ func TestPDFRunnerBadJSON(t *testing.T) {
 	r := &PDFRunner{Bin: "/bin/sh", Args: []string{script}}
 	if err := r.RenderPDF(context.Background(), "<html></html>", "/tmp/out.pdf"); err == nil {
 		t.Fatal("expected error on bad JSON")
+	}
+}
+
+// TestPDFRunnerBrowserOntbreektViaJSON speelt het echte geval na: de sidecar draait
+// (node werkt), Playwright mist zijn browser, en de sidecar meldt dat als JSON met
+// exitcode 0. Dat pad omzeilde eerst de nette meldingen — de gebruiker kreeg de rauwe
+// browserType.launch-tekst — en dit legt vast dat het nu wél vertaald wordt.
+func TestPDFRunnerBrowserOntbreektViaJSON(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake sidecar uses /bin/sh")
+	}
+	script := writeFakePDFSidecar(t,
+		`{"error":"browserType.launch: Executable doesn't exist at /Users/x/Library/Caches/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell"}`, 0)
+	r := &PDFRunner{Bin: "/bin/sh", Args: []string{script}}
+
+	err := r.RenderPDF(context.Background(), "<html></html>", "/tmp/out.pdf")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "node_modules/playwright/cli.js install chromium") {
+		t.Errorf("melding = %v; wil het exacte installatiecommando, niet de rauwe stacktrace", err)
 	}
 }

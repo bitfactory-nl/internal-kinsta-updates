@@ -49,7 +49,9 @@ func (r *Runner) Run(ctx context.Context, req RunRequest) (RunResponse, error) {
 		return RunResponse{}, fmt.Errorf("parse sidecar response: %w", err)
 	}
 	if resp.Error != "" {
-		return resp, fmt.Errorf("sidecar reported: %s", resp.Error)
+		// Zelfde route als in pdf.go: een door de sidecar zelf gerapporteerde fout
+		// verdient dezelfde vertaling als een crash.
+		return resp, verduidelijk(r.script(), fmt.Errorf("sidecar reported: %s", resp.Error), "")
 	}
 	return resp, nil
 }
