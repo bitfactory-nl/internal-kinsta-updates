@@ -6,6 +6,7 @@ import type { QuarantineBatch, MediaCrawlResult, MediaCrawlConflict } from '../.
 import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import ExternalLink from './ExternalLink'
 import { bevestig } from '../lib/bevestig'
+import Foutvak from './Foutvak'
 
 interface Props { projectId: string }
 
@@ -1046,9 +1047,7 @@ export default function MediaTab({ projectId }: Props) {
       {probeTekst && (
         <div className="shrink-0 mx-6 mt-3 bg-green-soft text-green px-3 py-2 rounded-lg text-[11.5px]">{probeTekst}</div>
       )}
-      {fout && (
-        <div className="shrink-0 mx-6 mt-3 bg-red-soft text-red px-3 py-2 rounded-lg text-[11.5px]">{fout}</div>
-      )}
+      {fout && <Foutvak fout={fout} className="shrink-0 mx-6 mt-3" />}
 
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
         {!scan ? (
