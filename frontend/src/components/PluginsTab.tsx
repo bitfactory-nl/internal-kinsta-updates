@@ -5,6 +5,7 @@ import type { PluginDiff } from '../../bindings/github.com/rdm/sites-tool/intern
 import { DiffStatus, PluginSource } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
 import type { LocalPluginOverview, LocalApplyResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import { bevestig } from '../lib/bevestig'
 
 interface Props { projectId: string }
 
@@ -52,14 +53,9 @@ function LokaleMapPanel({ projectId }: Props) {
   const plaats = async () => {
     if (!overzicht) return
     const slugs = Array.from(gekozen)
-    const ok = window.confirm(
-      `${slugs.length} plugin(s) worden in het project gezet en per plugin gecommit op branch "${overzicht.branch}".
-
-` +
-      `Er wordt niet gepusht; dat blijft een aparte handeling.
-
-Doorgaan?`,
-    )
+    const ok = await bevestig('Plugins in project zetten',
+      `${slugs.length} plugin(s) worden in het project gezet en per plugin gecommit op branch "${overzicht.branch}".\n\n` +
+      `Er wordt niet gepusht; dat blijft een aparte handeling.`)
     if (!ok) return
     setBezig(true); setFout(null); setMelding(null)
     try {

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import { bevestig } from '../lib/bevestig'
 import type { WPCoreReport, CoreUpdateResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { GlobeIcon, RefreshIcon, CloudDownloadIcon } from './icons'
 import VersionColumns, { VersionColumnsHeader } from './VersionColumns'
@@ -98,11 +99,10 @@ export default function WordPressPage() {
   const updateAll = async () => {
     const target = report?.latestVersion
     if (!target || outdatedProjects.length === 0) return
-    const ok = window.confirm(
+    const ok = await bevestig('WordPress bijwerken',
       `Voor ${outdatedProjects.length} project(en) een branch update/wordpress-${target} ` +
       `aanmaken vanaf de release-branch en een pull request openen?\n\n` +
-      `Er wordt niets naar de release-branch gepusht en niets op live gewijzigd.`
-    )
+      `Er wordt niets naar de release-branch gepusht en niets op live gewijzigd.`)
     if (!ok) return
 
     setBulkBusy(true); setError(null); setBulkNote(null)
