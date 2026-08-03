@@ -21,6 +21,31 @@ tasks:
     cmds:
       - npm install
 
+  install:sidecar:deps:
+    summary: Install the Playwright sidecar dependencies
+    desc: |
+      De sidecar heeft zijn eigen node_modules (playwright), en die staat in
+      .gitignore. Zonder deze taak faalt het inpakken van de app op een verse
+      machine of in CI, want dan is er niets om mee te leveren.
+    dir: sidecar
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    preconditions:
+      - sh: npm version
+        msg: "Looks like npm isn't installed. Npm is part of the Node installer: https://nodejs.org/en/download/"
+    cmds:
+      # npm ci volgt de lockfile exact; dat hoort bij een build die reproduceerbaar
+      # moet zijn. Zonder lockfile is er niets te volgen en valt hij terug.
+      - |
+        if [ -f package-lock.json ]; then
+          npm ci --omit=dev
+        else
+          npm install --omit=dev
+        fi
+
   build:frontend:
     label: build:frontend (DEV={{.DEV}})
     summary: Build the frontend project
