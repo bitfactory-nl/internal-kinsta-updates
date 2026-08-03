@@ -65,6 +65,13 @@ jobs:
             3. Eerste keer openen via Terminal:
                \`xattr -d com.apple.quarantine "/Applications/rdm-sites-tool.app"\`
                Daarna opent de app gewoon met dubbelklik.
+            4. Download eenmalig de browser voor Playwright (nodig voor de PDF-export, de tests en de mediascan; vereist Node 20+):
+
+               \`\`\`
+               cd "/Applications/rdm-sites-tool.app/Contents/Resources/sidecar" && node node_modules/playwright/cli.js install chromium
+               \`\`\`
+
+               Dit hoort bij deze app-versie: gebruik dit commando en niet \`npx playwright install\`, want dat haalt een andere browserversie op dan de app verwacht.
 
             ## Configuratie
 
