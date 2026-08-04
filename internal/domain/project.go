@@ -100,6 +100,11 @@ type MigrationCfg struct {
 	ProdDomain   string       `yaml:"prod_domain,omitempty"   json:"prodDomain,omitempty"`
 	LocalDomain  string       `yaml:"local_domain,omitempty"  json:"localDomain,omitempty"`
 	ExtraDomains []DomainPair `yaml:"extra_domains,omitempty" json:"extraDomains,omitempty"`
+
+	// Anonymise houdt bij wat een kloon moet strippen om binnen de AVG te
+	// blijven. Ontbreekt het blok, dan wordt er niet geanonimiseerd — en dat
+	// meldt de kloon expliciet in het resultaat.
+	Anonymise *AnonymiseCfg `yaml:"anonymise,omitempty" json:"anonymise,omitempty"`
 }
 
 // DomainPair maps one production hostname to its local counterpart, for

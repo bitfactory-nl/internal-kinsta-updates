@@ -61,6 +61,17 @@ type DBCloneProgress struct {
 	Total  int64  `json:"total,omitempty"`
 }
 
+// SensitiveDataReport is what an inspection of the production database found:
+// the tables holding personal data plus the roles present, so the UI can offer
+// real choices instead of a hardcoded guess.
+type SensitiveDataReport struct {
+	TablePrefix string           `json:"tablePrefix"`
+	Tables      []SensitiveTable `json:"tables"`
+	Roles       []string         `json:"roles"`
+	UserCount   int64            `json:"userCount"`
+	AllTables   []string         `json:"allTables"`
+}
+
 // DBCloneResult is the outcome of a completed clone.
 type DBCloneResult struct {
 	LocalDBName         string   `json:"localDbName"`
@@ -71,4 +82,7 @@ type DBCloneResult struct {
 	BackupPath          string   `json:"backupPath,omitempty"`
 	MultisiteFixApplied bool     `json:"multisiteFixApplied"`
 	Warnings            []string `json:"warnings,omitempty"`
+
+	// Anonymise reports what the AVG step stripped, or that it was skipped.
+	Anonymise *AnonymiseResult `json:"anonymise,omitempty"`
 }

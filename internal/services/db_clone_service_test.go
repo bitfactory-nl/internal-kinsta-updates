@@ -68,6 +68,9 @@ type fakeDockerExec struct {
 
 	targetHasTables bool
 	tableNames      []string
+	userCount       int64
+	keptUserCount   int64
+	commentCount    int64
 	siteURL         string
 	failOn          func(args []string) bool
 }
@@ -100,6 +103,17 @@ func (f *fakeDockerExec) exec(_ context.Context, container string, args, env []s
 		io.WriteString(stdout, "-- fake mysqldump output --\n")
 	case strings.Contains(joined, "SELECT option_value"):
 		io.WriteString(stdout, f.siteURL+"\n")
+	case strings.Contains(joined, "SELECT COUNT(*)"):
+		// De tellingen voor het anonimisatie-rapport. De volgorde is van
+		// specifiek naar algemeen: de bewaard-telling is die met een WHERE.
+		switch {
+		case strings.Contains(joined, "comments"):
+			io.WriteString(stdout, strconv.FormatInt(f.commentCount, 10)+"\n")
+		case strings.Contains(joined, "WHERE"):
+			io.WriteString(stdout, strconv.FormatInt(f.keptUserCount, 10)+"\n")
+		default:
+			io.WriteString(stdout, strconv.FormatInt(f.userCount, 10)+"\n")
+		}
 	case strings.Contains(joined, "SHOW TABLES") && !strings.Contains(joined, "FROM"):
 		io.WriteString(stdout, strings.Join(f.tableNames, "\n"))
 	}

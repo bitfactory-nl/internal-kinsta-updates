@@ -89,6 +89,77 @@ func parseDBExportSize(out string) int64 {
 	return n
 }
 
+// tabelRij is één tabel uit de inventaris van de productiedatabase.
+type tabelRij struct {
+	Naam  string
+	Rijen int64
+}
+
+// buildTableInventoryCommand lists every table in the production database with
+// an approximate row count, plus the table prefix. Read-only.
+//
+// De aantallen komen uit information_schema en zijn bij InnoDB een schatting.
+// Dat is hier precies goed: het gaat om de orde van grootte ("12.000
+// formulierinzendingen") en een COUNT(*) over tientallen tabellen van een grote
+// klantsite zou de container onnodig belasten.
+func buildTableInventoryCommand(webroot string) string {
+	return strings.Join([]string{
+		zoekWebroot(webroot),
+		`if [ -z "$root" ] || [ ! -f "$root/wp-config.php" ]; then echo "RDM-ERR:geen wp-config.php gevonden"; exit 3; fi`,
+		`cd "$root" || exit 3`,
+		`echo "RDM-PREFIX:$(wp config get table_prefix 2>&1)"`,
+		`wp eval 'global $wpdb; foreach ($wpdb->get_results("SELECT TABLE_NAME AS n, IFNULL(TABLE_ROWS,0) AS r FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_TYPE=\"BASE TABLE\"") as $x) { echo "RDM-TBL:" . intval($x->r) . "\t" . $x->n . "\n"; }' 2>&1`,
+	}, "\n")
+}
+
+// buildRolesCommand asks WordPress which roles this install actually knows, so
+// the UI can offer the real list instead of the WordPress defaults. Read-only.
+func buildRolesCommand(webroot string) string {
+	return strings.Join([]string{
+		zoekWebroot(webroot),
+		`if [ -z "$root" ]; then exit 3; fi`,
+		`cd "$root" || exit 3`,
+		`wp eval 'foreach (wp_roles()->get_names() as $slug => $naam) { echo "RDM-ROLE:" . $slug . "\n"; }' 2>&1`,
+	}, "\n")
+}
+
+var reRolRij = regexp.MustCompile(`(?m)^RDM-ROLE:([a-z0-9_-]+)\s*$`)
+
+// parseRoles reads the role slugs from buildRolesCommand's stdout.
+func parseRoles(out string) []string {
+	matches := reRolRij.FindAllStringSubmatch(out, -1)
+	rollen := make([]string, 0, len(matches))
+	gezien := map[string]bool{}
+	for _, m := range matches {
+		if gezien[m[1]] {
+			continue
+		}
+		gezien[m[1]] = true
+		rollen = append(rollen, m[1])
+	}
+	return rollen
+}
+
+var reTabelRij = regexp.MustCompile(`(?m)^RDM-TBL:(\d+)\t(.+)$`)
+
+// parseTableInventory turns buildTableInventoryCommand's stdout into rows.
+func parseTableInventory(out string) []tabelRij {
+	matches := reTabelRij.FindAllStringSubmatch(out, -1)
+	rijen := make([]tabelRij, 0, len(matches))
+	for _, m := range matches {
+		n, err := strconv.ParseInt(m[1], 10, 64)
+		if err != nil {
+			continue
+		}
+		naam := strings.TrimSpace(m[2])
+		if naam == "" {
+			continue
+		}
+		rijen = append(rijen, tabelRij{Naam: naam, Rijen: n})
+	}
+	return rijen
+}
+
 // buildRemoteCleanupCommand removes the temporary dump (and its gzip) left on
 // the server by buildDBExportCommand. Best-effort: the caller ignores its
 // error.

@@ -20,6 +20,7 @@ const FASE_LABEL: Record<string, string> = {
   export: 'Dump maken op de server',
   download: 'Dump ophalen',
   import: 'Lokaal importeren',
+  anonymise: 'Persoonsgegevens verwijderen (AVG)',
   'multisite-fix': 'Multisite-domeinen controleren (vangnet)',
   verify: 'Resultaat controleren',
   done: 'Klaar',
@@ -128,10 +129,23 @@ export default function DatabaseTab({ projectId }: Props) {
   const multisiteConflict = probe !== null && multisiteUitEnv && !probe.isMultisite
 
   const kloonNaarLokaal = async () => {
+    // De AVG-stand hoort in de bevestiging te staan: dat is het moment waarop je
+    // beslist of er persoonsgegevens van een klant op je machine mogen komen.
+    let avgRegel = '\n\nAnonimisatie: onbekend (instellingen niet gelezen).'
+    try {
+      const mig = await Services.MigrationService.GetSettings(projectId)
+      avgRegel = mig.anonymise?.enabled
+        ? '\n\nAnonimisatie staat AAN: persoonsgegevens worden na de import verwijderd volgens je instellingen.'
+        : '\n\nLET OP — anonimisatie staat UIT: alle persoonsgegevens uit productie (formulierinzendingen, gebruikers, reacties) komen ongewijzigd op deze machine te staan.'
+    } catch {
+      // Lukt het lezen niet, dan blijft de neutrale regel staan.
+    }
+
     const bevestigd = await bevestig(
       'Database klonen naar lokaal',
       `De lokale database "${localDBName}" wordt overschreven (er wordt eerst automatisch een backup gemaakt als hij al bestaat).\n\n` +
-      'De productie-database wordt nergens gewijzigd — er wordt alleen een dump geëxporteerd, nooit teruggeschreven.',
+      'De productie-database wordt nergens gewijzigd — er wordt alleen een dump geëxporteerd, nooit teruggeschreven.' +
+      avgRegel,
     )
     if (!bevestigd) return
 
@@ -310,6 +324,42 @@ export default function DatabaseTab({ projectId }: Props) {
               <div>{result.tablesImported} tabellen geïmporteerd · dump {bytesLeesbaar(result.dumpBytes)}</div>
               {result.backupPath && <div>Backup: <span className="font-mono">{result.backupPath}</span></div>}
             </div>
+
+            {/* AVG: wat er is weggehaald — of juist niet. */}
+            {result.anonymise && (
+              result.anonymise.skipped ? (
+                <div className="bg-red-soft text-red px-3 py-2 rounded-lg text-[11.5px] mb-3">
+                  Niet geanonimiseerd — deze database bevat alle persoonsgegevens uit productie.
+                </div>
+              ) : (
+                <div className="bg-green-soft text-green px-3 py-2 rounded-lg text-[11.5px] mb-3">
+                  <div className="font-semibold mb-0.5">Geanonimiseerd volgens de AVG</div>
+                  <div className="space-y-0.5">
+                    {result.anonymise.usersAnonymised > 0 && (
+                      <div>
+                        {result.anonymise.usersAnonymised.toLocaleString('nl-NL')} gebruikers geanonimiseerd
+                        {result.anonymise.usersKept > 0 && ` · ${result.anonymise.usersKept} bewaard`}
+                      </div>
+                    )}
+                    {result.anonymise.commentsAnonymised > 0 && (
+                      <div>{result.anonymise.commentsAnonymised.toLocaleString('nl-NL')} reacties geanonimiseerd</div>
+                    )}
+                    {(result.anonymise.tablesEmptied ?? []).length > 0 && (
+                      <div>
+                        {(result.anonymise.tablesEmptied ?? []).length} tabellen geleegd:{' '}
+                        <span className="font-mono">{(result.anonymise.tablesEmptied ?? []).join(', ')}</span>
+                      </div>
+                    )}
+                    {(result.anonymise.tablesMissing ?? []).length > 0 && (
+                      <div>
+                        niet aangetroffen (stond wel in de instellingen):{' '}
+                        <span className="font-mono">{(result.anonymise.tablesMissing ?? []).join(', ')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            )}
             {(result.warnings ?? []).map((w, i) => (
               <div key={i} className="bg-amber-soft text-amber px-3 py-2 rounded-lg text-[11.5px] mb-2">{w}</div>
             ))}

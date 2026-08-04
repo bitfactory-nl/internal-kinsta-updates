@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
-import type { MigrationCfg, DomainPair } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { MigrationCfg, DomainPair, AnonymiseCfg } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import Foutvak from './Foutvak'
+import AvgPaneel from './AvgPaneel'
 
 interface Props { projectId: string }
 
@@ -18,6 +19,10 @@ export default function MigrationSettingsTab({ projectId }: Props) {
   const [prodDomain, setProdDomain] = useState('')
   const [localDomain, setLocalDomain] = useState('')
   const [extra, setExtra] = useState<DomainPair[]>([])
+  const [avg, setAvg] = useState<AnonymiseCfg>({
+    enabled: false, anonymiseUsers: true, anonymiseComments: true,
+    keepRoles: [], keepUserLogins: [], emptyTables: [],
+  })
 
   const [laden, setLaden] = useState(true)
   const [bezig, setBezig] = useState(false)
@@ -34,6 +39,7 @@ export default function MigrationSettingsTab({ projectId }: Props) {
         setProdDomain(cfg.prodDomain ?? '')
         setLocalDomain(cfg.localDomain ?? '')
         setExtra(cfg.extraDomains ?? [])
+        if (cfg.anonymise) setAvg(cfg.anonymise)
       })
       .catch(e => setFout(foutTekst(e)))
       .finally(() => setLaden(false))
@@ -49,6 +55,7 @@ export default function MigrationSettingsTab({ projectId }: Props) {
         prodDomain,
         localDomain,
         extraDomains: extra,
+        anonymise: avg,
       }
       await Services.MigrationService.SaveSettings(projectId, cfg)
       setOpgeslagen(true)
@@ -147,6 +154,8 @@ export default function MigrationSettingsTab({ projectId }: Props) {
           </button>
         </div>
       )}
+
+      <AvgPaneel projectId={projectId} cfg={avg} onChange={c => { setAvg(c); setOpgeslagen(false) }} />
 
       <div className="flex items-center gap-2.5">
         <button onClick={opslaan} disabled={bezig}

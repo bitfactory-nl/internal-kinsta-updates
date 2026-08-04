@@ -285,6 +285,16 @@ func (s *DBCloneService) OpenInApp(projectID, localDBHost, localDBName, appName 
 	return OpenInApp(appName, mysqlURL)
 }
 
+// anonymiseCfg reads the AVG settings from .rdm.yml. Not configured means not
+// enabled: anonymisation is never silently assumed to have happened, and the
+// clone result says so out loud.
+func (s *DBCloneService) anonymiseCfg(p domain.Project) domain.AnonymiseCfg {
+	if p.Config.Migration == nil || p.Config.Migration.Anonymise == nil {
+		return domain.AnonymiseCfg{}
+	}
+	return *p.Config.Migration.Anonymise
+}
+
 // extraDomainPairs returns the domain-mapped subsite pairs configured under
 // `migration:` in .rdm.yml, or nothing when the project has none.
 func (s *DBCloneService) extraDomainPairs(p domain.Project) []domain.DomainPair {
@@ -430,6 +440,28 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 	s.emit(projectID, domain.DBCloneProgress{Phase: "import", Detail: "database lokaal aanmaken en vullen"})
 	if err := s.importLocal(ctx, container, dbUser, mysqlEnv, req.LocalDBName, tmpPath); err != nil {
 		return domain.DBCloneResult{}, s.failureWithBackupNote(projectID, backupPath, fmt.Errorf("lokaal importeren mislukt: %w", err))
+	}
+
+	// --- Anonimiseren (AVG, lokaal) --------------------------------------
+	// Meteen na de import, vóór alle andere bewerkingen: vanaf hier staan er
+	// persoonsgegevens van de klant op deze machine en dat moet zo kort mogelijk
+	// duren. Faalt dit, dan is dat een harde fout — met een expliciete melding
+	// dat de lokale database nog niet geanonimiseerd is.
+	anonCfg := s.anonymiseCfg(p)
+	if anonCfg.Enabled {
+		s.emit(projectID, domain.DBCloneProgress{Phase: "anonymise", Detail: "persoonsgegevens verwijderen (AVG)"})
+		anonRes, err := s.anonymiseerLokaal(ctx, container, dbUser, mysqlEnv, req.LocalDBName,
+			anonCfg, sanitizeTablePrefix(req.TablePrefix))
+		if err != nil {
+			return domain.DBCloneResult{}, s.failureWithBackupNote(projectID, backupPath,
+				fmt.Errorf("anonimiseren mislukt — LET OP: de lokale database %q bevat nu nog wél persoonsgegevens uit productie: %w", req.LocalDBName, err))
+		}
+		result.Anonymise = &anonRes
+		result.Warnings = append(result.Warnings, anonRes.Warnings...)
+	} else {
+		result.Anonymise = &domain.AnonymiseResult{Skipped: true}
+		result.Warnings = append(result.Warnings,
+			"anonimisatie staat UIT: deze lokale database bevat alle persoonsgegevens uit productie (formulierinzendingen, gebruikers, reacties). Zet het aan bij Migratie › Instellingen.")
 	}
 
 	// --- Multisite domain safety net (local only) -----------------------

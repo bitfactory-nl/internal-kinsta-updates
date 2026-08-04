@@ -34,12 +34,23 @@ export function Clone(projectID: string, envID: string, req: domain$0.DBCloneReq
 }
 
 /**
+ * InspectSensitiveData reads the production database's table list and reports
+ * which tables hold personal data, which roles exist and how many users there
+ * are. Read-only: this only looks.
+ */
+export function InspectSensitiveData(projectID: string, envID: string): $CancellablePromise<domain$0.SensitiveDataReport> {
+    return $Call.ByID(1276480098, projectID, envID).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
+/**
  * LocalDefaults reads the project's own .env file — no SSH involved — to
  * prefill the target fields in the UI.
  */
 export function LocalDefaults(projectID: string): $CancellablePromise<domain$0.LocalEnvDefaults> {
     return $Call.ByID(2351475411, projectID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -58,7 +69,7 @@ export function OpenInApp(projectID: string, localDBHost: string, localDBName: s
  */
 export function Probe(projectID: string, envID: string): $CancellablePromise<domain$0.DBProbe> {
     return $Call.ByID(2383753972, projectID, envID).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -89,5 +100,6 @@ export function SetApp(app: application$0.App | null): $CancellablePromise<void>
 
 // Private type creation functions
 const $$createType0 = domain$0.DBCloneResult.createFrom;
-const $$createType1 = domain$0.LocalEnvDefaults.createFrom;
-const $$createType2 = domain$0.DBProbe.createFrom;
+const $$createType1 = domain$0.SensitiveDataReport.createFrom;
+const $$createType2 = domain$0.LocalEnvDefaults.createFrom;
+const $$createType3 = domain$0.DBProbe.createFrom;

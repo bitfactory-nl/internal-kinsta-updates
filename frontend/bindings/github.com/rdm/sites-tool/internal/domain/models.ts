@@ -166,6 +166,130 @@ export class AffectedSoftware {
 }
 
 /**
+ * AnonymiseCfg lives under `migration.anonymise:` in .rdm.yml and says what a
+ * clone must strip to stay within the AVG. It holds no personal data itself —
+ * only role names, logins and table names — so it is safe in the customer's
+ * repo.
+ */
+export class AnonymiseCfg {
+    /**
+     * Enabled uit betekent: klonen zonder te anonimiseren. Dat is een bewuste
+     * keuze die zichtbaar in het resultaat wordt gemeld, nooit een stille default.
+     */
+    "enabled": boolean;
+
+    /**
+     * KeepRoles/KeepUserLogins zijn de accounts die ongemoeid blijven — meestal
+     * de eigen beheerders, zodat je kunt inloggen. Al het andere wordt
+     * geanonimiseerd.
+     */
+    "keepRoles"?: string[];
+    "keepUserLogins"?: string[];
+    "anonymiseUsers": boolean;
+    "anonymiseComments": boolean;
+
+    /**
+     * EmptyTables zijn de tabellen die na de import worden geleegd. Het schema
+     * blijft staan, zodat plugins niet omvallen over een ontbrekende tabel.
+     */
+    "emptyTables"?: string[];
+
+    /** Creates a new AnonymiseCfg instance. */
+    constructor($$source: Partial<AnonymiseCfg> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+        if (!("anonymiseUsers" in $$source)) {
+            this["anonymiseUsers"] = false;
+        }
+        if (!("anonymiseComments" in $$source)) {
+            this["anonymiseComments"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnonymiseCfg instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AnonymiseCfg {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("keepRoles" in $$parsedSource) {
+            $$parsedSource["keepRoles"] = $$createField1_0($$parsedSource["keepRoles"]);
+        }
+        if ("keepUserLogins" in $$parsedSource) {
+            $$parsedSource["keepUserLogins"] = $$createField2_0($$parsedSource["keepUserLogins"]);
+        }
+        if ("emptyTables" in $$parsedSource) {
+            $$parsedSource["emptyTables"] = $$createField5_0($$parsedSource["emptyTables"]);
+        }
+        return new AnonymiseCfg($$parsedSource as Partial<AnonymiseCfg>);
+    }
+}
+
+/**
+ * AnonymiseResult reports what the anonymisation actually did, so it can be
+ * shown after a clone instead of being taken on faith.
+ */
+export class AnonymiseResult {
+    /**
+     * anonimisatie stond uit
+     */
+    "skipped": boolean;
+    "tablesEmptied"?: string[];
+
+    /**
+     * stonden in de config maar niet in de DB
+     */
+    "tablesMissing"?: string[];
+    "usersAnonymised": number;
+    "usersKept": number;
+    "commentsAnonymised": number;
+    "warnings"?: string[];
+
+    /** Creates a new AnonymiseResult instance. */
+    constructor($$source: Partial<AnonymiseResult> = {}) {
+        if (!("skipped" in $$source)) {
+            this["skipped"] = false;
+        }
+        if (!("usersAnonymised" in $$source)) {
+            this["usersAnonymised"] = 0;
+        }
+        if (!("usersKept" in $$source)) {
+            this["usersKept"] = 0;
+        }
+        if (!("commentsAnonymised" in $$source)) {
+            this["commentsAnonymised"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnonymiseResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AnonymiseResult {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tablesEmptied" in $$parsedSource) {
+            $$parsedSource["tablesEmptied"] = $$createField1_0($$parsedSource["tablesEmptied"]);
+        }
+        if ("tablesMissing" in $$parsedSource) {
+            $$parsedSource["tablesMissing"] = $$createField2_0($$parsedSource["tablesMissing"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField6_0($$parsedSource["warnings"]);
+        }
+        return new AnonymiseResult($$parsedSource as Partial<AnonymiseResult>);
+    }
+}
+
+/**
  * BasicAuth holds HTTP basic-auth credentials for one environment.
  * Pass is a keychain: reference, never a literal secret in git.
  */
@@ -433,6 +557,11 @@ export class DBCloneResult {
     "multisiteFixApplied": boolean;
     "warnings"?: string[];
 
+    /**
+     * Anonymise reports what the AVG step stripped, or that it was skipped.
+     */
+    "anonymise"?: AnonymiseResult | null;
+
     /** Creates a new DBCloneResult instance. */
     constructor($$source: Partial<DBCloneResult> = {}) {
         if (!("localDbName" in $$source)) {
@@ -462,9 +591,13 @@ export class DBCloneResult {
      */
     static createFrom($$source: any = {}): DBCloneResult {
         const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType3;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("warnings" in $$parsedSource) {
             $$parsedSource["warnings"] = $$createField7_0($$parsedSource["warnings"]);
+        }
+        if ("anonymise" in $$parsedSource) {
+            $$parsedSource["anonymise"] = $$createField8_0($$parsedSource["anonymise"]);
         }
         return new DBCloneResult($$parsedSource as Partial<DBCloneResult>);
     }
@@ -537,8 +670,8 @@ export class DeployConf {
      * Creates a new DeployConf instance from a string or object.
      */
     static createFrom($$source: any = {}): DeployConf {
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType3;
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("link" in $$parsedSource) {
             $$parsedSource["link"] = $$createField1_0($$parsedSource["link"]);
@@ -616,7 +749,7 @@ export class DiffHunk {
      * Creates a new DiffHunk instance from a string or object.
      */
     static createFrom($$source: any = {}): DiffHunk {
-        const $$createField5_0 = $$createType5;
+        const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("lines" in $$parsedSource) {
             $$parsedSource["lines"] = $$createField5_0($$parsedSource["lines"]);
@@ -778,7 +911,7 @@ export class FileDiff {
      * Creates a new FileDiff instance from a string or object.
      */
     static createFrom($$source: any = {}): FileDiff {
-        const $$createField3_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hunks" in $$parsedSource) {
             $$parsedSource["hunks"] = $$createField3_0($$parsedSource["hunks"]);
@@ -861,7 +994,7 @@ export class Flow {
      * Creates a new Flow instance from a string or object.
      */
     static createFrom($$source: any = {}): Flow {
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
@@ -922,8 +1055,8 @@ export class GitStatus {
      * Creates a new GitStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): GitStatus {
-        const $$createField4_0 = $$createType11;
-        const $$createField5_0 = $$createType11;
+        const $$createField4_0 = $$createType13;
+        const $$createField5_0 = $$createType13;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -997,7 +1130,7 @@ export class GraphCommit {
     static createFrom($$source: any = {}): GraphCommit {
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField9_0 = $$createType13;
+        const $$createField9_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("parents" in $$parsedSource) {
             $$parsedSource["parents"] = $$createField5_0($$parsedSource["parents"]);
@@ -1086,7 +1219,7 @@ export class KinstaProjectCfg {
      * Creates a new KinstaProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): KinstaProjectCfg {
-        const $$createField1_0 = $$createType15;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField1_0($$parsedSource["environments"]);
@@ -1230,7 +1363,7 @@ export class MediaCategoryResult {
      * Creates a new MediaCategoryResult instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaCategoryResult {
-        const $$createField4_0 = $$createType17;
+        const $$createField4_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("samples" in $$parsedSource) {
             $$parsedSource["samples"] = $$createField4_0($$parsedSource["samples"]);
@@ -1422,7 +1555,7 @@ export class MediaFileRow {
      * Creates a new MediaFileRow instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaFileRow {
-        const $$createField8_0 = $$createType18;
+        const $$createField8_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("evidence" in $$parsedSource) {
             $$parsedSource["evidence"] = $$createField8_0($$parsedSource["evidence"]);
@@ -1596,7 +1729,7 @@ export class MediaScanScope {
     static createFrom($$source: any = {}): MediaScanScope {
         const $$createField0_0 = $$createType0;
         const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $$createType19;
+        const $$createField5_0 = $$createType21;
         const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("folders" in $$parsedSource) {
@@ -1702,12 +1835,12 @@ export class MediaScanSummary {
      * Creates a new MediaScanSummary instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaScanSummary {
-        const $$createField11_0 = $$createType21;
-        const $$createField12_0 = $$createType23;
-        const $$createField13_0 = $$createType25;
-        const $$createField14_0 = $$createType17;
-        const $$createField15_0 = $$createType27;
-        const $$createField16_0 = $$createType28;
+        const $$createField11_0 = $$createType23;
+        const $$createField12_0 = $$createType25;
+        const $$createField13_0 = $$createType27;
+        const $$createField14_0 = $$createType19;
+        const $$createField15_0 = $$createType29;
+        const $$createField16_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("byClass" in $$parsedSource) {
             $$parsedSource["byClass"] = $$createField11_0($$parsedSource["byClass"]);
@@ -1751,6 +1884,13 @@ export class MigrationCfg {
     "localDomain"?: string;
     "extraDomains"?: DomainPair[];
 
+    /**
+     * Anonymise houdt bij wat een kloon moet strippen om binnen de AVG te
+     * blijven. Ontbreekt het blok, dan wordt er niet geanonimiseerd — en dat
+     * meldt de kloon expliciet in het resultaat.
+     */
+    "anonymise"?: AnonymiseCfg | null;
+
     /** Creates a new MigrationCfg instance. */
     constructor($$source: Partial<MigrationCfg> = {}) {
         if (!("multisite" in $$source)) {
@@ -1764,10 +1904,14 @@ export class MigrationCfg {
      * Creates a new MigrationCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): MigrationCfg {
-        const $$createField5_0 = $$createType30;
+        const $$createField5_0 = $$createType32;
+        const $$createField6_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("extraDomains" in $$parsedSource) {
             $$parsedSource["extraDomains"] = $$createField5_0($$parsedSource["extraDomains"]);
+        }
+        if ("anonymise" in $$parsedSource) {
+            $$parsedSource["anonymise"] = $$createField6_0($$parsedSource["anonymise"]);
         }
         return new MigrationCfg($$parsedSource as Partial<MigrationCfg>);
     }
@@ -1982,9 +2126,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType31;
-        const $$createField5_0 = $$createType32;
-        const $$createField6_0 = $$createType33;
+        const $$createField4_0 = $$createType35;
+        const $$createField5_0 = $$createType36;
+        const $$createField6_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -2029,12 +2173,12 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType35;
-        const $$createField4_0 = $$createType37;
-        const $$createField5_0 = $$createType39;
-        const $$createField6_0 = $$createType41;
-        const $$createField7_0 = $$createType43;
-        const $$createField8_0 = $$createType45;
+        const $$createField3_0 = $$createType39;
+        const $$createField4_0 = $$createType41;
+        const $$createField5_0 = $$createType43;
+        const $$createField6_0 = $$createType45;
+        const $$createField7_0 = $$createType47;
+        const $$createField8_0 = $$createType49;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -2238,12 +2382,12 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType47;
-        const $$createField5_0 = $$createType49;
-        const $$createField6_0 = $$createType51;
-        const $$createField7_0 = $$createType53;
-        const $$createField8_0 = $$createType53;
-        const $$createField9_0 = $$createType55;
+        const $$createField4_0 = $$createType51;
+        const $$createField5_0 = $$createType53;
+        const $$createField6_0 = $$createType55;
+        const $$createField7_0 = $$createType57;
+        const $$createField8_0 = $$createType57;
+        const $$createField9_0 = $$createType59;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("acties" in $$parsedSource) {
             $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
@@ -2294,6 +2438,113 @@ export class SSHTarget {
     static createFrom($$source: any = {}): SSHTarget {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new SSHTarget($$parsedSource as Partial<SSHTarget>);
+    }
+}
+
+/**
+ * SensitiveDataReport is what an inspection of the production database found:
+ * the tables holding personal data plus the roles present, so the UI can offer
+ * real choices instead of a hardcoded guess.
+ */
+export class SensitiveDataReport {
+    "tablePrefix": string;
+    "tables": SensitiveTable[];
+    "roles": string[];
+    "userCount": number;
+    "allTables": string[];
+
+    /** Creates a new SensitiveDataReport instance. */
+    constructor($$source: Partial<SensitiveDataReport> = {}) {
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("tables" in $$source)) {
+            this["tables"] = [];
+        }
+        if (!("roles" in $$source)) {
+            this["roles"] = [];
+        }
+        if (!("userCount" in $$source)) {
+            this["userCount"] = 0;
+        }
+        if (!("allTables" in $$source)) {
+            this["allTables"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SensitiveDataReport instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SensitiveDataReport {
+        const $$createField1_0 = $$createType61;
+        const $$createField2_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tables" in $$parsedSource) {
+            $$parsedSource["tables"] = $$createField1_0($$parsedSource["tables"]);
+        }
+        if ("roles" in $$parsedSource) {
+            $$parsedSource["roles"] = $$createField2_0($$parsedSource["roles"]);
+        }
+        if ("allTables" in $$parsedSource) {
+            $$parsedSource["allTables"] = $$createField4_0($$parsedSource["allTables"]);
+        }
+        return new SensitiveDataReport($$parsedSource as Partial<SensitiveDataReport>);
+    }
+}
+
+/**
+ * SensitiveTable is one table found on the production database that holds
+ * personal data, with the reason it was flagged so the user can judge it
+ * instead of trusting a checkbox.
+ */
+export class SensitiveTable {
+    /**
+     * volledige tabelnaam, inclusief prefix
+     */
+    "name": string;
+
+    /**
+     * een van de AVG-constanten hierboven
+     */
+    "category": string;
+
+    /**
+     * wat er in deze tabel staat
+     */
+    "reason": string;
+
+    /**
+     * benadering uit information_schema
+     */
+    "rows": number;
+
+    /** Creates a new SensitiveTable instance. */
+    constructor($$source: Partial<SensitiveTable> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = "";
+        }
+        if (!("reason" in $$source)) {
+            this["reason"] = "";
+        }
+        if (!("rows" in $$source)) {
+            this["rows"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SensitiveTable instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SensitiveTable {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SensitiveTable($$parsedSource as Partial<SensitiveTable>);
     }
 }
 
@@ -2456,8 +2707,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType57;
-        const $$createField5_0 = $$createType59;
+        const $$createField4_0 = $$createType63;
+        const $$createField5_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -2597,7 +2848,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType61;
+        const $$createField7_0 = $$createType67;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -2628,9 +2879,9 @@ export class TestingCfg {
      * Creates a new TestingCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): TestingCfg {
-        const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType63;
-        const $$createField2_0 = $$createType65;
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType69;
+        const $$createField2_0 = $$createType71;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -2736,7 +2987,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType40;
+        const $$createField1_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -2805,7 +3056,7 @@ export class Vulnerability {
      */
     static createFrom($$source: any = {}): Vulnerability {
         const $$createField7_0 = $$createType0;
-        const $$createField10_0 = $$createType67;
+        const $$createField10_0 = $$createType73;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("researchers" in $$parsedSource) {
             $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
@@ -2820,69 +3071,75 @@ export class Vulnerability {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = Person.createFrom;
-const $$createType2 = DeployLinks.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = DiffLine.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = DiffHunk.createFrom;
+const $$createType2 = AnonymiseResult.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = DeployLinks.createFrom;
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = DiffLine.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = Step.createFrom;
+const $$createType8 = DiffHunk.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = FileChange.createFrom;
+const $$createType10 = Step.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = GraphEdge.createFrom;
+const $$createType12 = FileChange.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = KinstaEnvBinding.createFrom;
-const $$createType15 = $Create.Map($Create.Any, $$createType14);
-const $$createType16 = MediaFileRow.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Array($Create.Any);
-const $$createType19 = $Create.Map($Create.Any, $Create.Any);
-const $$createType20 = MediaClassTotals.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = MediaPeriodBucket.createFrom;
+const $$createType14 = GraphEdge.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = KinstaEnvBinding.createFrom;
+const $$createType17 = $Create.Map($Create.Any, $$createType16);
+const $$createType18 = MediaFileRow.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = $Create.Array($Create.Any);
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = MediaClassTotals.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = MediaExtTotals.createFrom;
+const $$createType24 = MediaPeriodBucket.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = MediaCategoryResult.createFrom;
+const $$createType26 = MediaExtTotals.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = MediaScanScope.createFrom;
-const $$createType29 = DomainPair.createFrom;
-const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = ProjectConfig.createFrom;
-const $$createType32 = DeployConf.createFrom;
-const $$createType33 = GitStatus.createFrom;
-const $$createType34 = KinstaProjectCfg.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = AWSProjectCfg.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = VPSProjectCfg.createFrom;
+const $$createType28 = MediaCategoryResult.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = MediaScanScope.createFrom;
+const $$createType31 = DomainPair.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = AnonymiseCfg.createFrom;
+const $$createType34 = $Create.Nullable($$createType33);
+const $$createType35 = ProjectConfig.createFrom;
+const $$createType36 = DeployConf.createFrom;
+const $$createType37 = GitStatus.createFrom;
+const $$createType38 = KinstaProjectCfg.createFrom;
 const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = SSHTarget.createFrom;
+const $$createType40 = AWSProjectCfg.createFrom;
 const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = TestingCfg.createFrom;
+const $$createType42 = VPSProjectCfg.createFrom;
 const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = MigrationCfg.createFrom;
+const $$createType44 = SSHTarget.createFrom;
 const $$createType45 = $Create.Nullable($$createType44);
-const $$createType46 = ActieRow.createFrom;
-const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = MonitorRow.createFrom;
-const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = SoftwareRow.createFrom;
+const $$createType46 = TestingCfg.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = MigrationCfg.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = ActieRow.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = UpdateRow.createFrom;
+const $$createType52 = MonitorRow.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = AVGRow.createFrom;
+const $$createType54 = SoftwareRow.createFrom;
 const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = Finding.createFrom;
+const $$createType56 = UpdateRow.createFrom;
 const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = Regression.createFrom;
+const $$createType58 = AVGRow.createFrom;
 const $$createType59 = $Create.Array($$createType58);
-const $$createType60 = StepResult.createFrom;
+const $$createType60 = SensitiveTable.createFrom;
 const $$createType61 = $Create.Array($$createType60);
-const $$createType62 = BasicAuth.createFrom;
-const $$createType63 = $Create.Map($Create.Any, $$createType62);
-const $$createType64 = TestAccount.createFrom;
-const $$createType65 = $Create.Nullable($$createType64);
-const $$createType66 = AffectedSoftware.createFrom;
+const $$createType62 = Finding.createFrom;
+const $$createType63 = $Create.Array($$createType62);
+const $$createType64 = Regression.createFrom;
+const $$createType65 = $Create.Array($$createType64);
+const $$createType66 = StepResult.createFrom;
 const $$createType67 = $Create.Array($$createType66);
+const $$createType68 = BasicAuth.createFrom;
+const $$createType69 = $Create.Map($Create.Any, $$createType68);
+const $$createType70 = TestAccount.createFrom;
+const $$createType71 = $Create.Nullable($$createType70);
+const $$createType72 = AffectedSoftware.createFrom;
+const $$createType73 = $Create.Array($$createType72);
