@@ -10,8 +10,9 @@ import (
 
 // buildDBProbeCommand collects, in one round trip, everything a clone needs
 // to know before it starts: the canonical site URL, the table prefix, whether
-// the site is multisite, the database size, and free space in /tmp for the
-// temporary dump.
+// the site is multisite, the network's actual domain (for the multisite
+// domain fix), the database size, and free space in /tmp for the temporary
+// dump.
 func buildDBProbeCommand(webroot string) string {
 	return strings.Join([]string{
 		zoekWebroot(webroot),
@@ -20,18 +21,20 @@ func buildDBProbeCommand(webroot string) string {
 		`echo "RDM-SITEURL:$(wp option get siteurl 2>&1)"`,
 		`echo "RDM-PREFIX:$(wp config get table_prefix 2>&1)"`,
 		`echo "RDM-MULTISITE:$(wp eval 'echo is_multisite() ? "yes" : "no";' 2>&1)"`,
+		`echo "RDM-NETWORKDOMAIN:$(wp eval 'if (is_multisite()) { global $current_site; if ($current_site) { echo $current_site->domain; } }' 2>&1)"`,
 		`echo "RDM-DBBYTES:$(wp eval 'global $wpdb; $r=$wpdb->get_row("SELECT SUM(data_length+index_length) AS b FROM information_schema.tables WHERE table_schema=DATABASE()"); echo intval($r->b);' 2>&1)"`,
 		`echo "RDM-TMPFREEKB:$(df -Pk /tmp 2>/dev/null | tail -1 | awk '{print $4}')"`,
 	}, "\n")
 }
 
 var (
-	reDBSiteURL    = regexp.MustCompile(`(?m)^RDM-SITEURL:(.*)$`)
-	reDBPrefix     = regexp.MustCompile(`(?m)^RDM-PREFIX:(.*)$`)
-	reDBMultisite  = regexp.MustCompile(`(?m)^RDM-MULTISITE:(.*)$`)
-	reDBBytes      = regexp.MustCompile(`(?m)^RDM-DBBYTES:(\d+)`)
-	reDBTmpFreeKB  = regexp.MustCompile(`(?m)^RDM-TMPFREEKB:(\d+)`)
-	reDBExportSize = regexp.MustCompile(`(?m)^RDM-DBSIZE:(\d+)`)
+	reDBSiteURL       = regexp.MustCompile(`(?m)^RDM-SITEURL:(.*)$`)
+	reDBPrefix        = regexp.MustCompile(`(?m)^RDM-PREFIX:(.*)$`)
+	reDBMultisite     = regexp.MustCompile(`(?m)^RDM-MULTISITE:(.*)$`)
+	reDBNetworkDomain = regexp.MustCompile(`(?m)^RDM-NETWORKDOMAIN:(.*)$`)
+	reDBBytes         = regexp.MustCompile(`(?m)^RDM-DBBYTES:(\d+)`)
+	reDBTmpFreeKB     = regexp.MustCompile(`(?m)^RDM-TMPFREEKB:(\d+)`)
+	reDBExportSize    = regexp.MustCompile(`(?m)^RDM-DBSIZE:(\d+)`)
 )
 
 // parseDBProbe turns buildDBProbeCommand's raw stdout into a DBProbe.
@@ -39,11 +42,12 @@ func parseDBProbe(out string) domain.DBProbe {
 	dbBytes, _ := strconv.ParseInt(eersteGroep(reDBBytes, out), 10, 64)
 	tmpFreeKB, _ := strconv.ParseInt(eersteGroep(reDBTmpFreeKB, out), 10, 64)
 	return domain.DBProbe{
-		SiteURL:      eersteGroep(reDBSiteURL, out),
-		TablePrefix:  eersteGroep(reDBPrefix, out),
-		IsMultisite:  eersteGroep(reDBMultisite, out) == "yes",
-		DBSizeBytes:  dbBytes,
-		TmpFreeBytes: tmpFreeKB * 1024,
+		SiteURL:       eersteGroep(reDBSiteURL, out),
+		TablePrefix:   eersteGroep(reDBPrefix, out),
+		IsMultisite:   eersteGroep(reDBMultisite, out) == "yes",
+		NetworkDomain: eersteGroep(reDBNetworkDomain, out),
+		DBSizeBytes:   dbBytes,
+		TmpFreeBytes:  tmpFreeKB * 1024,
 	}
 }
 

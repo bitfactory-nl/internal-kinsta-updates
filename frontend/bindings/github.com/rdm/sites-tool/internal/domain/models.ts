@@ -375,6 +375,18 @@ export class DBCloneRequest {
     "tablePrefix": string;
     "multisite": boolean;
 
+    /**
+     * ProdNetworkDomain/LocalNetworkDomain are the bare hostnames the
+     * multisite fix rewrites wp_blogs.domain/wp_site.domain from and to. Both
+     * are optional; when empty, Clone falls back to the bare host of
+     * ProdSiteURL/LocalURL. Prefer these when known (ProdNetworkDomain from a
+     * Probe, LocalNetworkDomain from .env's DOMAIN_CURRENT_SITE) since a
+     * subdomain-multisite network's domain is not always the same as its
+     * primary site's URL.
+     */
+    "prodNetworkDomain"?: string;
+    "localNetworkDomain"?: string;
+
     /** Creates a new DBCloneRequest instance. */
     constructor($$source: Partial<DBCloneRequest> = {}) {
         if (!("prodSiteUrl" in $$source)) {
@@ -466,6 +478,14 @@ export class DBProbe {
     "siteUrl": string;
     "tablePrefix": string;
     "isMultisite": boolean;
+
+    /**
+     * NetworkDomain is the production network's actual registered domain
+     * (from wp_site, via `global $current_site`) — only meaningful when
+     * IsMultisite. This is the bare-hostname search term for the multisite
+     * domain fix; it is not always the same as the bare host of SiteURL.
+     */
+    "networkDomain"?: string;
     "dbSizeBytes": number;
     "tmpFreeBytes"?: number;
 
@@ -1047,7 +1067,11 @@ export class KinstaProjectCfg {
 
 /**
  * LocalEnvDefaults are the local defaults read from the project's own .env
- * file — purely local, no SSH needed — used to prefill form fields.
+ * file — purely local, no SSH needed — used to prefill form fields. The
+ * multisite fields come straight from the project's own .env conventions
+ * (MULTISITE, SUBDOMAIN_INSTALL, DOMAIN_CURRENT_SITE), which is the clearest,
+ * most authoritative signal of whether — and how — a project runs as
+ * multisite locally; it is not inferred or guessed.
  */
 export class LocalEnvDefaults {
     "dbName": string;
@@ -1061,6 +1085,13 @@ export class LocalEnvDefaults {
      * https://<APP_DOMAIN>, empty if .env is absent
      */
     "url": string;
+    "isMultisite": boolean;
+    "subdomainInstall": boolean;
+
+    /**
+     * from .env DOMAIN_CURRENT_SITE
+     */
+    "domainCurrentSite"?: string;
 
     /** Creates a new LocalEnvDefaults instance. */
     constructor($$source: Partial<LocalEnvDefaults> = {}) {
@@ -1072,6 +1103,12 @@ export class LocalEnvDefaults {
         }
         if (!("url" in $$source)) {
             this["url"] = "";
+        }
+        if (!("isMultisite" in $$source)) {
+            this["isMultisite"] = false;
+        }
+        if (!("subdomainInstall" in $$source)) {
+            this["subdomainInstall"] = false;
         }
 
         Object.assign(this, $$source);

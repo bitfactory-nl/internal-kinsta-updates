@@ -161,6 +161,7 @@ func TestParseDBProbe(t *testing.T) {
 		"RDM-SITEURL:https://vanluyken.nl",
 		"RDM-PREFIX:wp_",
 		"RDM-MULTISITE:yes",
+		"RDM-NETWORKDOMAIN:vanluyken.nl",
 		"RDM-DBBYTES:157286400",
 		"RDM-TMPFREEKB:2097152",
 	}, "\n")
@@ -174,6 +175,9 @@ func TestParseDBProbe(t *testing.T) {
 	}
 	if !probe.IsMultisite {
 		t.Error("IsMultisite = false, wil true")
+	}
+	if probe.NetworkDomain != "vanluyken.nl" {
+		t.Errorf("NetworkDomain = %q, wil vanluyken.nl", probe.NetworkDomain)
 	}
 	if probe.DBSizeBytes != 157286400 {
 		t.Errorf("DBSizeBytes = %d", probe.DBSizeBytes)

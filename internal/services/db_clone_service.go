@@ -209,13 +209,25 @@ func (s *DBCloneService) LocalDefaults(projectID string) (domain.LocalEnvDefault
 		return domain.LocalEnvDefaults{}, err
 	}
 	def := domain.LocalEnvDefaults{
-		DBName: env["DB_NAME"],
-		DBHost: env["DB_HOST"],
+		DBName:           env["DB_NAME"],
+		DBHost:           env["DB_HOST"],
+		IsMultisite:      envBool(env["MULTISITE"]),
+		SubdomainInstall: envBool(env["SUBDOMAIN_INSTALL"]),
 	}
 	if appDomain := strings.TrimSpace(env["APP_DOMAIN"]); appDomain != "" {
 		def.URL = "https://" + appDomain
 	}
+	if domainCurrentSite := strings.TrimSpace(env["DOMAIN_CURRENT_SITE"]); domainCurrentSite != "" {
+		def.DomainCurrentSite = domainCurrentSite
+	}
 	return def, nil
+}
+
+// envBool reads a boolean-ish .env value ("true"/"1", case-insensitive).
+// Anything else — including absent, "false", "0" — is false.
+func envBool(v string) bool {
+	v = strings.ToLower(strings.TrimSpace(v))
+	return v == "true" || v == "1"
 }
 
 // Probe checks what a clone would involve: the canonical site URL, table
@@ -392,10 +404,21 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 	}
 
 	// --- Multisite fix (local only) -------------------------------------
+	// req.Multisite is normally driven by the project's own .env (MULTISITE=
+	// true), which is the clearest signal of whether a project runs as
+	// multisite — clearer than inferring it from the production probe alone.
 	if req.Multisite {
 		s.emit(projectID, domain.DBCloneProgress{Phase: "multisite-fix", Detail: "domeinen in wp_blogs/wp_site bijwerken (beta)"})
 		prefix := sanitizeTablePrefix(req.TablePrefix)
-		sql := buildLocalMultisiteDomainFixSQL(prefix, bareDomain(req.ProdSiteURL), bareDomain(req.LocalURL))
+		prodDomain := strings.TrimSpace(req.ProdNetworkDomain)
+		if prodDomain == "" {
+			prodDomain = bareDomain(req.ProdSiteURL)
+		}
+		localDomain := strings.TrimSpace(req.LocalNetworkDomain)
+		if localDomain == "" {
+			localDomain = bareDomain(req.LocalURL)
+		}
+		sql := buildLocalMultisiteDomainFixSQL(prefix, prodDomain, localDomain)
 		var stderr bytes.Buffer
 		if err := s.dockerExec(ctx, container, []string{"mysql", "-u" + dbUser, "-e", sql, req.LocalDBName}, mysqlEnv, nil, &stderr); err != nil {
 			result.Warnings = append(result.Warnings, "multisite-domeinfix (beta) is mislukt: "+err.Error())
@@ -522,7 +545,15 @@ func (s *DBCloneService) importLocal(ctx context.Context, container, dbUser stri
 	}
 	defer gz.Close()
 
-	return s.dockerExec(ctx, container, []string{"mysql", "-u" + dbUser, dbName}, env, gz, io.Discard)
+	// Productieservers draaien vaak een lossere sql_mode dan de moderne
+	// MySQL/MariaDB-defaults in bitf-mysql (die STRICT_TRANS_TABLES en
+	// NO_ZERO_DATE aanzetten). Dumps met legacy CREATE TABLE-defaults —
+	// bijvoorbeeld Action Scheduler's `scheduled_date_gmt datetime DEFAULT
+	// '0000-00-00 00:00:00'` (WP Rocket, WooCommerce) — laten de import anders
+	// klappen op "Invalid default value". --init-command zet de sql_mode voor
+	// deze ene import-sessie leeg; dat verandert niets aan de container zelf.
+	importArgs := []string{"mysql", "-u" + dbUser, "--init-command=SET SESSION sql_mode=''", dbName}
+	return s.dockerExec(ctx, container, importArgs, env, gz, io.Discard)
 }
 
 // RestoreBackup re-imports a previously taken local backup. backupPath must

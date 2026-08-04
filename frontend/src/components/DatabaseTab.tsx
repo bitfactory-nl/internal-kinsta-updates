@@ -48,7 +48,10 @@ export default function DatabaseTab({ projectId }: Props) {
   const [localDBName, setLocalDBName] = useState('')
   const [localDBHost, setLocalDBHost] = useState('')
   const [multisite, setMultisite] = useState(false)
+  const [multisiteUitEnv, setMultisiteUitEnv] = useState(false)
   const [tablePrefix, setTablePrefix] = useState('wp_')
+  const [prodNetworkDomain, setProdNetworkDomain] = useState('')
+  const [localNetworkDomain, setLocalNetworkDomain] = useState('')
 
   const [probeBezig, setProbeBezig] = useState(false)
   const [kloonBezig, setKloonBezig] = useState(false)
@@ -58,16 +61,23 @@ export default function DatabaseTab({ projectId }: Props) {
 
   useEffect(() => {
     setSite(null); setProbe(null); setResult(null); setFout(null); setEnvId(''); setProgress(null)
+    setMultisiteUitEnv(false)
 
     Services.KinstaService.GetLinkedSiteID(projectId)
       .then(id => (id ? Services.KinstaService.GetSiteDetails(id).then(setSite) : undefined))
       .catch(e => setFout(foutTekst(e)))
 
+    // MULTISITE/DOMAIN_CURRENT_SITE uit .env is de duidelijkste bron voor of
+    // (en hoe) een project multisite draait — vooraf invullen voordat er
+    // ook maar geprobeerd is, zodat het klopt zonder een SSH-verbinding.
     Services.DBCloneService.LocalDefaults(projectId)
       .then(def => {
         setLocalDBName(def.dbName ?? '')
         setLocalDBHost(def.dbHost ?? '')
         setLocalURL(def.url ?? '')
+        setMultisite(def.isMultisite ?? false)
+        setMultisiteUitEnv(def.isMultisite ?? false)
+        setLocalNetworkDomain(def.domainCurrentSite ?? '')
       })
       .catch(() => {})
 
@@ -90,14 +100,19 @@ export default function DatabaseTab({ projectId }: Props) {
       const p = await Services.DBCloneService.Probe(projectId, envId)
       setProbe(p)
       setProdSiteURL(p.siteUrl)
-      setMultisite(p.isMultisite)
       setTablePrefix(p.tablePrefix || 'wp_')
+      if (p.networkDomain) setProdNetworkDomain(p.networkDomain)
+      // .env (MULTISITE=true) is de duidelijkste bron; de probe is er alleen
+      // om dat te bevestigen of, bij ontbrekende .env-info, als terugval.
+      if (!multisiteUitEnv) setMultisite(p.isMultisite)
     } catch (e) {
       setFout(foutTekst(e))
     } finally {
       setProbeBezig(false)
     }
   }
+
+  const multisiteConflict = probe !== null && multisiteUitEnv && !probe.isMultisite
 
   const kloonNaarLokaal = async () => {
     const bevestigd = await bevestig(
@@ -125,6 +140,8 @@ export default function DatabaseTab({ projectId }: Props) {
         localDbHost: localDBHost,
         tablePrefix,
         multisite,
+        prodNetworkDomain,
+        localNetworkDomain,
       }
       const res = await Services.DBCloneService.Clone(projectId, envId, req)
       setResult(res)
@@ -223,6 +240,34 @@ export default function DatabaseTab({ projectId }: Props) {
           <span className="inline-flex items-center text-[10.5px] font-semibold text-fg-muted bg-panel-2 border border-border px-2 py-[3px] rounded-md">
             host: {localDBHost || 'onbekend'}
           </span>
+        </div>
+
+        <div className="bg-panel border border-border rounded-xl p-4 mb-4">
+          <label className="flex items-center gap-2 text-[12px] font-semibold text-fg mb-3 cursor-pointer">
+            <input type="checkbox" checked={multisite} onChange={e => setMultisite(e.target.checked)} />
+            Multisite
+            {multisiteUitEnv && <span className="text-[10.5px] font-normal text-fg-faint">(uit .env: MULTISITE=true)</span>}
+          </label>
+          {multisiteConflict && (
+            <div className="mb-3 bg-amber-soft text-amber px-3 py-2 rounded-lg text-[11.5px]">
+              .env zegt multisite, maar de server meldt is_multisite() = nee — controleer dit handmatig voor je verdergaat.
+            </div>
+          )}
+          {multisite && (
+            <>
+              <label className="block text-[11px] text-fg-muted mb-1">Productie-netwerkdomein (kaal, zonder https://)</label>
+              <input value={prodNetworkDomain} onChange={e => setProdNetworkDomain(e.target.value)}
+                placeholder="bijv. vanluyken.nl"
+                className="w-full bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg mb-2 font-mono" />
+              <label className="block text-[11px] text-fg-muted mb-1">Lokaal netwerkdomein (uit .env DOMAIN_CURRENT_SITE)</label>
+              <input value={localNetworkDomain} onChange={e => setLocalNetworkDomain(e.target.value)}
+                placeholder="bijv. vanluykennl.test"
+                className="w-full bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg mb-1 font-mono" />
+              <p className="text-[10.5px] text-fg-faint">
+                bepaalt wat wp_blogs/wp_site na het klonen als domein krijgen — leeg laten valt terug op de kale host van de URL's hierboven
+              </p>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 mb-4">

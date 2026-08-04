@@ -153,6 +153,64 @@ func writeEnvFile(t *testing.T, dir string) {
 	}
 }
 
+func writeMultisiteEnvFile(t *testing.T, dir string) {
+	t.Helper()
+	content := "DB_NAME=dev_vanluykennl\nDB_USER=root\nDB_PASSWORD=secret\nDB_HOST=mysql\n" +
+		"APP_DOMAIN=vanluykennl.test\nMULTISITE=true\nSUBDOMAIN_INSTALL=true\nDOMAIN_CURRENT_SITE=vanluykennl.test\n"
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEnvBool(t *testing.T) {
+	cases := map[string]bool{
+		"true": true, "TRUE": true, " true ": true, "1": true,
+		"false": false, "0": false, "": false, "yes": false,
+	}
+	for in, want := range cases {
+		if got := envBool(in); got != want {
+			t.Errorf("envBool(%q) = %v, wil %v", in, got, want)
+		}
+	}
+}
+
+func TestLocalDefaultsReadsMultisiteFromEnv(t *testing.T) {
+	dir := t.TempDir()
+	writeMultisiteEnvFile(t, dir)
+	svc, _ := newDBCloneService(t, &fakeDBSSH{}, &fakeDockerExec{}, dir)
+
+	def, err := svc.LocalDefaults("p1")
+	if err != nil {
+		t.Fatalf("LocalDefaults: %v", err)
+	}
+	if !def.IsMultisite {
+		t.Error("IsMultisite = false, wil true (MULTISITE=true in .env)")
+	}
+	if !def.SubdomainInstall {
+		t.Error("SubdomainInstall = false, wil true")
+	}
+	if def.DomainCurrentSite != "vanluykennl.test" {
+		t.Errorf("DomainCurrentSite = %q, wil vanluykennl.test", def.DomainCurrentSite)
+	}
+}
+
+func TestLocalDefaultsSingleSiteHasNoMultisiteFields(t *testing.T) {
+	dir := t.TempDir()
+	writeEnvFile(t, dir) // geen MULTISITE-regel
+	svc, _ := newDBCloneService(t, &fakeDBSSH{}, &fakeDockerExec{}, dir)
+
+	def, err := svc.LocalDefaults("p1")
+	if err != nil {
+		t.Fatalf("LocalDefaults: %v", err)
+	}
+	if def.IsMultisite {
+		t.Error("IsMultisite = true, wil false zonder MULTISITE in .env")
+	}
+	if def.DomainCurrentSite != "" {
+		t.Errorf("DomainCurrentSite = %q, wil leeg", def.DomainCurrentSite)
+	}
+}
+
 func TestSanitizeTablePrefix(t *testing.T) {
 	cases := map[string]string{
 		"wp_":                  "wp_",
@@ -299,6 +357,113 @@ func TestDBCloneFullPipelineNeverMutatesRemoteAndSkipsBackupWhenEmpty(t *testing
 		if strings.Contains(joined, " DELETE ") {
 			t.Errorf("onverwachte DELETE op de lokale container: %v", call.args)
 		}
+	}
+}
+
+func TestDBCloneImportUsesRelaxedSQLMode(t *testing.T) {
+	dir := t.TempDir()
+	writeEnvFile(t, dir)
+
+	dump := gzipBytes(t, "-- fake dump --\n")
+	ssh := &fakeDBSSH{downloadContent: dump}
+	docker := &fakeDockerExec{tableNames: []string{"wp_options"}, siteURL: "https://vanluykennl.test"}
+	svc, _ := newDBCloneService(t, ssh, docker, dir)
+
+	if _, err := svc.Clone("p1", "env-1", domain.DBCloneRequest{
+		ProdSiteURL: "https://vanluyken.nl",
+		LocalURL:    "https://vanluykennl.test",
+		LocalDBName: "dev_vanluykennl",
+		LocalDBHost: "mysql",
+	}); err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+
+	found := false
+	for _, call := range docker.snapshot() {
+		if call.stdin != "" && strings.Contains(strings.Join(call.args, " "), "--init-command=SET SESSION sql_mode=''") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("de import-stap (met stdin) zou --init-command=SET SESSION sql_mode='' moeten meegeven, tegen 'Invalid default value'-fouten op legacy CREATE TABLE-defaults")
+	}
+}
+
+func TestDBCloneMultisiteFixUsesNetworkDomainsNotBareLocalURL(t *testing.T) {
+	dir := t.TempDir()
+	writeMultisiteEnvFile(t, dir)
+
+	dump := gzipBytes(t, "-- fake dump --\n")
+	ssh := &fakeDBSSH{downloadContent: dump}
+	docker := &fakeDockerExec{tableNames: []string{"wp_options", "wp_blogs", "wp_site"}, siteURL: "https://vanluykennl.test"}
+	svc, _ := newDBCloneService(t, ssh, docker, dir)
+
+	result, err := svc.Clone("p1", "env-1", domain.DBCloneRequest{
+		ProdSiteURL:        "https://vanluyken.nl",
+		LocalURL:           "https://vanluykennl.test",
+		LocalDBName:        "dev_vanluykennl",
+		LocalDBHost:        "mysql",
+		TablePrefix:        "wp_",
+		Multisite:          true,
+		ProdNetworkDomain:  "vanluyken.nl",
+		LocalNetworkDomain: "vanluykennl.test",
+	})
+	if err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+	if !result.MultisiteFixApplied {
+		t.Fatal("MultisiteFixApplied zou true moeten zijn")
+	}
+
+	var multisiteSQL string
+	for _, call := range docker.snapshot() {
+		for _, a := range call.args {
+			if strings.Contains(a, "UPDATE wp_blogs") {
+				multisiteSQL = a
+			}
+		}
+	}
+	if multisiteSQL == "" {
+		t.Fatal("geen UPDATE wp_blogs-commando gevonden")
+	}
+	if !strings.Contains(multisiteSQL, "REPLACE(domain, 'vanluyken.nl', 'vanluykennl.test')") {
+		t.Errorf("verwacht de expliciete netwerk-domeinen in de fix, kreeg: %s", multisiteSQL)
+	}
+}
+
+func TestDBCloneMultisiteFixFallsBackToBareURLWhenNetworkDomainsEmpty(t *testing.T) {
+	dir := t.TempDir()
+	writeMultisiteEnvFile(t, dir)
+
+	dump := gzipBytes(t, "-- fake dump --\n")
+	ssh := &fakeDBSSH{downloadContent: dump}
+	docker := &fakeDockerExec{tableNames: []string{"wp_options"}, siteURL: "https://vanluykennl.test"}
+	svc, _ := newDBCloneService(t, ssh, docker, dir)
+
+	// Geen ProdNetworkDomain/LocalNetworkDomain meegegeven -> terugval op de
+	// kale host van ProdSiteURL/LocalURL.
+	_, err := svc.Clone("p1", "env-1", domain.DBCloneRequest{
+		ProdSiteURL: "https://vanluyken.nl",
+		LocalURL:    "https://vanluykennl.test",
+		LocalDBName: "dev_vanluykennl",
+		LocalDBHost: "mysql",
+		TablePrefix: "wp_",
+		Multisite:   true,
+	})
+	if err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+
+	var multisiteSQL string
+	for _, call := range docker.snapshot() {
+		for _, a := range call.args {
+			if strings.Contains(a, "UPDATE wp_blogs") {
+				multisiteSQL = a
+			}
+		}
+	}
+	if !strings.Contains(multisiteSQL, "REPLACE(domain, 'vanluyken.nl', 'vanluykennl.test')") {
+		t.Errorf("verwacht dat de terugval-domeinen uit ProdSiteURL/LocalURL komen, kreeg: %s", multisiteSQL)
 	}
 }
 
