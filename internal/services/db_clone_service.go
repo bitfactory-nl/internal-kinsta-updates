@@ -550,9 +550,18 @@ func (s *DBCloneService) importLocal(ctx context.Context, container, dbUser stri
 	// NO_ZERO_DATE aanzetten). Dumps met legacy CREATE TABLE-defaults —
 	// bijvoorbeeld Action Scheduler's `scheduled_date_gmt datetime DEFAULT
 	// '0000-00-00 00:00:00'` (WP Rocket, WooCommerce) — laten de import anders
-	// klappen op "Invalid default value". --init-command zet de sql_mode voor
-	// deze ene import-sessie leeg; dat verandert niets aan de container zelf.
-	importArgs := []string{"mysql", "-u" + dbUser, "--init-command=SET SESSION sql_mode=''", dbName}
+	// klappen op "Invalid default value".
+	//
+	// FOREIGN_KEY_CHECKS moet om een andere reden ook uit: `wp search-replace
+	// --export` garandeert geen aanmaakvolgorde die foreign keys respecteert,
+	// dus een tabel die naar wp_users verwijst kan al aangemaakt worden
+	// voordat wp_users zelf bestaat ("Failed to open the referenced table").
+	// Een plain mysqldump zet dit standaard zelf uit; deze dump doet dat niet
+	// (of niet betrouwbaar genoeg), dus dwingen we het hier af.
+	//
+	// --init-command zet beide voor deze ene import-sessie; dat verandert
+	// niets aan de container zelf, en geldt niet voor latere verbindingen.
+	importArgs := []string{"mysql", "-u" + dbUser, "--init-command=SET SESSION sql_mode='', SESSION FOREIGN_KEY_CHECKS=0", dbName}
 	return s.dockerExec(ctx, container, importArgs, env, gz, io.Discard)
 }
 

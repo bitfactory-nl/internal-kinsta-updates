@@ -380,8 +380,16 @@ func TestDBCloneImportUsesRelaxedSQLMode(t *testing.T) {
 
 	found := false
 	for _, call := range docker.snapshot() {
-		if call.stdin != "" && strings.Contains(strings.Join(call.args, " "), "--init-command=SET SESSION sql_mode=''") {
-			found = true
+		if call.stdin == "" {
+			continue
+		}
+		joined := strings.Join(call.args, " ")
+		if !strings.Contains(joined, "sql_mode=''") {
+			continue
+		}
+		found = true
+		if !strings.Contains(joined, "FOREIGN_KEY_CHECKS=0") {
+			t.Errorf("de import-stap zet sql_mode leeg maar niet FOREIGN_KEY_CHECKS=0, tegen 'Failed to open the referenced table'-fouten door dumps die geen FK-veilige volgorde garanderen: %s", joined)
 		}
 	}
 	if !found {
