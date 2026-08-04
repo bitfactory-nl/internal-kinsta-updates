@@ -5,10 +5,6 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
-import * as time$0 from "../../../../../time/models.js";
-
 /**
  * AVGRow is one free-form row in the "AVG check" table.
  */
@@ -198,7 +194,7 @@ export class BlameLine {
     "lineNo": number;
     "commit": string;
     "author": Person;
-    "date": time$0.Time;
+    "date": string;
     "content": string;
 
     /** Creates a new BlameLine instance. */
@@ -213,7 +209,7 @@ export class BlameLine {
             this["author"] = (new Person());
         }
         if (!("date" in $$source)) {
-            this["date"] = null;
+            this["date"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("content" in $$source)) {
             this["content"] = "";
@@ -294,7 +290,7 @@ export class Commit {
     "subject": string;
     "parents": string[];
     "refs": string[];
-    "authoredAt": time$0.Time;
+    "authoredAt": string;
 
     /** Creates a new Commit instance. */
     constructor($$source: Partial<Commit> = {}) {
@@ -323,7 +319,7 @@ export class Commit {
             this["refs"] = [];
         }
         if (!("authoredAt" in $$source)) {
-            this["authoredAt"] = null;
+            this["authoredAt"] = "0001-01-01T00:00:00.000Z";
         }
 
         Object.assign(this, $$source);
@@ -755,7 +751,7 @@ export class GraphCommit {
     "shortHash": string;
     "subject": string;
     "author": string;
-    "authorDate": time$0.Time;
+    "authorDate": string;
     "parents": string[];
     "refs": string[];
     "lane": number;
@@ -777,7 +773,7 @@ export class GraphCommit {
             this["author"] = "";
         }
         if (!("authorDate" in $$source)) {
-            this["authorDate"] = null;
+            this["authorDate"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("parents" in $$source)) {
             this["parents"] = [];
@@ -1327,7 +1323,7 @@ export class MediaScanSummary {
     "projectId": string;
     "projectName": string;
     "environment": string;
-    "scannedAt": time$0.Time;
+    "scannedAt": string;
     "durationMs": number;
     "totalFiles": number;
     "totalBytes": number;
@@ -1360,7 +1356,7 @@ export class MediaScanSummary {
             this["environment"] = "";
         }
         if (!("scannedAt" in $$source)) {
-            this["scannedAt"] = null;
+            this["scannedAt"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("durationMs" in $$source)) {
             this["durationMs"] = 0;
@@ -1487,7 +1483,7 @@ export class PaidPlugin {
     "displayName": string;
     "latestVersion": string;
     "zipPath": string;
-    "updatedAt": time$0.Time;
+    "updatedAt": string;
     "downloadUrl": string;
 
     /** Creates a new PaidPlugin instance. */
@@ -1505,7 +1501,7 @@ export class PaidPlugin {
             this["zipPath"] = "";
         }
         if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = null;
+            this["updatedAt"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("downloadUrl" in $$source)) {
             this["downloadUrl"] = "";
@@ -1608,7 +1604,7 @@ export class Project {
     "config": ProjectConfig;
     "deploy": DeployConf;
     "git": GitStatus;
-    "lastScanAt": time$0.Time;
+    "lastScanAt": string;
 
     /** Creates a new Project instance. */
     constructor($$source: Partial<Project> = {}) {
@@ -1634,7 +1630,7 @@ export class Project {
             this["git"] = (new GitStatus());
         }
         if (!("lastScanAt" in $$source)) {
-            this["lastScanAt"] = null;
+            this["lastScanAt"] = "0001-01-01T00:00:00.000Z";
         }
 
         Object.assign(this, $$source);
@@ -1847,7 +1843,7 @@ export class Report {
      * rapport (en de PDF) getoond.
      */
     "opmerkingen": string;
-    "updatedAt": time$0.Time;
+    "updatedAt": string;
 
     /** Creates a new Report instance. */
     constructor($$source: Partial<Report> = {}) {
@@ -1885,7 +1881,7 @@ export class Report {
             this["opmerkingen"] = "";
         }
         if (!("updatedAt" in $$source)) {
-            this["updatedAt"] = null;
+            this["updatedAt"] = "0001-01-01T00:00:00.000Z";
         }
 
         Object.assign(this, $$source);
@@ -2014,7 +2010,7 @@ export class Stash {
     "index": number;
     "message": string;
     "branch": string;
-    "stashedAt": time$0.Time;
+    "stashedAt": string;
 
     /** Creates a new Stash instance. */
     constructor($$source: Partial<Stash> = {}) {
@@ -2028,7 +2024,7 @@ export class Stash {
             this["branch"] = "";
         }
         if (!("stashedAt" in $$source)) {
-            this["stashedAt"] = null;
+            this["stashedAt"] = "0001-01-01T00:00:00.000Z";
         }
 
         Object.assign(this, $$source);
@@ -2148,7 +2144,7 @@ export class Tag {
     "annotated": boolean;
     "message"?: string;
     "commit": string;
-    "taggedAt": time$0.Time;
+    "taggedAt": string;
 
     /** Creates a new Tag instance. */
     constructor($$source: Partial<Tag> = {}) {
@@ -2162,7 +2158,7 @@ export class Tag {
             this["commit"] = "";
         }
         if (!("taggedAt" in $$source)) {
-            this["taggedAt"] = null;
+            this["taggedAt"] = "0001-01-01T00:00:00.000Z";
         }
 
         Object.assign(this, $$source);
@@ -2216,7 +2212,7 @@ export class TestRun {
     "baselineEnv": EnvKey;
     "updateEnv": EnvKey;
     "models": string[];
-    "startedAt": time$0.Time;
+    "startedAt": string;
     "steps": StepResult[];
 
     /** Creates a new TestRun instance. */
@@ -2240,7 +2236,7 @@ export class TestRun {
             this["models"] = [];
         }
         if (!("startedAt" in $$source)) {
-            this["startedAt"] = null;
+            this["startedAt"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("steps" in $$source)) {
             this["steps"] = [];
@@ -2267,7 +2263,7 @@ export class TestRun {
 }
 
 /**
- * TestingCfg lives under `testing:` in .rdm.yml (committed, no secrets).
+ * TestingCfg lives under `testing:` in .rdm/config.yml (committed, no secrets).
  * acc/prod URLs still come from deploy_conf.json; only `local` is set here.
  */
 export class TestingCfg {
@@ -2384,8 +2380,8 @@ export class Vulnerability {
     "cvssVector": string;
     "severity": string;
     "researchers": string[];
-    "published": time$0.Time;
-    "updated": time$0.Time;
+    "published": string;
+    "updated": string;
     "software": AffectedSoftware[];
 
     /** Creates a new Vulnerability instance. */
@@ -2415,10 +2411,10 @@ export class Vulnerability {
             this["researchers"] = [];
         }
         if (!("published" in $$source)) {
-            this["published"] = null;
+            this["published"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("updated" in $$source)) {
-            this["updated"] = null;
+            this["updated"] = "0001-01-01T00:00:00.000Z";
         }
         if (!("software" in $$source)) {
             this["software"] = [];

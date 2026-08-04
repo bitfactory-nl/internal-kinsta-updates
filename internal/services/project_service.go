@@ -158,7 +158,7 @@ func (s *ProjectService) Get(id string) (domain.Project, bool) {
 	return domain.Project{}, false
 }
 
-// UpdateProjectConfig replaces the Config of a project in-memory (used after saving .rdm.yml).
+// UpdateProjectConfig replaces the Config of a project in-memory (used after saving .rdm/config.yml).
 func (s *ProjectService) UpdateProjectConfig(id string, cfg domain.ProjectConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -251,7 +251,7 @@ func (s *ProjectService) loadProject(path string) (domain.Project, error) {
 	}, nil
 }
 
-// inferProvider maps a deploy_conf type to a Provider when .rdm.yml is absent.
+// inferProvider maps a deploy_conf type to a Provider when .rdm/config.yml is absent.
 func inferProvider(deployType string) domain.Provider {
 	switch deployType {
 	case "wordpress_kinsta":

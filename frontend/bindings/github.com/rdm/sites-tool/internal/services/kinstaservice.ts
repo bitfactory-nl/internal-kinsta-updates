@@ -35,7 +35,7 @@ export function GetEnvironmentPluginsAndThemes(envID: string): $CancellablePromi
 }
 
 /**
- * GetLinkedSiteID returns the Kinsta site_id stored in .rdm.yml for a project, or "" if not set.
+ * GetLinkedSiteID returns the Kinsta site_id stored in .rdm/config.yml for a project, or "" if not set.
  */
 export function GetLinkedSiteID(projectID: string): $CancellablePromise<string> {
     return $Call.ByID(3817890320, projectID);
@@ -58,7 +58,7 @@ export function IsConfigured(): $CancellablePromise<boolean> {
 }
 
 /**
- * LinkSite saves a Kinsta site_id to the project's .rdm.yml so it persists.
+ * LinkSite saves a Kinsta site_id to the project's .rdm/config.yml so it persists.
  * Linking a site that already belongs to another project is refused: that is how
  * projects end up reading each other's data.
  */

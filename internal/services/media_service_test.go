@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rdm/sites-tool/internal/config"
+
 	sshadapter "github.com/rdm/sites-tool/internal/adapters/ssh"
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -311,16 +313,16 @@ func TestMediaSaveSSHAccessZetWachtwoordInKeychainNietInConfig(t *testing.T) {
 		t.Errorf("keychain = %+v; wil het wachtwoord onder ssh:web-vanluykennl", kc.opgeslagen)
 	}
 
-	// En absoluut niet in .rdm.yml: dat bestand staat in de klantrepo.
-	data, err := os.ReadFile(filepath.Join(repo, ".rdm.yml"))
+	// En absoluut niet in de projectconfig: dat bestand staat in de klantrepo.
+	data, err := os.ReadFile(filepath.Join(repo, config.ProjectConfigFile))
 	if err != nil {
-		t.Fatalf("lees .rdm.yml: %v", err)
+		t.Fatalf("lees %s: %v", config.ProjectConfigFile, err)
 	}
 	if strings.Contains(string(data), geheim) {
-		t.Fatalf(".rdm.yml bevat het wachtwoord in platte tekst:\n%s", data)
+		t.Fatalf("%s bevat het wachtwoord in platte tekst:\n%s", config.ProjectConfigFile, data)
 	}
 	if !strings.Contains(string(data), "keychain:ssh:web-vanluykennl") {
-		t.Errorf(".rdm.yml mist de keychain-verwijzing:\n%s", data)
+		t.Errorf("%s mist de keychain-verwijzing:\n%s", config.ProjectConfigFile, data)
 	}
 
 	toegang, err := svc.GetSSHAccess("p1")

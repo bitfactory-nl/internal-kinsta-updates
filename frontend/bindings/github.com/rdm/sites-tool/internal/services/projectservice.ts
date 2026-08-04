@@ -93,7 +93,7 @@ export function SetApp(app: application$0.App | null): $CancellablePromise<void>
 }
 
 /**
- * UpdateProjectConfig replaces the Config of a project in-memory (used after saving .rdm.yml).
+ * UpdateProjectConfig replaces the Config of a project in-memory (used after saving .rdm/config.yml).
  */
 export function UpdateProjectConfig(id: string, cfg: domain$0.ProjectConfig): $CancellablePromise<void> {
     return $Call.ByID(4010355408, id, cfg);
