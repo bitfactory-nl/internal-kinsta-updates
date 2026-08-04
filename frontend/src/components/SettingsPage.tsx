@@ -270,6 +270,22 @@ export default function SettingsPage({ onClose }: Props) {
           </div>
         </section>
 
+        {/* Database */}
+        <section>
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+            Database
+          </h3>
+          <div className="bg-panel border border-border rounded-[11px] px-4 py-3 flex items-center gap-4">
+            <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Database-programma</label>
+            <input
+              value={settings.dbApp}
+              onChange={e => update('dbApp', e.target.value)}
+              placeholder="Sequel Ace"
+              className={inputClass}
+            />
+          </div>
+        </section>
+
         {/* Git */}
         <section>
           <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">

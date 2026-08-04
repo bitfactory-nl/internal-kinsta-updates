@@ -4,6 +4,7 @@ package config
 type Global struct {
 	ProjectsRoots []string        `yaml:"projects_roots"`
 	Editor        string          `yaml:"editor"` // cursor | vscode | phpstorm
+	DBApp         string          `yaml:"db_app"` // Sequel Ace | TablePlus | ... (optioneel)
 	Kinsta        KinstaGlobal    `yaml:"kinsta"`
 	PluginRepo    PluginRepo      `yaml:"plugin_repo"`
 	Notifications Notifications   `yaml:"notifications"`

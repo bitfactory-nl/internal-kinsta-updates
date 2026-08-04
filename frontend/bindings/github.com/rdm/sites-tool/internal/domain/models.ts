@@ -354,6 +354,168 @@ export class Commit {
     }
 }
 
+/**
+ * DBCloneRequest is what the user has filled in/confirmed in the UI for one
+ * clone operation.
+ */
+export class DBCloneRequest {
+    "prodSiteUrl": string;
+    "localUrl": string;
+    "localDbName": string;
+
+    /**
+     * "mysql" | "mysql84"
+     */
+    "localDbHost": string;
+
+    /**
+     * TablePrefix comes from an earlier Probe, so the service does not need to
+     * probe again just for the multisite domain fix.
+     */
+    "tablePrefix": string;
+    "multisite": boolean;
+
+    /**
+     * ProdNetworkDomain/LocalNetworkDomain are the bare hostnames the
+     * multisite fix rewrites wp_blogs.domain/wp_site.domain from and to. Both
+     * are optional; when empty, Clone falls back to the bare host of
+     * ProdSiteURL/LocalURL. Prefer these when known (ProdNetworkDomain from a
+     * Probe, LocalNetworkDomain from .env's DOMAIN_CURRENT_SITE) since a
+     * subdomain-multisite network's domain is not always the same as its
+     * primary site's URL.
+     */
+    "prodNetworkDomain"?: string;
+    "localNetworkDomain"?: string;
+
+    /** Creates a new DBCloneRequest instance. */
+    constructor($$source: Partial<DBCloneRequest> = {}) {
+        if (!("prodSiteUrl" in $$source)) {
+            this["prodSiteUrl"] = "";
+        }
+        if (!("localUrl" in $$source)) {
+            this["localUrl"] = "";
+        }
+        if (!("localDbName" in $$source)) {
+            this["localDbName"] = "";
+        }
+        if (!("localDbHost" in $$source)) {
+            this["localDbHost"] = "";
+        }
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("multisite" in $$source)) {
+            this["multisite"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBCloneRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBCloneRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBCloneRequest($$parsedSource as Partial<DBCloneRequest>);
+    }
+}
+
+/**
+ * DBCloneResult is the outcome of a completed clone.
+ */
+export class DBCloneResult {
+    "localDbName": string;
+    "siteUrlBefore": string;
+    "siteUrlAfter": string;
+    "tablesImported": number;
+    "dumpBytes": number;
+    "backupPath"?: string;
+    "multisiteFixApplied": boolean;
+    "warnings"?: string[];
+
+    /** Creates a new DBCloneResult instance. */
+    constructor($$source: Partial<DBCloneResult> = {}) {
+        if (!("localDbName" in $$source)) {
+            this["localDbName"] = "";
+        }
+        if (!("siteUrlBefore" in $$source)) {
+            this["siteUrlBefore"] = "";
+        }
+        if (!("siteUrlAfter" in $$source)) {
+            this["siteUrlAfter"] = "";
+        }
+        if (!("tablesImported" in $$source)) {
+            this["tablesImported"] = 0;
+        }
+        if (!("dumpBytes" in $$source)) {
+            this["dumpBytes"] = 0;
+        }
+        if (!("multisiteFixApplied" in $$source)) {
+            this["multisiteFixApplied"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBCloneResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBCloneResult {
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField7_0($$parsedSource["warnings"]);
+        }
+        return new DBCloneResult($$parsedSource as Partial<DBCloneResult>);
+    }
+}
+
+/**
+ * DBProbe is a quick, read-only check of the production environment: what is
+ * there and how big it is.
+ */
+export class DBProbe {
+    "siteUrl": string;
+    "tablePrefix": string;
+    "isMultisite": boolean;
+
+    /**
+     * NetworkDomain is the production network's actual registered domain
+     * (from wp_site, via `global $current_site`) — only meaningful when
+     * IsMultisite. This is the bare-hostname search term for the multisite
+     * domain fix; it is not always the same as the bare host of SiteURL.
+     */
+    "networkDomain"?: string;
+    "dbSizeBytes": number;
+    "tmpFreeBytes"?: number;
+
+    /** Creates a new DBProbe instance. */
+    constructor($$source: Partial<DBProbe> = {}) {
+        if (!("siteUrl" in $$source)) {
+            this["siteUrl"] = "";
+        }
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("isMultisite" in $$source)) {
+            this["isMultisite"] = false;
+        }
+        if (!("dbSizeBytes" in $$source)) {
+            this["dbSizeBytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBProbe instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBProbe {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBProbe($$parsedSource as Partial<DBProbe>);
+    }
+}
+
 export class DeployConf {
     "type": string;
     "link": DeployLinks;
@@ -392,6 +554,7 @@ export class DeployLinks {
     "test": string;
     "acc": string;
     "prod": string;
+    "local"?: string;
 
     /** Creates a new DeployLinks instance. */
     constructor($$source: Partial<DeployLinks> = {}) {
@@ -511,6 +674,36 @@ export enum DiffStatus {
     DiffNotFound = "not_in_repo",
     DiffVulnerable = "vulnerable",
 };
+
+/**
+ * DomainPair maps one production hostname to its local counterpart, for
+ * multisite subsites that use their own domain rather than a subdomain of the
+ * network's.
+ */
+export class DomainPair {
+    "prod": string;
+    "local": string;
+
+    /** Creates a new DomainPair instance. */
+    constructor($$source: Partial<DomainPair> = {}) {
+        if (!("prod" in $$source)) {
+            this["prod"] = "";
+        }
+        if (!("local" in $$source)) {
+            this["local"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DomainPair instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DomainPair {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DomainPair($$parsedSource as Partial<DomainPair>);
+    }
+}
 
 /**
  * EnvKey identifies one of the three comparable environments.
@@ -903,6 +1096,64 @@ export class KinstaProjectCfg {
 }
 
 /**
+ * LocalEnvDefaults are the local defaults read from the project's own .env
+ * file — purely local, no SSH needed — used to prefill form fields. The
+ * multisite fields come straight from the project's own .env conventions
+ * (MULTISITE, SUBDOMAIN_INSTALL, DOMAIN_CURRENT_SITE), which is the clearest,
+ * most authoritative signal of whether — and how — a project runs as
+ * multisite locally; it is not inferred or guessed.
+ */
+export class LocalEnvDefaults {
+    "dbName": string;
+
+    /**
+     * "mysql" | "mysql84" | empty if unknown
+     */
+    "dbHost": string;
+
+    /**
+     * https://<APP_DOMAIN>, empty if .env is absent
+     */
+    "url": string;
+    "isMultisite": boolean;
+    "subdomainInstall": boolean;
+
+    /**
+     * from .env DOMAIN_CURRENT_SITE
+     */
+    "domainCurrentSite"?: string;
+
+    /** Creates a new LocalEnvDefaults instance. */
+    constructor($$source: Partial<LocalEnvDefaults> = {}) {
+        if (!("dbName" in $$source)) {
+            this["dbName"] = "";
+        }
+        if (!("dbHost" in $$source)) {
+            this["dbHost"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("isMultisite" in $$source)) {
+            this["isMultisite"] = false;
+        }
+        if (!("subdomainInstall" in $$source)) {
+            this["subdomainInstall"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalEnvDefaults instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalEnvDefaults {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocalEnvDefaults($$parsedSource as Partial<LocalEnvDefaults>);
+    }
+}
+
+/**
  * MediaCategory groups a media finding by what kind of claim it makes. The three
  * differ fundamentally in how much they can be trusted, so they are never merged
  * into one "cleanup" list.
@@ -1214,6 +1465,51 @@ export class MediaPeriodBucket {
 }
 
 /**
+ * MediaPullResult is the outcome of a completed media pull.
+ */
+export class MediaPullResult {
+    "folders": string[];
+    "filesWritten": number;
+    "bytesWritten": number;
+    "localPath": string;
+    "warnings"?: string[];
+
+    /** Creates a new MediaPullResult instance. */
+    constructor($$source: Partial<MediaPullResult> = {}) {
+        if (!("folders" in $$source)) {
+            this["folders"] = [];
+        }
+        if (!("filesWritten" in $$source)) {
+            this["filesWritten"] = 0;
+        }
+        if (!("bytesWritten" in $$source)) {
+            this["bytesWritten"] = 0;
+        }
+        if (!("localPath" in $$source)) {
+            this["localPath"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaPullResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaPullResult {
+        const $$createField0_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("folders" in $$parsedSource) {
+            $$parsedSource["folders"] = $$createField0_0($$parsedSource["folders"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField4_0($$parsedSource["warnings"]);
+        }
+        return new MediaPullResult($$parsedSource as Partial<MediaPullResult>);
+    }
+}
+
+/**
  * MediaScanScope records what the scan looked at and what it could not see. It is
  * shown alongside every result: without it, "no reference found" reads as
  * "unused", which is exactly the mistake that deletes something in use.
@@ -1436,6 +1732,48 @@ export class MediaScanSummary {
 }
 
 /**
+ * MigrationCfg lives under `migration:` in .rdm.yml and holds the URL mapping
+ * used when pulling production down to a local environment. It contains no
+ * secrets — only URLs and hostnames — so it is safe in the customer's repo,
+ * which is also the point: a colleague who pulls the repo gets the same
+ * mapping instead of re-deriving it.
+ * 
+ * For a single site ProdURL/LocalURL are the full site URLs. For multisite
+ * the bare network domains are what matter (a subsite URL never contains the
+ * primary site's full URL as a substring), and ExtraDomains covers subsites
+ * with a mapped domain of their own, which no single pair can derive.
+ */
+export class MigrationCfg {
+    "multisite": boolean;
+    "prodUrl"?: string;
+    "localUrl"?: string;
+    "prodDomain"?: string;
+    "localDomain"?: string;
+    "extraDomains"?: DomainPair[];
+
+    /** Creates a new MigrationCfg instance. */
+    constructor($$source: Partial<MigrationCfg> = {}) {
+        if (!("multisite" in $$source)) {
+            this["multisite"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MigrationCfg instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MigrationCfg {
+        const $$createField5_0 = $$createType30;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("extraDomains" in $$parsedSource) {
+            $$parsedSource["extraDomains"] = $$createField5_0($$parsedSource["extraDomains"]);
+        }
+        return new MigrationCfg($$parsedSource as Partial<MigrationCfg>);
+    }
+}
+
+/**
  * ModelTier is a logical model choice; mapped to a concrete Anthropic model id
  * in the claude adapter (Plan 3).
  */
@@ -1644,9 +1982,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType29;
-        const $$createField5_0 = $$createType30;
-        const $$createField6_0 = $$createType31;
+        const $$createField4_0 = $$createType31;
+        const $$createField5_0 = $$createType32;
+        const $$createField6_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1670,6 +2008,7 @@ export class ProjectConfig {
     "vps"?: VPSProjectCfg | null;
     "ssh"?: SSHTarget | null;
     "testing"?: TestingCfg | null;
+    "migration"?: MigrationCfg | null;
 
     /** Creates a new ProjectConfig instance. */
     constructor($$source: Partial<ProjectConfig> = {}) {
@@ -1690,11 +2029,12 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType33;
-        const $$createField4_0 = $$createType35;
-        const $$createField5_0 = $$createType37;
-        const $$createField6_0 = $$createType39;
-        const $$createField7_0 = $$createType41;
+        const $$createField3_0 = $$createType35;
+        const $$createField4_0 = $$createType37;
+        const $$createField5_0 = $$createType39;
+        const $$createField6_0 = $$createType41;
+        const $$createField7_0 = $$createType43;
+        const $$createField8_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -1710,6 +2050,9 @@ export class ProjectConfig {
         }
         if ("testing" in $$parsedSource) {
             $$parsedSource["testing"] = $$createField7_0($$parsedSource["testing"]);
+        }
+        if ("migration" in $$parsedSource) {
+            $$parsedSource["migration"] = $$createField8_0($$parsedSource["migration"]);
         }
         return new ProjectConfig($$parsedSource as Partial<ProjectConfig>);
     }
@@ -1895,12 +2238,12 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType43;
-        const $$createField5_0 = $$createType45;
-        const $$createField6_0 = $$createType47;
-        const $$createField7_0 = $$createType49;
-        const $$createField8_0 = $$createType49;
-        const $$createField9_0 = $$createType51;
+        const $$createField4_0 = $$createType47;
+        const $$createField5_0 = $$createType49;
+        const $$createField6_0 = $$createType51;
+        const $$createField7_0 = $$createType53;
+        const $$createField8_0 = $$createType53;
+        const $$createField9_0 = $$createType55;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("acties" in $$parsedSource) {
             $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
@@ -2113,8 +2456,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType53;
-        const $$createField5_0 = $$createType55;
+        const $$createField4_0 = $$createType57;
+        const $$createField5_0 = $$createType59;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -2254,7 +2597,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType57;
+        const $$createField7_0 = $$createType61;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -2286,8 +2629,8 @@ export class TestingCfg {
      */
     static createFrom($$source: any = {}): TestingCfg {
         const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType59;
-        const $$createField2_0 = $$createType61;
+        const $$createField1_0 = $$createType63;
+        const $$createField2_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -2335,6 +2678,36 @@ export class UpdateRow {
     }
 }
 
+/**
+ * UploadFolder is one top-level directory inside wp-content/uploads on the
+ * production server, with its size, so the user can pick what to pull instead
+ * of waiting for a whole media library.
+ */
+export class UploadFolder {
+    "name": string;
+    "bytes": number;
+
+    /** Creates a new UploadFolder instance. */
+    constructor($$source: Partial<UploadFolder> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UploadFolder instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UploadFolder {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UploadFolder($$parsedSource as Partial<UploadFolder>);
+    }
+}
+
 export class VPSProjectCfg {
     "provider": string;
     "ssh": SSHTarget;
@@ -2363,7 +2736,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType38;
+        const $$createField1_0 = $$createType40;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -2432,7 +2805,7 @@ export class Vulnerability {
      */
     static createFrom($$source: any = {}): Vulnerability {
         const $$createField7_0 = $$createType0;
-        const $$createField10_0 = $$createType63;
+        const $$createField10_0 = $$createType67;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("researchers" in $$parsedSource) {
             $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
@@ -2474,38 +2847,42 @@ const $$createType25 = $Create.Array($$createType24);
 const $$createType26 = MediaCategoryResult.createFrom;
 const $$createType27 = $Create.Array($$createType26);
 const $$createType28 = MediaScanScope.createFrom;
-const $$createType29 = ProjectConfig.createFrom;
-const $$createType30 = DeployConf.createFrom;
-const $$createType31 = GitStatus.createFrom;
-const $$createType32 = KinstaProjectCfg.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = AWSProjectCfg.createFrom;
+const $$createType29 = DomainPair.createFrom;
+const $$createType30 = $Create.Array($$createType29);
+const $$createType31 = ProjectConfig.createFrom;
+const $$createType32 = DeployConf.createFrom;
+const $$createType33 = GitStatus.createFrom;
+const $$createType34 = KinstaProjectCfg.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = VPSProjectCfg.createFrom;
+const $$createType36 = AWSProjectCfg.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = SSHTarget.createFrom;
+const $$createType38 = VPSProjectCfg.createFrom;
 const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = TestingCfg.createFrom;
+const $$createType40 = SSHTarget.createFrom;
 const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = ActieRow.createFrom;
-const $$createType43 = $Create.Array($$createType42);
-const $$createType44 = MonitorRow.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = SoftwareRow.createFrom;
+const $$createType42 = TestingCfg.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = MigrationCfg.createFrom;
+const $$createType45 = $Create.Nullable($$createType44);
+const $$createType46 = ActieRow.createFrom;
 const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = UpdateRow.createFrom;
+const $$createType48 = MonitorRow.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = AVGRow.createFrom;
+const $$createType50 = SoftwareRow.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = Finding.createFrom;
+const $$createType52 = UpdateRow.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = Regression.createFrom;
+const $$createType54 = AVGRow.createFrom;
 const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = StepResult.createFrom;
+const $$createType56 = Finding.createFrom;
 const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = BasicAuth.createFrom;
-const $$createType59 = $Create.Map($Create.Any, $$createType58);
-const $$createType60 = TestAccount.createFrom;
-const $$createType61 = $Create.Nullable($$createType60);
-const $$createType62 = AffectedSoftware.createFrom;
-const $$createType63 = $Create.Array($$createType62);
+const $$createType58 = Regression.createFrom;
+const $$createType59 = $Create.Array($$createType58);
+const $$createType60 = StepResult.createFrom;
+const $$createType61 = $Create.Array($$createType60);
+const $$createType62 = BasicAuth.createFrom;
+const $$createType63 = $Create.Map($Create.Any, $$createType62);
+const $$createType64 = TestAccount.createFrom;
+const $$createType65 = $Create.Nullable($$createType64);
+const $$createType66 = AffectedSoftware.createFrom;
+const $$createType67 = $Create.Array($$createType66);
