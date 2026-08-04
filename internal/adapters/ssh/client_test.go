@@ -1,6 +1,7 @@
 package ssh
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -261,6 +262,55 @@ func TestUploadRejectsUnsafePath(t *testing.T) {
 	c := NewClient(WithKnownHostsPath(filepath.Join(t.TempDir(), "known_hosts")), WithAgentDialer(noAgent))
 	tgt := Target{Host: "127.0.0.1", Port: 22, User: "wp"}
 	err := c.Upload(context.Background(), tgt, "/tmp/evil';rm -rf /", []byte("x"))
+	if err == nil || !strings.Contains(err.Error(), "ongeldig remote pad") {
+		t.Fatalf("expected unsafe-path error, got %v", err)
+	}
+}
+
+func TestDownload(t *testing.T) {
+	dir := t.TempDir()
+	idPath, pub := writeIdentity(t, dir)
+	payload := []byte("PK\x03\x04 gzipped sql bytes, rather more than a few of them")
+	srv := startTestServer(t, pub, func(_ string, _ []byte) (string, int) {
+		return string(payload), 0
+	})
+	host, port := splitHostPort(t, srv.addr)
+
+	c := NewClient(WithKnownHostsPath(filepath.Join(dir, "known_hosts")), WithAgentDialer(noAgent))
+	tgt := Target{Host: host, Port: port, User: "wp", IdentityFile: idPath}
+
+	var buf bytes.Buffer
+	var progressCalls []int64
+	err := c.Download(context.Background(), tgt, "/tmp/dump.sql.gz", &buf, func(written int64) {
+		progressCalls = append(progressCalls, written)
+	})
+	if err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+	if buf.String() != string(payload) {
+		t.Errorf("gedownloade bytes = %q, want %q", buf.String(), payload)
+	}
+	if got := srv.command(); got != "cat '/tmp/dump.sql.gz'" {
+		t.Errorf("server saw cmd %q, want cat redirect", got)
+	}
+	if len(progressCalls) == 0 {
+		t.Fatal("onProgress werd nooit aangeroepen")
+	}
+	if last := progressCalls[len(progressCalls)-1]; last != int64(len(payload)) {
+		t.Errorf("laatste voortgangswaarde = %d, want %d", last, len(payload))
+	}
+	for i := 1; i < len(progressCalls); i++ {
+		if progressCalls[i] < progressCalls[i-1] {
+			t.Fatalf("voortgang liep terug: %v", progressCalls)
+		}
+	}
+}
+
+func TestDownloadRejectsUnsafePath(t *testing.T) {
+	c := NewClient(WithKnownHostsPath(filepath.Join(t.TempDir(), "known_hosts")), WithAgentDialer(noAgent))
+	tgt := Target{Host: "127.0.0.1", Port: 22, User: "wp"}
+	var buf bytes.Buffer
+	err := c.Download(context.Background(), tgt, "/tmp/evil';rm -rf /", &buf, nil)
 	if err == nil || !strings.Contains(err.Error(), "ongeldig remote pad") {
 		t.Fatalf("expected unsafe-path error, got %v", err)
 	}

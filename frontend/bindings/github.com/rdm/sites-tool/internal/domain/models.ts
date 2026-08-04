@@ -162,6 +162,169 @@ export class AffectedSoftware {
 }
 
 /**
+ * AnonymiseCfg lives under `migration.anonymise:` in .rdm.yml and says what a
+ * clone must strip to stay within the AVG. It holds no personal data itself —
+ * only role names, logins and table names — so it is safe in the customer's
+ * repo.
+ */
+export class AnonymiseCfg {
+    /**
+     * Enabled uit betekent: klonen zonder te anonimiseren. Dat is een bewuste
+     * keuze die zichtbaar in het resultaat wordt gemeld, nooit een stille default.
+     */
+    "enabled": boolean;
+
+    /**
+     * KeepRoles/KeepUserLogins zijn de accounts die ongemoeid blijven — meestal
+     * de eigen beheerders, zodat je kunt inloggen. Al het andere wordt
+     * geanonimiseerd.
+     */
+    "keepRoles"?: string[];
+    "keepUserLogins"?: string[];
+    "anonymiseUsers": boolean;
+    "anonymiseComments": boolean;
+
+    /**
+     * AnonymiseWooOrders haalt de persoonsgegevens uit WooCommerce-orders die
+     * nog in wp_posts/wp_postmeta staan (zonder HPOS). Op een site zonder
+     * webshop is dit een no-op, dus het staat standaard aan.
+     */
+    "anonymiseWooOrders": boolean;
+
+    /**
+     * AnonymiseAdminEmail vervangt admin_email in wp_options. Dat is niet alleen
+     * een persoonsgegeven; het is ook het adres waar een lokale WordPress
+     * ongevraagd mail naartoe stuurt zodra je iets test.
+     */
+    "anonymiseAdminEmail": boolean;
+
+    /**
+     * EmptyTables zijn de tabellen die na de import worden geleegd. Het schema
+     * blijft staan, zodat plugins niet omvallen over een ontbrekende tabel.
+     */
+    "emptyTables"?: string[];
+
+    /** Creates a new AnonymiseCfg instance. */
+    constructor($$source: Partial<AnonymiseCfg> = {}) {
+        if (!("enabled" in $$source)) {
+            this["enabled"] = false;
+        }
+        if (!("anonymiseUsers" in $$source)) {
+            this["anonymiseUsers"] = false;
+        }
+        if (!("anonymiseComments" in $$source)) {
+            this["anonymiseComments"] = false;
+        }
+        if (!("anonymiseWooOrders" in $$source)) {
+            this["anonymiseWooOrders"] = false;
+        }
+        if (!("anonymiseAdminEmail" in $$source)) {
+            this["anonymiseAdminEmail"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnonymiseCfg instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AnonymiseCfg {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("keepRoles" in $$parsedSource) {
+            $$parsedSource["keepRoles"] = $$createField1_0($$parsedSource["keepRoles"]);
+        }
+        if ("keepUserLogins" in $$parsedSource) {
+            $$parsedSource["keepUserLogins"] = $$createField2_0($$parsedSource["keepUserLogins"]);
+        }
+        if ("emptyTables" in $$parsedSource) {
+            $$parsedSource["emptyTables"] = $$createField7_0($$parsedSource["emptyTables"]);
+        }
+        return new AnonymiseCfg($$parsedSource as Partial<AnonymiseCfg>);
+    }
+}
+
+/**
+ * AnonymiseResult reports what the anonymisation actually did, so it can be
+ * shown after a clone instead of being taken on faith.
+ */
+export class AnonymiseResult {
+    /**
+     * anonimisatie stond uit
+     */
+    "skipped": boolean;
+    "tablesEmptied"?: string[];
+
+    /**
+     * stonden in de config maar niet in de DB
+     */
+    "tablesMissing"?: string[];
+    "usersAnonymised": number;
+    "usersKept": number;
+    "commentsAnonymised": number;
+    "wooOrdersStripped": boolean;
+    "adminEmailReplaced": boolean;
+    "warnings"?: string[];
+
+    /**
+     * Limitations zijn de dingen die deze anonimisatie bewust niet dekt. Ze
+     * horen in het resultaat, niet alleen in documentatie: een onvolledige
+     * belofte is bij persoonsgegevens net zo riskant als een fout.
+     */
+    "limitations"?: string[];
+
+    /** Creates a new AnonymiseResult instance. */
+    constructor($$source: Partial<AnonymiseResult> = {}) {
+        if (!("skipped" in $$source)) {
+            this["skipped"] = false;
+        }
+        if (!("usersAnonymised" in $$source)) {
+            this["usersAnonymised"] = 0;
+        }
+        if (!("usersKept" in $$source)) {
+            this["usersKept"] = 0;
+        }
+        if (!("commentsAnonymised" in $$source)) {
+            this["commentsAnonymised"] = 0;
+        }
+        if (!("wooOrdersStripped" in $$source)) {
+            this["wooOrdersStripped"] = false;
+        }
+        if (!("adminEmailReplaced" in $$source)) {
+            this["adminEmailReplaced"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AnonymiseResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AnonymiseResult {
+        const $$createField1_0 = $$createType0;
+        const $$createField2_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tablesEmptied" in $$parsedSource) {
+            $$parsedSource["tablesEmptied"] = $$createField1_0($$parsedSource["tablesEmptied"]);
+        }
+        if ("tablesMissing" in $$parsedSource) {
+            $$parsedSource["tablesMissing"] = $$createField2_0($$parsedSource["tablesMissing"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField8_0($$parsedSource["warnings"]);
+        }
+        if ("limitations" in $$parsedSource) {
+            $$parsedSource["limitations"] = $$createField9_0($$parsedSource["limitations"]);
+        }
+        return new AnonymiseResult($$parsedSource as Partial<AnonymiseResult>);
+    }
+}
+
+/**
  * BasicAuth holds HTTP basic-auth credentials for one environment.
  * Pass is a keychain: reference, never a literal secret in git.
  */
@@ -350,6 +513,177 @@ export class Commit {
     }
 }
 
+/**
+ * DBCloneRequest is what the user has filled in/confirmed in the UI for one
+ * clone operation.
+ */
+export class DBCloneRequest {
+    "prodSiteUrl": string;
+    "localUrl": string;
+    "localDbName": string;
+
+    /**
+     * "mysql" | "mysql84"
+     */
+    "localDbHost": string;
+
+    /**
+     * TablePrefix comes from an earlier Probe, so the service does not need to
+     * probe again just for the multisite domain fix.
+     */
+    "tablePrefix": string;
+    "multisite": boolean;
+
+    /**
+     * ProdNetworkDomain/LocalNetworkDomain are the bare hostnames the
+     * multisite fix rewrites wp_blogs.domain/wp_site.domain from and to. Both
+     * are optional; when empty, Clone falls back to the bare host of
+     * ProdSiteURL/LocalURL. Prefer these when known (ProdNetworkDomain from a
+     * Probe, LocalNetworkDomain from .env's DOMAIN_CURRENT_SITE) since a
+     * subdomain-multisite network's domain is not always the same as its
+     * primary site's URL.
+     */
+    "prodNetworkDomain"?: string;
+    "localNetworkDomain"?: string;
+
+    /** Creates a new DBCloneRequest instance. */
+    constructor($$source: Partial<DBCloneRequest> = {}) {
+        if (!("prodSiteUrl" in $$source)) {
+            this["prodSiteUrl"] = "";
+        }
+        if (!("localUrl" in $$source)) {
+            this["localUrl"] = "";
+        }
+        if (!("localDbName" in $$source)) {
+            this["localDbName"] = "";
+        }
+        if (!("localDbHost" in $$source)) {
+            this["localDbHost"] = "";
+        }
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("multisite" in $$source)) {
+            this["multisite"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBCloneRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBCloneRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBCloneRequest($$parsedSource as Partial<DBCloneRequest>);
+    }
+}
+
+/**
+ * DBCloneResult is the outcome of a completed clone.
+ */
+export class DBCloneResult {
+    "localDbName": string;
+    "siteUrlBefore": string;
+    "siteUrlAfter": string;
+    "tablesImported": number;
+    "dumpBytes": number;
+    "backupPath"?: string;
+    "multisiteFixApplied": boolean;
+    "warnings"?: string[];
+
+    /**
+     * Anonymise reports what the AVG step stripped, or that it was skipped.
+     */
+    "anonymise"?: AnonymiseResult | null;
+
+    /** Creates a new DBCloneResult instance. */
+    constructor($$source: Partial<DBCloneResult> = {}) {
+        if (!("localDbName" in $$source)) {
+            this["localDbName"] = "";
+        }
+        if (!("siteUrlBefore" in $$source)) {
+            this["siteUrlBefore"] = "";
+        }
+        if (!("siteUrlAfter" in $$source)) {
+            this["siteUrlAfter"] = "";
+        }
+        if (!("tablesImported" in $$source)) {
+            this["tablesImported"] = 0;
+        }
+        if (!("dumpBytes" in $$source)) {
+            this["dumpBytes"] = 0;
+        }
+        if (!("multisiteFixApplied" in $$source)) {
+            this["multisiteFixApplied"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBCloneResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBCloneResult {
+        const $$createField7_0 = $$createType0;
+        const $$createField8_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField7_0($$parsedSource["warnings"]);
+        }
+        if ("anonymise" in $$parsedSource) {
+            $$parsedSource["anonymise"] = $$createField8_0($$parsedSource["anonymise"]);
+        }
+        return new DBCloneResult($$parsedSource as Partial<DBCloneResult>);
+    }
+}
+
+/**
+ * DBProbe is a quick, read-only check of the production environment: what is
+ * there and how big it is.
+ */
+export class DBProbe {
+    "siteUrl": string;
+    "tablePrefix": string;
+    "isMultisite": boolean;
+
+    /**
+     * NetworkDomain is the production network's actual registered domain
+     * (from wp_site, via `global $current_site`) — only meaningful when
+     * IsMultisite. This is the bare-hostname search term for the multisite
+     * domain fix; it is not always the same as the bare host of SiteURL.
+     */
+    "networkDomain"?: string;
+    "dbSizeBytes": number;
+    "tmpFreeBytes"?: number;
+
+    /** Creates a new DBProbe instance. */
+    constructor($$source: Partial<DBProbe> = {}) {
+        if (!("siteUrl" in $$source)) {
+            this["siteUrl"] = "";
+        }
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("isMultisite" in $$source)) {
+            this["isMultisite"] = false;
+        }
+        if (!("dbSizeBytes" in $$source)) {
+            this["dbSizeBytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBProbe instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBProbe {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBProbe($$parsedSource as Partial<DBProbe>);
+    }
+}
+
 export class DeployConf {
     "type": string;
     "link": DeployLinks;
@@ -371,8 +705,8 @@ export class DeployConf {
      * Creates a new DeployConf instance from a string or object.
      */
     static createFrom($$source: any = {}): DeployConf {
-        const $$createField1_0 = $$createType2;
-        const $$createField2_0 = $$createType3;
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("link" in $$parsedSource) {
             $$parsedSource["link"] = $$createField1_0($$parsedSource["link"]);
@@ -388,6 +722,7 @@ export class DeployLinks {
     "test": string;
     "acc": string;
     "prod": string;
+    "local"?: string;
 
     /** Creates a new DeployLinks instance. */
     constructor($$source: Partial<DeployLinks> = {}) {
@@ -449,7 +784,7 @@ export class DiffHunk {
      * Creates a new DiffHunk instance from a string or object.
      */
     static createFrom($$source: any = {}): DiffHunk {
-        const $$createField5_0 = $$createType5;
+        const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("lines" in $$parsedSource) {
             $$parsedSource["lines"] = $$createField5_0($$parsedSource["lines"]);
@@ -507,6 +842,36 @@ export enum DiffStatus {
     DiffNotFound = "not_in_repo",
     DiffVulnerable = "vulnerable",
 };
+
+/**
+ * DomainPair maps one production hostname to its local counterpart, for
+ * multisite subsites that use their own domain rather than a subdomain of the
+ * network's.
+ */
+export class DomainPair {
+    "prod": string;
+    "local": string;
+
+    /** Creates a new DomainPair instance. */
+    constructor($$source: Partial<DomainPair> = {}) {
+        if (!("prod" in $$source)) {
+            this["prod"] = "";
+        }
+        if (!("local" in $$source)) {
+            this["local"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DomainPair instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DomainPair {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DomainPair($$parsedSource as Partial<DomainPair>);
+    }
+}
 
 /**
  * EnvKey identifies one of the three comparable environments.
@@ -581,7 +946,7 @@ export class FileDiff {
      * Creates a new FileDiff instance from a string or object.
      */
     static createFrom($$source: any = {}): FileDiff {
-        const $$createField3_0 = $$createType7;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("hunks" in $$parsedSource) {
             $$parsedSource["hunks"] = $$createField3_0($$parsedSource["hunks"]);
@@ -664,7 +1029,7 @@ export class Flow {
      * Creates a new Flow instance from a string or object.
      */
     static createFrom($$source: any = {}): Flow {
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("steps" in $$parsedSource) {
             $$parsedSource["steps"] = $$createField1_0($$parsedSource["steps"]);
@@ -725,8 +1090,8 @@ export class GitStatus {
      * Creates a new GitStatus instance from a string or object.
      */
     static createFrom($$source: any = {}): GitStatus {
-        const $$createField4_0 = $$createType11;
-        const $$createField5_0 = $$createType11;
+        const $$createField4_0 = $$createType13;
+        const $$createField5_0 = $$createType13;
         const $$createField6_0 = $$createType0;
         const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -800,7 +1165,7 @@ export class GraphCommit {
     static createFrom($$source: any = {}): GraphCommit {
         const $$createField5_0 = $$createType0;
         const $$createField6_0 = $$createType0;
-        const $$createField9_0 = $$createType13;
+        const $$createField9_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("parents" in $$parsedSource) {
             $$parsedSource["parents"] = $$createField5_0($$parsedSource["parents"]);
@@ -889,12 +1254,70 @@ export class KinstaProjectCfg {
      * Creates a new KinstaProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): KinstaProjectCfg {
-        const $$createField1_0 = $$createType15;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField1_0($$parsedSource["environments"]);
         }
         return new KinstaProjectCfg($$parsedSource as Partial<KinstaProjectCfg>);
+    }
+}
+
+/**
+ * LocalEnvDefaults are the local defaults read from the project's own .env
+ * file — purely local, no SSH needed — used to prefill form fields. The
+ * multisite fields come straight from the project's own .env conventions
+ * (MULTISITE, SUBDOMAIN_INSTALL, DOMAIN_CURRENT_SITE), which is the clearest,
+ * most authoritative signal of whether — and how — a project runs as
+ * multisite locally; it is not inferred or guessed.
+ */
+export class LocalEnvDefaults {
+    "dbName": string;
+
+    /**
+     * "mysql" | "mysql84" | empty if unknown
+     */
+    "dbHost": string;
+
+    /**
+     * https://<APP_DOMAIN>, empty if .env is absent
+     */
+    "url": string;
+    "isMultisite": boolean;
+    "subdomainInstall": boolean;
+
+    /**
+     * from .env DOMAIN_CURRENT_SITE
+     */
+    "domainCurrentSite"?: string;
+
+    /** Creates a new LocalEnvDefaults instance. */
+    constructor($$source: Partial<LocalEnvDefaults> = {}) {
+        if (!("dbName" in $$source)) {
+            this["dbName"] = "";
+        }
+        if (!("dbHost" in $$source)) {
+            this["dbHost"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("isMultisite" in $$source)) {
+            this["isMultisite"] = false;
+        }
+        if (!("subdomainInstall" in $$source)) {
+            this["subdomainInstall"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalEnvDefaults instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalEnvDefaults {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocalEnvDefaults($$parsedSource as Partial<LocalEnvDefaults>);
     }
 }
 
@@ -975,7 +1398,7 @@ export class MediaCategoryResult {
      * Creates a new MediaCategoryResult instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaCategoryResult {
-        const $$createField4_0 = $$createType17;
+        const $$createField4_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("samples" in $$parsedSource) {
             $$parsedSource["samples"] = $$createField4_0($$parsedSource["samples"]);
@@ -1167,7 +1590,7 @@ export class MediaFileRow {
      * Creates a new MediaFileRow instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaFileRow {
-        const $$createField8_0 = $$createType18;
+        const $$createField8_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("evidence" in $$parsedSource) {
             $$parsedSource["evidence"] = $$createField8_0($$parsedSource["evidence"]);
@@ -1206,6 +1629,51 @@ export class MediaPeriodBucket {
     static createFrom($$source: any = {}): MediaPeriodBucket {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new MediaPeriodBucket($$parsedSource as Partial<MediaPeriodBucket>);
+    }
+}
+
+/**
+ * MediaPullResult is the outcome of a completed media pull.
+ */
+export class MediaPullResult {
+    "folders": string[];
+    "filesWritten": number;
+    "bytesWritten": number;
+    "localPath": string;
+    "warnings"?: string[];
+
+    /** Creates a new MediaPullResult instance. */
+    constructor($$source: Partial<MediaPullResult> = {}) {
+        if (!("folders" in $$source)) {
+            this["folders"] = [];
+        }
+        if (!("filesWritten" in $$source)) {
+            this["filesWritten"] = 0;
+        }
+        if (!("bytesWritten" in $$source)) {
+            this["bytesWritten"] = 0;
+        }
+        if (!("localPath" in $$source)) {
+            this["localPath"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MediaPullResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MediaPullResult {
+        const $$createField0_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("folders" in $$parsedSource) {
+            $$parsedSource["folders"] = $$createField0_0($$parsedSource["folders"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField4_0($$parsedSource["warnings"]);
+        }
+        return new MediaPullResult($$parsedSource as Partial<MediaPullResult>);
     }
 }
 
@@ -1296,7 +1764,7 @@ export class MediaScanScope {
     static createFrom($$source: any = {}): MediaScanScope {
         const $$createField0_0 = $$createType0;
         const $$createField4_0 = $$createType0;
-        const $$createField5_0 = $$createType19;
+        const $$createField5_0 = $$createType21;
         const $$createField12_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("folders" in $$parsedSource) {
@@ -1402,12 +1870,12 @@ export class MediaScanSummary {
      * Creates a new MediaScanSummary instance from a string or object.
      */
     static createFrom($$source: any = {}): MediaScanSummary {
-        const $$createField11_0 = $$createType21;
-        const $$createField12_0 = $$createType23;
-        const $$createField13_0 = $$createType25;
-        const $$createField14_0 = $$createType17;
-        const $$createField15_0 = $$createType27;
-        const $$createField16_0 = $$createType28;
+        const $$createField11_0 = $$createType23;
+        const $$createField12_0 = $$createType25;
+        const $$createField13_0 = $$createType27;
+        const $$createField14_0 = $$createType19;
+        const $$createField15_0 = $$createType29;
+        const $$createField16_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("byClass" in $$parsedSource) {
             $$parsedSource["byClass"] = $$createField11_0($$parsedSource["byClass"]);
@@ -1428,6 +1896,59 @@ export class MediaScanSummary {
             $$parsedSource["scope"] = $$createField16_0($$parsedSource["scope"]);
         }
         return new MediaScanSummary($$parsedSource as Partial<MediaScanSummary>);
+    }
+}
+
+/**
+ * MigrationCfg lives under `migration:` in .rdm.yml and holds the URL mapping
+ * used when pulling production down to a local environment. It contains no
+ * secrets — only URLs and hostnames — so it is safe in the customer's repo,
+ * which is also the point: a colleague who pulls the repo gets the same
+ * mapping instead of re-deriving it.
+ * 
+ * For a single site ProdURL/LocalURL are the full site URLs. For multisite
+ * the bare network domains are what matter (a subsite URL never contains the
+ * primary site's full URL as a substring), and ExtraDomains covers subsites
+ * with a mapped domain of their own, which no single pair can derive.
+ */
+export class MigrationCfg {
+    "multisite": boolean;
+    "prodUrl"?: string;
+    "localUrl"?: string;
+    "prodDomain"?: string;
+    "localDomain"?: string;
+    "extraDomains"?: DomainPair[];
+
+    /**
+     * Anonymise houdt bij wat een kloon moet strippen om binnen de AVG te
+     * blijven. Ontbreekt het blok, dan wordt er niet geanonimiseerd — en dat
+     * meldt de kloon expliciet in het resultaat.
+     */
+    "anonymise"?: AnonymiseCfg | null;
+
+    /** Creates a new MigrationCfg instance. */
+    constructor($$source: Partial<MigrationCfg> = {}) {
+        if (!("multisite" in $$source)) {
+            this["multisite"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MigrationCfg instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MigrationCfg {
+        const $$createField5_0 = $$createType32;
+        const $$createField6_0 = $$createType34;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("extraDomains" in $$parsedSource) {
+            $$parsedSource["extraDomains"] = $$createField5_0($$parsedSource["extraDomains"]);
+        }
+        if ("anonymise" in $$parsedSource) {
+            $$parsedSource["anonymise"] = $$createField6_0($$parsedSource["anonymise"]);
+        }
+        return new MigrationCfg($$parsedSource as Partial<MigrationCfg>);
     }
 }
 
@@ -1640,9 +2161,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType29;
-        const $$createField5_0 = $$createType30;
-        const $$createField6_0 = $$createType31;
+        const $$createField4_0 = $$createType35;
+        const $$createField5_0 = $$createType36;
+        const $$createField6_0 = $$createType37;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1666,6 +2187,7 @@ export class ProjectConfig {
     "vps"?: VPSProjectCfg | null;
     "ssh"?: SSHTarget | null;
     "testing"?: TestingCfg | null;
+    "migration"?: MigrationCfg | null;
 
     /** Creates a new ProjectConfig instance. */
     constructor($$source: Partial<ProjectConfig> = {}) {
@@ -1686,11 +2208,12 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType33;
-        const $$createField4_0 = $$createType35;
-        const $$createField5_0 = $$createType37;
-        const $$createField6_0 = $$createType39;
-        const $$createField7_0 = $$createType41;
+        const $$createField3_0 = $$createType39;
+        const $$createField4_0 = $$createType41;
+        const $$createField5_0 = $$createType43;
+        const $$createField6_0 = $$createType45;
+        const $$createField7_0 = $$createType47;
+        const $$createField8_0 = $$createType49;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -1706,6 +2229,9 @@ export class ProjectConfig {
         }
         if ("testing" in $$parsedSource) {
             $$parsedSource["testing"] = $$createField7_0($$parsedSource["testing"]);
+        }
+        if ("migration" in $$parsedSource) {
+            $$parsedSource["migration"] = $$createField8_0($$parsedSource["migration"]);
         }
         return new ProjectConfig($$parsedSource as Partial<ProjectConfig>);
     }
@@ -1891,12 +2417,12 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType43;
-        const $$createField5_0 = $$createType45;
-        const $$createField6_0 = $$createType47;
-        const $$createField7_0 = $$createType49;
-        const $$createField8_0 = $$createType49;
-        const $$createField9_0 = $$createType51;
+        const $$createField4_0 = $$createType51;
+        const $$createField5_0 = $$createType53;
+        const $$createField6_0 = $$createType55;
+        const $$createField7_0 = $$createType57;
+        const $$createField8_0 = $$createType57;
+        const $$createField9_0 = $$createType59;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("acties" in $$parsedSource) {
             $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
@@ -1947,6 +2473,113 @@ export class SSHTarget {
     static createFrom($$source: any = {}): SSHTarget {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new SSHTarget($$parsedSource as Partial<SSHTarget>);
+    }
+}
+
+/**
+ * SensitiveDataReport is what an inspection of the production database found:
+ * the tables holding personal data plus the roles present, so the UI can offer
+ * real choices instead of a hardcoded guess.
+ */
+export class SensitiveDataReport {
+    "tablePrefix": string;
+    "tables": SensitiveTable[];
+    "roles": string[];
+    "userCount": number;
+    "allTables": string[];
+
+    /** Creates a new SensitiveDataReport instance. */
+    constructor($$source: Partial<SensitiveDataReport> = {}) {
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("tables" in $$source)) {
+            this["tables"] = [];
+        }
+        if (!("roles" in $$source)) {
+            this["roles"] = [];
+        }
+        if (!("userCount" in $$source)) {
+            this["userCount"] = 0;
+        }
+        if (!("allTables" in $$source)) {
+            this["allTables"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SensitiveDataReport instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SensitiveDataReport {
+        const $$createField1_0 = $$createType61;
+        const $$createField2_0 = $$createType0;
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tables" in $$parsedSource) {
+            $$parsedSource["tables"] = $$createField1_0($$parsedSource["tables"]);
+        }
+        if ("roles" in $$parsedSource) {
+            $$parsedSource["roles"] = $$createField2_0($$parsedSource["roles"]);
+        }
+        if ("allTables" in $$parsedSource) {
+            $$parsedSource["allTables"] = $$createField4_0($$parsedSource["allTables"]);
+        }
+        return new SensitiveDataReport($$parsedSource as Partial<SensitiveDataReport>);
+    }
+}
+
+/**
+ * SensitiveTable is one table found on the production database that holds
+ * personal data, with the reason it was flagged so the user can judge it
+ * instead of trusting a checkbox.
+ */
+export class SensitiveTable {
+    /**
+     * volledige tabelnaam, inclusief prefix
+     */
+    "name": string;
+
+    /**
+     * een van de AVG-constanten hierboven
+     */
+    "category": string;
+
+    /**
+     * wat er in deze tabel staat
+     */
+    "reason": string;
+
+    /**
+     * benadering uit information_schema
+     */
+    "rows": number;
+
+    /** Creates a new SensitiveTable instance. */
+    constructor($$source: Partial<SensitiveTable> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("category" in $$source)) {
+            this["category"] = "";
+        }
+        if (!("reason" in $$source)) {
+            this["reason"] = "";
+        }
+        if (!("rows" in $$source)) {
+            this["rows"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SensitiveTable instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SensitiveTable {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SensitiveTable($$parsedSource as Partial<SensitiveTable>);
     }
 }
 
@@ -2109,8 +2742,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType53;
-        const $$createField5_0 = $$createType55;
+        const $$createField4_0 = $$createType63;
+        const $$createField5_0 = $$createType65;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -2250,7 +2883,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType57;
+        const $$createField7_0 = $$createType67;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -2281,9 +2914,9 @@ export class TestingCfg {
      * Creates a new TestingCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): TestingCfg {
-        const $$createField0_0 = $$createType3;
-        const $$createField1_0 = $$createType59;
-        const $$createField2_0 = $$createType61;
+        const $$createField0_0 = $$createType5;
+        const $$createField1_0 = $$createType69;
+        const $$createField2_0 = $$createType71;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -2331,6 +2964,36 @@ export class UpdateRow {
     }
 }
 
+/**
+ * UploadFolder is one top-level directory inside wp-content/uploads on the
+ * production server, with its size, so the user can pick what to pull instead
+ * of waiting for a whole media library.
+ */
+export class UploadFolder {
+    "name": string;
+    "bytes": number;
+
+    /** Creates a new UploadFolder instance. */
+    constructor($$source: Partial<UploadFolder> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("bytes" in $$source)) {
+            this["bytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new UploadFolder instance from a string or object.
+     */
+    static createFrom($$source: any = {}): UploadFolder {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new UploadFolder($$parsedSource as Partial<UploadFolder>);
+    }
+}
+
 export class VPSProjectCfg {
     "provider": string;
     "ssh": SSHTarget;
@@ -2359,7 +3022,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType38;
+        const $$createField1_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -2428,7 +3091,7 @@ export class Vulnerability {
      */
     static createFrom($$source: any = {}): Vulnerability {
         const $$createField7_0 = $$createType0;
-        const $$createField10_0 = $$createType63;
+        const $$createField10_0 = $$createType73;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("researchers" in $$parsedSource) {
             $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
@@ -2443,65 +3106,75 @@ export class Vulnerability {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = Person.createFrom;
-const $$createType2 = DeployLinks.createFrom;
-const $$createType3 = $Create.Map($Create.Any, $Create.Any);
-const $$createType4 = DiffLine.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = DiffHunk.createFrom;
+const $$createType2 = AnonymiseResult.createFrom;
+const $$createType3 = $Create.Nullable($$createType2);
+const $$createType4 = DeployLinks.createFrom;
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = DiffLine.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = Step.createFrom;
+const $$createType8 = DiffHunk.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = FileChange.createFrom;
+const $$createType10 = Step.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = GraphEdge.createFrom;
+const $$createType12 = FileChange.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = KinstaEnvBinding.createFrom;
-const $$createType15 = $Create.Map($Create.Any, $$createType14);
-const $$createType16 = MediaFileRow.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Array($Create.Any);
-const $$createType19 = $Create.Map($Create.Any, $Create.Any);
-const $$createType20 = MediaClassTotals.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = MediaPeriodBucket.createFrom;
+const $$createType14 = GraphEdge.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = KinstaEnvBinding.createFrom;
+const $$createType17 = $Create.Map($Create.Any, $$createType16);
+const $$createType18 = MediaFileRow.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = $Create.Array($Create.Any);
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = MediaClassTotals.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = MediaExtTotals.createFrom;
+const $$createType24 = MediaPeriodBucket.createFrom;
 const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = MediaCategoryResult.createFrom;
+const $$createType26 = MediaExtTotals.createFrom;
 const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = MediaScanScope.createFrom;
-const $$createType29 = ProjectConfig.createFrom;
-const $$createType30 = DeployConf.createFrom;
-const $$createType31 = GitStatus.createFrom;
-const $$createType32 = KinstaProjectCfg.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = AWSProjectCfg.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = VPSProjectCfg.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = SSHTarget.createFrom;
+const $$createType28 = MediaCategoryResult.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = MediaScanScope.createFrom;
+const $$createType31 = DomainPair.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = AnonymiseCfg.createFrom;
+const $$createType34 = $Create.Nullable($$createType33);
+const $$createType35 = ProjectConfig.createFrom;
+const $$createType36 = DeployConf.createFrom;
+const $$createType37 = GitStatus.createFrom;
+const $$createType38 = KinstaProjectCfg.createFrom;
 const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = TestingCfg.createFrom;
+const $$createType40 = AWSProjectCfg.createFrom;
 const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = ActieRow.createFrom;
-const $$createType43 = $Create.Array($$createType42);
-const $$createType44 = MonitorRow.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = SoftwareRow.createFrom;
-const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = UpdateRow.createFrom;
-const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = AVGRow.createFrom;
+const $$createType42 = VPSProjectCfg.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = SSHTarget.createFrom;
+const $$createType45 = $Create.Nullable($$createType44);
+const $$createType46 = TestingCfg.createFrom;
+const $$createType47 = $Create.Nullable($$createType46);
+const $$createType48 = MigrationCfg.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
+const $$createType50 = ActieRow.createFrom;
 const $$createType51 = $Create.Array($$createType50);
-const $$createType52 = Finding.createFrom;
+const $$createType52 = MonitorRow.createFrom;
 const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = Regression.createFrom;
+const $$createType54 = SoftwareRow.createFrom;
 const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = StepResult.createFrom;
+const $$createType56 = UpdateRow.createFrom;
 const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = BasicAuth.createFrom;
-const $$createType59 = $Create.Map($Create.Any, $$createType58);
-const $$createType60 = TestAccount.createFrom;
-const $$createType61 = $Create.Nullable($$createType60);
-const $$createType62 = AffectedSoftware.createFrom;
+const $$createType58 = AVGRow.createFrom;
+const $$createType59 = $Create.Array($$createType58);
+const $$createType60 = SensitiveTable.createFrom;
+const $$createType61 = $Create.Array($$createType60);
+const $$createType62 = Finding.createFrom;
 const $$createType63 = $Create.Array($$createType62);
+const $$createType64 = Regression.createFrom;
+const $$createType65 = $Create.Array($$createType64);
+const $$createType66 = StepResult.createFrom;
+const $$createType67 = $Create.Array($$createType66);
+const $$createType68 = BasicAuth.createFrom;
+const $$createType69 = $Create.Map($Create.Any, $$createType68);
+const $$createType70 = TestAccount.createFrom;
+const $$createType71 = $Create.Nullable($$createType70);
+const $$createType72 = AffectedSoftware.createFrom;
+const $$createType73 = $Create.Array($$createType72);

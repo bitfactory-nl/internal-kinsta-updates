@@ -18,14 +18,24 @@ import UpdatesTab from './UpdatesTab'
 import SecurityTab from './SecurityTab'
 import TestsTab from './TestsTab'
 import MediaTab from './MediaTab'
+import DatabaseTab from './DatabaseTab'
+import MigrationSettingsTab from './MigrationSettingsTab'
+import MigrationMediaTab from './MigrationMediaTab'
+import ProjectSettingsTab from './ProjectSettingsTab'
 import ReportTab from './ReportTab'
+import Tooltip from './Tooltip'
+import { ChevronIcon } from './icons'
 
 export interface ProjectDetailProps {
   project: Project
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'terminal' | 'updates' | 'security' | 'tests' | 'report'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'database' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
+
+// Elke menugroep is inklapbaar; de vouwstand staat per groepstitel in
+// localStorage, zodat het menu er na een herstart uitziet zoals je het liet.
+const COLLAPSE_KEY = 'rdm.nav.collapsed'
 
 interface NavItem {
   id: TabId
@@ -66,6 +76,14 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
   const [status, setStatus] = useState<GitStatus | null>(project.git ?? null)
   const [loadingOp, setLoadingOp] = useState<string | null>(null)
   const [opError, setOpError] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(COLLAPSE_KEY)
+      return raw ? JSON.parse(raw) : {}
+    } catch {
+      return {}
+    }
+  })
 
   const isKinsta = project.deploy?.type === 'wordpress_kinsta'
 
@@ -135,10 +153,18 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       items: [
         ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
         ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
-        ...(isKinsta ? [{ id: 'media' as TabId, label: 'Media' }] : []),
+        ...(isKinsta ? [{ id: 'media' as TabId, label: 'Media-analyse' }] : []),
         ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
         ...(status?.isRepo ? [{ id: 'security' as TabId, label: 'Security' }] : []),
         ...(status?.isRepo ? [{ id: 'tests' as TabId, label: 'Tests' }] : []),
+      ],
+    }] : []),
+    ...(isKinsta ? [{
+      title: 'MIGRATIE',
+      items: [
+        { id: 'database' as TabId, label: 'Database' },
+        { id: 'migrationmedia' as TabId, label: 'Media' },
+        { id: 'migrationsettings' as TabId, label: 'Instellingen' },
       ],
     }] : []),
     ...(isKinsta ? [{
@@ -149,7 +175,33 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       title: 'KLANT',
       items: [{ id: 'report' as TabId, label: 'Rapportage' }],
     },
+    {
+      title: 'INSTELLINGEN',
+      items: [{ id: 'projectsettings' as TabId, label: 'Projectinstellingen' }],
+    },
   ].filter(g => g.items.length > 0)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsed))
+    } catch {
+      // localStorage niet beschikbaar: het onthouden van de vouwstand is dan niet erg
+    }
+  }, [collapsed])
+
+  // Navigeren mag nooit op een verborgen tab eindigen: klap de groep van de
+  // actieve tab automatisch open als die was ingeklapt.
+  useEffect(() => {
+    const groep = navGroups.find(g => g.items.some(it => it.id === activeTab))
+    if (groep && collapsed[groep.title]) {
+      setCollapsed(huidig => ({ ...huidig, [groep.title]: false }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  const toggleGroep = (titel: string) => {
+    setCollapsed(huidig => ({ ...huidig, [titel]: !huidig[titel] }))
+  }
 
   const typeLabel = project.deploy?.type ? (deployTypeLabel[project.deploy.type] ?? project.deploy.type) : null
 
@@ -174,23 +226,36 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
         )}
 
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <HeaderIconBtn
-            onClick={() => Services.EditorService.OpenInEditor(project.id, project.path)}
-            title="Open in editor"
-          >
-            ✎
-          </HeaderIconBtn>
+          <Tooltip label="Open in editor">
+            <HeaderIconBtn
+              onClick={() => Services.EditorService.OpenInEditor(project.id, project.path)}
+              title="Open in editor"
+            >
+              ✎
+            </HeaderIconBtn>
+          </Tooltip>
+          <Tooltip label="Projectinstellingen">
+            <HeaderIconBtn onClick={() => setActiveTab('projectsettings')} title="Projectinstellingen">
+              ⚙
+            </HeaderIconBtn>
+          </Tooltip>
           {status?.isRepo && (
             <>
-              <HeaderIconBtn onClick={doFetch} disabled={loadingOp !== null} title="Fetch">
-                {isLoading('fetch') ? <span className="animate-spin inline-block text-xs">↻</span> : '↺'}
-              </HeaderIconBtn>
-              <HeaderIconBtn onClick={doPull} disabled={loadingOp !== null} title="Pull">
-                {isLoading('pull') ? <span className="animate-spin inline-block text-xs">↻</span> : '↓'}
-              </HeaderIconBtn>
-              <HeaderIconBtn onClick={doPush} disabled={loadingOp !== null} title="Push">
-                {isLoading('push') ? <span className="animate-spin inline-block text-xs">↻</span> : '↑'}
-              </HeaderIconBtn>
+              <Tooltip label="Fetch">
+                <HeaderIconBtn onClick={doFetch} disabled={loadingOp !== null} title="Fetch">
+                  {isLoading('fetch') ? <span className="animate-spin inline-block text-xs">↻</span> : '↺'}
+                </HeaderIconBtn>
+              </Tooltip>
+              <Tooltip label="Pull">
+                <HeaderIconBtn onClick={doPull} disabled={loadingOp !== null} title="Pull">
+                  {isLoading('pull') ? <span className="animate-spin inline-block text-xs">↻</span> : '↓'}
+                </HeaderIconBtn>
+              </Tooltip>
+              <Tooltip label="Push">
+                <HeaderIconBtn onClick={doPush} disabled={loadingOp !== null} title="Push">
+                  {isLoading('push') ? <span className="animate-spin inline-block text-xs">↻</span> : '↑'}
+                </HeaderIconBtn>
+              </Tooltip>
             </>
           )}
         </div>
@@ -205,34 +270,42 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       {/* Nav rail + content */}
       <div className="flex-1 min-h-0 flex">
         <nav className="w-[206px] shrink-0 bg-panel border-r border-border py-4 px-1.5 overflow-y-auto">
-          {navGroups.map(grp => (
-            <div key={grp.title} className="mb-[15px]">
-              <div className="text-[10px] font-semibold tracking-[.09em] text-fg-faint px-3 pb-1.5">
-                {grp.title}
+          {navGroups.map(grp => {
+            const dicht = !!collapsed[grp.title]
+            return (
+              <div key={grp.title} className="mb-[15px]">
+                <button
+                  onClick={() => toggleGroep(grp.title)}
+                  className="w-full flex items-center justify-between px-3 pb-1.5 text-[10px] font-semibold
+                             tracking-[.09em] text-fg-faint hover:text-fg-muted transition-colors"
+                >
+                  <span>{grp.title}</span>
+                  <ChevronIcon open={!dicht} className="w-2.5 h-2.5" />
+                </button>
+                {!dicht && grp.items.map(it => {
+                  const on = activeTab === it.id
+                  return (
+                    <button
+                      key={it.id}
+                      onClick={() => setActiveTab(it.id)}
+                      className={`w-full flex items-center justify-between gap-2 mx-0 my-px px-[11px] py-[7px]
+                                  rounded-nav text-[13px] transition-colors text-left
+                                  ${on
+                                    ? 'font-semibold text-fg bg-sel shadow-[inset_2px_0_0_var(--accent)]'
+                                    : 'font-[450] text-fg-muted hover:bg-hover'}`}
+                    >
+                      <span>{it.label}</span>
+                      {it.badge !== undefined && (
+                        <span className={`text-[10px] font-semibold font-mono px-1.5 py-px rounded-full ${it.badgeClass ?? 'bg-panel-2 text-fg-muted'}`}>
+                          {it.badge}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
-              {grp.items.map(it => {
-                const on = activeTab === it.id
-                return (
-                  <button
-                    key={it.id}
-                    onClick={() => setActiveTab(it.id)}
-                    className={`w-full flex items-center justify-between gap-2 mx-0 my-px px-[11px] py-[7px]
-                                rounded-nav text-[13px] transition-colors text-left
-                                ${on
-                                  ? 'font-semibold text-fg bg-sel shadow-[inset_2px_0_0_var(--accent)]'
-                                  : 'font-[450] text-fg-muted hover:bg-hover'}`}
-                  >
-                    <span>{it.label}</span>
-                    {it.badge !== undefined && (
-                      <span className={`text-[10px] font-semibold font-mono px-1.5 py-px rounded-full ${it.badgeClass ?? 'bg-panel-2 text-fg-muted'}`}>
-                        {it.badge}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          ))}
+            )
+          })}
         </nav>
 
         {/* Tab content */}
@@ -255,7 +328,11 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'security' && <SecurityTab projectId={project.id} />}
           {activeTab === 'tests' && <TestsTab projectId={project.id} />}
           {activeTab === 'media' && <MediaTab projectId={project.id} />}
+          {activeTab === 'database' && <DatabaseTab projectId={project.id} />}
+          {activeTab === 'migrationmedia' && <MigrationMediaTab projectId={project.id} />}
+          {activeTab === 'migrationsettings' && <MigrationSettingsTab projectId={project.id} />}
           {activeTab === 'report' && <ReportTab projectId={project.id} />}
+          {activeTab === 'projectsettings' && <ProjectSettingsTab project={project} onLocalUrlSaved={onRefresh} />}
         </div>
       </div>
     </div>

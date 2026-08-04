@@ -179,6 +179,13 @@ func (s *ProjectService) RefreshOne(id string) (domain.Project, error) {
 		if p.ID == id {
 			status, _ := gitread.Status(p.Path)
 			s.projects[i].Git = status
+			if deploy, err := config.LoadDeployConf(p.Path); err == nil {
+				s.projects[i].Deploy = domain.DeployConf{
+					Type: deploy.Type,
+					Link: domain.DeployLinks{Test: deploy.Link.Test, Acc: deploy.Link.Acc, Prod: deploy.Link.Prod, Local: deploy.Link.Local},
+					Vars: deploy.Vars,
+				}
+			}
 			s.projects[i].LastScanAt = time.Now()
 			return s.projects[i], nil
 		}
@@ -245,7 +252,7 @@ func (s *ProjectService) loadProject(path string) (domain.Project, error) {
 		DisplayName: name,
 		Provider:    provider,
 		Config:      cfg,
-		Deploy:      domain.DeployConf{Type: deploy.Type, Link: domain.DeployLinks{Test: deploy.Link.Test, Acc: deploy.Link.Acc, Prod: deploy.Link.Prod}, Vars: deploy.Vars},
+		Deploy:      domain.DeployConf{Type: deploy.Type, Link: domain.DeployLinks{Test: deploy.Link.Test, Acc: deploy.Link.Acc, Prod: deploy.Link.Prod, Local: deploy.Link.Local}, Vars: deploy.Vars},
 		Git:         status,
 		LastScanAt:  time.Now(),
 	}, nil

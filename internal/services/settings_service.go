@@ -10,6 +10,7 @@ import (
 // AppSettings is the flat DTO exposed to the frontend.
 type AppSettings struct {
 	Editor           string `json:"editor"`
+	DBApp            string `json:"dbApp"`
 	KinstaAPIKey     string `json:"kinstaApiKey"`
 	KinstaCompanyID  string `json:"kinstaCompanyId"`
 	GithubToken      string `json:"githubToken"`
@@ -22,6 +23,10 @@ type AppSettings struct {
 	WordfenceAPIKey  string `json:"wordfenceApiKey"`
 }
 
+// defaultDBApp is shown when the user hasn't picked a database app yet. It is
+// only a display default and is never written back to disk by Get().
+const defaultDBApp = "Sequel Ace"
+
 type SettingsService struct {
 	cfg *config.Global
 }
@@ -32,8 +37,13 @@ func NewSettingsService(cfg *config.Global) *SettingsService {
 
 // Get returns the current settings.
 func (s *SettingsService) Get() AppSettings {
+	dbApp := s.cfg.DBApp
+	if dbApp == "" {
+		dbApp = defaultDBApp
+	}
 	return AppSettings{
 		Editor:           s.cfg.Editor,
+		DBApp:            dbApp,
 		KinstaAPIKey:     s.cfg.Kinsta.APIKey,
 		KinstaCompanyID:  s.cfg.Kinsta.CompanyID,
 		GithubToken:      s.cfg.PluginRepo.GithubToken,
@@ -53,6 +63,7 @@ func (s *SettingsService) Save(settings AppSettings) error {
 		return fmt.Errorf("editor mag niet leeg zijn")
 	}
 	s.cfg.Editor = settings.Editor
+	s.cfg.DBApp = strings.TrimSpace(settings.DBApp)
 	s.cfg.Kinsta.APIKey = settings.KinstaAPIKey
 	s.cfg.Kinsta.CompanyID = settings.KinstaCompanyID
 	s.cfg.PluginRepo.GithubToken = settings.GithubToken
