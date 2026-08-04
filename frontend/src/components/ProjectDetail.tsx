@@ -33,9 +33,8 @@ export interface ProjectDetailProps {
 
 type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'database' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
 
-// Groepen die als accordeon inklapbaar zijn — SOURCE CONTROL en TOOLS blijven
-// altijd volledig uitgeklapt, dat zijn de tabs die het vaakst gebruikt worden.
-const INKLAPBARE_GROEPEN = new Set(['OVERVIEW', 'WORDPRESS', 'MIGRATIE', 'KLANT', 'INSTELLINGEN'])
+// Elke menugroep is inklapbaar; de vouwstand staat per groepstitel in
+// localStorage, zodat het menu er na een herstart uitziet zoals je het liet.
 const COLLAPSE_KEY = 'rdm.nav.collapsed'
 
 interface NavItem {
@@ -194,7 +193,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
   // actieve tab automatisch open als die was ingeklapt.
   useEffect(() => {
     const groep = navGroups.find(g => g.items.some(it => it.id === activeTab))
-    if (groep && INKLAPBARE_GROEPEN.has(groep.title) && collapsed[groep.title]) {
+    if (groep && collapsed[groep.title]) {
       setCollapsed(huidig => ({ ...huidig, [groep.title]: false }))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -272,24 +271,17 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       <div className="flex-1 min-h-0 flex">
         <nav className="w-[206px] shrink-0 bg-panel border-r border-border py-4 px-1.5 overflow-y-auto">
           {navGroups.map(grp => {
-            const inklapbaar = INKLAPBARE_GROEPEN.has(grp.title)
-            const dicht = inklapbaar && collapsed[grp.title]
+            const dicht = !!collapsed[grp.title]
             return (
               <div key={grp.title} className="mb-[15px]">
-                {inklapbaar ? (
-                  <button
-                    onClick={() => toggleGroep(grp.title)}
-                    className="w-full flex items-center justify-between px-3 pb-1.5 text-[10px] font-semibold
-                               tracking-[.09em] text-fg-faint hover:text-fg-muted transition-colors"
-                  >
-                    <span>{grp.title}</span>
-                    <ChevronIcon open={!dicht} className="w-2.5 h-2.5" />
-                  </button>
-                ) : (
-                  <div className="text-[10px] font-semibold tracking-[.09em] text-fg-faint px-3 pb-1.5">
-                    {grp.title}
-                  </div>
-                )}
+                <button
+                  onClick={() => toggleGroep(grp.title)}
+                  className="w-full flex items-center justify-between px-3 pb-1.5 text-[10px] font-semibold
+                             tracking-[.09em] text-fg-faint hover:text-fg-muted transition-colors"
+                >
+                  <span>{grp.title}</span>
+                  <ChevronIcon open={!dicht} className="w-2.5 h-2.5" />
+                </button>
                 {!dicht && grp.items.map(it => {
                   const on = activeTab === it.id
                   return (
