@@ -127,10 +127,32 @@ func escapeSQLString(s string) string {
 // it). This function is prefixed "buildLocal" because it is only ever run
 // against the already-imported LOCAL database, never against production.
 func buildLocalMultisiteDomainFixSQL(tablePrefix, prodBareDomain, localBareDomain string) string {
-	prod := escapeSQLString(prodBareDomain)
-	local := escapeSQLString(localBareDomain)
-	return strings.Join([]string{
-		"UPDATE " + tablePrefix + "blogs SET domain = REPLACE(domain, '" + prod + "', '" + local + "');",
-		"UPDATE " + tablePrefix + "site SET domain = REPLACE(domain, '" + prod + "', '" + local + "');",
-	}, "\n")
+	return buildLocalMultisiteDomainPairsSQL(tablePrefix, []domain.DomainPair{
+		{Prod: prodBareDomain, Local: localBareDomain},
+	})
+}
+
+// buildLocalMultisiteDomainPairsSQL applies several bare-domain rewrites to the
+// same two plain columns. Extra pairs exist for subsites that use a mapped
+// domain of their own: those share no root domain with the network, so the
+// network's own pair can never match them and there is no way to derive them —
+// they have to be configured (see MigrationCfg.ExtraDomains).
+//
+// Pairs with an empty side are skipped rather than emitted: REPLACE with an
+// empty search string would rewrite every row.
+func buildLocalMultisiteDomainPairsSQL(tablePrefix string, pairs []domain.DomainPair) string {
+	regels := make([]string, 0, len(pairs)*2)
+	for _, p := range pairs {
+		prodRuw, localRuw := strings.TrimSpace(p.Prod), strings.TrimSpace(p.Local)
+		if prodRuw == "" || localRuw == "" {
+			continue
+		}
+		prod := escapeSQLString(prodRuw)
+		local := escapeSQLString(localRuw)
+		regels = append(regels,
+			"UPDATE "+tablePrefix+"blogs SET domain = REPLACE(domain, '"+prod+"', '"+local+"');",
+			"UPDATE "+tablePrefix+"site SET domain = REPLACE(domain, '"+prod+"', '"+local+"');",
+		)
+	}
+	return strings.Join(regels, "\n")
 }

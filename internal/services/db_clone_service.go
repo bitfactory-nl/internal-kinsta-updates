@@ -285,6 +285,15 @@ func (s *DBCloneService) OpenInApp(projectID, localDBHost, localDBName, appName 
 	return OpenInApp(appName, mysqlURL)
 }
 
+// extraDomainPairs returns the domain-mapped subsite pairs configured under
+// `migration:` in .rdm.yml, or nothing when the project has none.
+func (s *DBCloneService) extraDomainPairs(p domain.Project) []domain.DomainPair {
+	if p.Config.Migration == nil {
+		return nil
+	}
+	return p.Config.Migration.ExtraDomains
+}
+
 func randomHex(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -439,13 +448,23 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 	if req.Multisite {
 		s.emit(projectID, domain.DBCloneProgress{Phase: "multisite-fix", Detail: "domeinen in wp_blogs/wp_site controleren"})
 		prefix := sanitizeTablePrefix(req.TablePrefix)
-		sql := buildLocalMultisiteDomainFixSQL(prefix, prodDomain, localDomain)
+
+		// Het netwerkdomein, plus de handmatig geconfigureerde paren voor
+		// subsites met een eigen (domain-mapped) domein: die delen geen
+		// wortel met het netwerk, dus geen enkele afgeleide regel raakt ze.
+		paren := append([]domain.DomainPair{{Prod: prodDomain, Local: localDomain}}, s.extraDomainPairs(p)...)
+		sql := buildLocalMultisiteDomainPairsSQL(prefix, paren)
+
 		var stderr bytes.Buffer
 		if err := s.dockerExec(ctx, container, []string{"mysql", "-u" + dbUser, "-e", sql, req.LocalDBName}, mysqlEnv, nil, &stderr); err != nil {
 			result.Warnings = append(result.Warnings, "multisite-domeinfix (vangnet) is mislukt: "+err.Error())
 		} else {
 			result.MultisiteFixApplied = true
-			result.Warnings = append(result.Warnings, "multisite: subsites met een eigen, niet-gerelateerd domein (domain mapping) worden niet automatisch herkend — controleer die handmatig")
+			if len(paren) > 1 {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("multisite: %d extra domeinpaar(en) uit de migratie-instellingen toegepast", len(paren)-1))
+			} else {
+				result.Warnings = append(result.Warnings, "multisite: subsites met een eigen, niet-gerelateerd domein (domain mapping) worden niet automatisch herkend — voeg die toe bij Migratie › Instellingen")
+			}
 		}
 	}
 

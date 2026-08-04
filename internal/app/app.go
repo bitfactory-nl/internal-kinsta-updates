@@ -43,6 +43,7 @@ type Services struct {
 	WPCoreUpdate    *services.WPCoreUpdateService
 	Media           *services.MediaService
 	DBClone         *services.DBCloneService
+	Migration       *services.MigrationService
 }
 
 func NewServices(cfg Config) *Services {
@@ -86,6 +87,7 @@ func NewServices(cfg Config) *Services {
 		WPCoreUpdate:    services.NewWPCoreUpdateService(project, &cfg.Global),
 		Media:           services.NewMediaService(project, kinsta, services.NewMediaScanStore(services.DefaultMediaScanDir())),
 		DBClone:         services.NewDBCloneService(project, kinsta),
+		Migration:       services.NewMigrationService(project, kinsta),
 	}
 }
 
@@ -112,5 +114,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.WPCoreUpdate),
 		application.NewService(s.Media),
 		application.NewService(s.DBClone),
+		application.NewService(s.Migration),
 	}
 }

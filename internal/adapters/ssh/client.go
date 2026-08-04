@@ -192,6 +192,18 @@ func (c *Client) Download(ctx context.Context, t Target, remotePath string, w io
 	if strings.ContainsAny(remotePath, "'\n") {
 		return fmt.Errorf("ongeldig remote pad: %q", remotePath)
 	}
+	return c.DownloadCommand(ctx, t, fmt.Sprintf("cat '%s'", remotePath), w, onProgress)
+}
+
+// DownloadCommand runs cmd on the remote host and streams its stdout to w,
+// reporting cumulative bytes via onProgress (which may be nil).
+//
+// This exists so a caller can stream something that is generated on the fly —
+// `tar czf - …` for a directory tree, for instance — without first writing a
+// temporary file on the customer's server and needing the disk space for it.
+// The command is passed through verbatim: callers are responsible for quoting
+// (see shellQuote in the services package).
+func (c *Client) DownloadCommand(ctx context.Context, t Target, cmd string, w io.Writer, onProgress func(written int64)) error {
 	client, closeFn, err := c.dial(ctx, t)
 	if err != nil {
 		return err
@@ -208,7 +220,6 @@ func (c *Client) Download(ctx context.Context, t Target, remotePath string, w io
 	var stderr bytes.Buffer
 	sess.Stderr = &stderr
 
-	cmd := fmt.Sprintf("cat '%s'", remotePath)
 	done := make(chan error, 1)
 	go func() { done <- sess.Run(cmd) }()
 

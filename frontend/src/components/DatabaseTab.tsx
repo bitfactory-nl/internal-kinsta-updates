@@ -70,6 +70,8 @@ export default function DatabaseTab({ projectId }: Props) {
     // MULTISITE/DOMAIN_CURRENT_SITE uit .env is de duidelijkste bron voor of
     // (en hoe) een project multisite draait — vooraf invullen voordat er
     // ook maar geprobeerd is, zodat het klopt zonder een SSH-verbinding.
+    // De migratie-instellingen (indien opgeslagen) gaan daar nog boven: die
+    // heeft iemand expliciet ingevuld, dus die overschrijven de afleiding.
     Services.DBCloneService.LocalDefaults(projectId)
       .then(def => {
         setLocalDBName(def.dbName ?? '')
@@ -80,6 +82,17 @@ export default function DatabaseTab({ projectId }: Props) {
         setLocalNetworkDomain(def.domainCurrentSite ?? '')
       })
       .catch(() => {})
+      .finally(() => {
+        Services.MigrationService.GetSettings(projectId)
+          .then(cfg => {
+            if (cfg.prodUrl) setProdSiteURL(cfg.prodUrl)
+            if (cfg.localUrl) setLocalURL(cfg.localUrl)
+            if (cfg.prodDomain) setProdNetworkDomain(cfg.prodDomain)
+            if (cfg.localDomain) setLocalNetworkDomain(cfg.localDomain)
+            if (cfg.multisite) { setMultisite(true); setMultisiteUitEnv(true) }
+          })
+          .catch(() => {})
+      })
 
     Services.SettingsService.Get()
       .then(s => setDbApp(s.dbApp || 'Sequel Ace'))

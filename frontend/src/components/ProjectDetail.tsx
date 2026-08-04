@@ -19,6 +19,8 @@ import SecurityTab from './SecurityTab'
 import TestsTab from './TestsTab'
 import MediaTab from './MediaTab'
 import DatabaseTab from './DatabaseTab'
+import MigrationSettingsTab from './MigrationSettingsTab'
+import MigrationMediaTab from './MigrationMediaTab'
 import ProjectSettingsTab from './ProjectSettingsTab'
 import ReportTab from './ReportTab'
 import Tooltip from './Tooltip'
@@ -29,11 +31,11 @@ export interface ProjectDetailProps {
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'database' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'database' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
 
 // Groepen die als accordeon inklapbaar zijn — SOURCE CONTROL en TOOLS blijven
 // altijd volledig uitgeklapt, dat zijn de tabs die het vaakst gebruikt worden.
-const INKLAPBARE_GROEPEN = new Set(['OVERVIEW', 'WORDPRESS', 'KLANT', 'INSTELLINGEN'])
+const INKLAPBARE_GROEPEN = new Set(['OVERVIEW', 'WORDPRESS', 'MIGRATIE', 'KLANT', 'INSTELLINGEN'])
 const COLLAPSE_KEY = 'rdm.nav.collapsed'
 
 interface NavItem {
@@ -152,11 +154,18 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       items: [
         ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
         ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
-        ...(isKinsta ? [{ id: 'media' as TabId, label: 'Media' }] : []),
-        ...(isKinsta ? [{ id: 'database' as TabId, label: 'Database' }] : []),
+        ...(isKinsta ? [{ id: 'media' as TabId, label: 'Media-analyse' }] : []),
         ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
         ...(status?.isRepo ? [{ id: 'security' as TabId, label: 'Security' }] : []),
         ...(status?.isRepo ? [{ id: 'tests' as TabId, label: 'Tests' }] : []),
+      ],
+    }] : []),
+    ...(isKinsta ? [{
+      title: 'MIGRATIE',
+      items: [
+        { id: 'database' as TabId, label: 'Database' },
+        { id: 'migrationmedia' as TabId, label: 'Media' },
+        { id: 'migrationsettings' as TabId, label: 'Instellingen' },
       ],
     }] : []),
     ...(isKinsta ? [{
@@ -328,6 +337,8 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'tests' && <TestsTab projectId={project.id} />}
           {activeTab === 'media' && <MediaTab projectId={project.id} />}
           {activeTab === 'database' && <DatabaseTab projectId={project.id} />}
+          {activeTab === 'migrationmedia' && <MigrationMediaTab projectId={project.id} />}
+          {activeTab === 'migrationsettings' && <MigrationSettingsTab projectId={project.id} />}
           {activeTab === 'report' && <ReportTab projectId={project.id} />}
           {activeTab === 'projectsettings' && <ProjectSettingsTab project={project} onLocalUrlSaved={onRefresh} />}
         </div>

@@ -9,6 +9,7 @@ import * as InventoryService from "./inventoryservice.js";
 import * as KinstaService from "./kinstaservice.js";
 import * as MakeService from "./makeservice.js";
 import * as MediaService from "./mediaservice.js";
+import * as MigrationService from "./migrationservice.js";
 import * as NotifyService from "./notifyservice.js";
 import * as PluginService from "./pluginservice.js";
 import * as ProjectService from "./projectservice.js";
@@ -31,6 +32,7 @@ export {
     KinstaService,
     MakeService,
     MediaService,
+    MigrationService,
     NotifyService,
     PluginService,
     ProjectService,

@@ -20,6 +20,7 @@ export {
     DiffLine,
     DiffLineKind,
     DiffStatus,
+    DomainPair,
     EnvKey,
     FileChange,
     FileDiff,
@@ -40,8 +41,10 @@ export {
     MediaFileClass,
     MediaFileRow,
     MediaPeriodBucket,
+    MediaPullResult,
     MediaScanScope,
     MediaScanSummary,
+    MigrationCfg,
     ModelTier,
     MonitorRow,
     PaidPlugin,
@@ -67,6 +70,7 @@ export {
     TestRun,
     TestingCfg,
     UpdateRow,
+    UploadFolder,
     VPSProjectCfg,
     Vulnerability
 } from "./models.js";
