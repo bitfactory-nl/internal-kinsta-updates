@@ -88,21 +88,48 @@ func viaLoginShell() string {
 	return ""
 }
 
-// envArgs zet "KEY=VAL"-paren om in docker-exec's -e-vlaggen.
-func envArgs(env []string) []string {
-	args := make([]string, 0, len(env)*2)
-	for _, e := range env {
-		args = append(args, "-e", e)
+// schrijfEnvBestand zet "KEY=VAL"-paren om in een tijdelijk --env-file voor
+// docker exec. Dat is bewust geen -e KEY=VAL op de commandline: die argumenten
+// staan zolang het proces loopt zichtbaar in `ps aux` op deze machine (ook al
+// is het wachtwoord hier een well-known lokale dev-default, geen echt geheim).
+// Het bestand krijgt 0600 en wordt na afloop verwijderd.
+func schrijfEnvBestand(env []string) (string, error) {
+	if len(env) == 0 {
+		return "", nil
 	}
-	return args
+	f, err := os.CreateTemp("", "rdm-docker-env-*")
+	if err != nil {
+		return "", fmt.Errorf("tijdelijk env-bestand aanmaken: %w", err)
+	}
+	defer f.Close()
+	if err := f.Chmod(0o600); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	if _, err := f.WriteString(strings.Join(env, "\n") + "\n"); err != nil {
+		os.Remove(f.Name())
+		return "", err
+	}
+	return f.Name(), nil
 }
 
 // Exec draait een commando in een lopende container via `docker exec -i`,
 // met stdin/stdout doorgesluisd en optionele omgevingsvariabelen (bv.
-// MYSQL_PWD, zodat een wachtwoord niet als los argument op de commandline
-// hoeft te staan).
+// MYSQL_PWD) via een tijdelijk --env-file, zodat een wachtwoord niet als los
+// argument op de commandline hoeft te staan.
 func Exec(ctx context.Context, container string, args []string, env []string, stdin io.Reader, stdout io.Writer) error {
-	full := append([]string{"exec", "-i"}, envArgs(env)...)
+	envFile, err := schrijfEnvBestand(env)
+	if err != nil {
+		return err
+	}
+	if envFile != "" {
+		defer os.Remove(envFile)
+	}
+
+	full := []string{"exec", "-i"}
+	if envFile != "" {
+		full = append(full, "--env-file", envFile)
+	}
 	full = append(full, container)
 	full = append(full, args...)
 

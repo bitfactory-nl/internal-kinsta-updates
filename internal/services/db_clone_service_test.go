@@ -153,6 +153,21 @@ func writeEnvFile(t *testing.T, dir string) {
 	}
 }
 
+func TestSanitizeTablePrefix(t *testing.T) {
+	cases := map[string]string{
+		"wp_":                  "wp_",
+		"wp_5_":                "wp_5_",
+		"":                     "wp_",
+		"wp_'; DROP TABLE x--": "wp_",
+		"wp_ OR 1=1":           "wp_",
+	}
+	for in, want := range cases {
+		if got := sanitizeTablePrefix(in); got != want {
+			t.Errorf("sanitizeTablePrefix(%q) = %q, wil %q", in, got, want)
+		}
+	}
+}
+
 func TestDBCloneProbe(t *testing.T) {
 	ssh := &fakeDBSSHWithFixedOutput{out: strings.Join([]string{
 		"RDM-SITEURL:https://vanluyken.nl",

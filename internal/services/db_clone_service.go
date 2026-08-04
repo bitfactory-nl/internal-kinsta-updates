@@ -42,6 +42,24 @@ type dbSSH interface {
 
 var reValidDBName = regexp.MustCompile(`^[a-z0-9_]+$`)
 
+// reValidTablePrefix guards the one other value this service interpolates
+// into a SQL string: the WordPress table prefix. It comes from the server's
+// own `wp config get table_prefix` output (via Probe/DBCloneRequest), so a
+// malicious value would require the customer's own production site to
+// already be compromised — but validating it before use is cheap and this
+// value is never trusted blindly.
+var reValidTablePrefix = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
+
+// sanitizeTablePrefix falls back to the WordPress default "wp_" when the
+// value doesn't look like a real table prefix, rather than interpolating an
+// unvalidated string into SQL.
+func sanitizeTablePrefix(prefix string) string {
+	if reValidTablePrefix.MatchString(prefix) {
+		return prefix
+	}
+	return "wp_"
+}
+
 var reservedDBNames = map[string]bool{
 	"mysql": true, "information_schema": true, "performance_schema": true, "sys": true,
 }
@@ -376,10 +394,7 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 	// --- Multisite fix (local only) -------------------------------------
 	if req.Multisite {
 		s.emit(projectID, domain.DBCloneProgress{Phase: "multisite-fix", Detail: "domeinen in wp_blogs/wp_site bijwerken (beta)"})
-		prefix := req.TablePrefix
-		if prefix == "" {
-			prefix = "wp_"
-		}
+		prefix := sanitizeTablePrefix(req.TablePrefix)
 		sql := buildLocalMultisiteDomainFixSQL(prefix, bareDomain(req.ProdSiteURL), bareDomain(req.LocalURL))
 		var stderr bytes.Buffer
 		if err := s.dockerExec(ctx, container, []string{"mysql", "-u" + dbUser, "-e", sql, req.LocalDBName}, mysqlEnv, nil, &stderr); err != nil {
@@ -392,10 +407,7 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 
 	// --- Verify -----------------------------------------------------------
 	s.emit(projectID, domain.DBCloneProgress{Phase: "verify", Detail: "resultaat controleren"})
-	prefix := req.TablePrefix
-	if prefix == "" {
-		prefix = "wp_"
-	}
+	prefix := sanitizeTablePrefix(req.TablePrefix)
 	var siteurlOut bytes.Buffer
 	_ = s.dockerExec(ctx, container, []string{"mysql", "-N", "-u" + dbUser, "-e",
 		"SELECT option_value FROM " + prefix + "options WHERE option_name='siteurl'", req.LocalDBName}, mysqlEnv, nil, &siteurlOut)
@@ -423,8 +435,13 @@ func (s *DBCloneService) failureWithBackupNote(projectID, backupPath string, err
 
 // backupIfExists dumps the current local database before it gets overwritten,
 // unless it doesn't exist yet or has no tables. Returns the backup path (or
-// empty) and an optional warning to surface in the result.
+// empty) and an optional warning to surface in the result. dbName is already
+// validated by Clone before this is called; re-checked here too (defense in
+// depth), the same way importLocal does.
 func (s *DBCloneService) backupIfExists(ctx context.Context, container, dbUser string, env []string, projectID, dbName string) (string, string, error) {
+	if err := validateLocalDBName(dbName); err != nil {
+		return "", "", err
+	}
 	var tables bytes.Buffer
 	err := s.dockerExec(ctx, container, []string{"mysql", "-N", "-u" + dbUser, "-e", "SHOW TABLES FROM " + dbName}, env, nil, &tables)
 	if err != nil || strings.TrimSpace(tables.String()) == "" {
