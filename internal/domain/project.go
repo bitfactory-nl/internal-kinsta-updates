@@ -40,7 +40,7 @@ type SSHTarget struct {
 	User string `json:"user" yaml:"user"`
 	Path string `json:"path,omitempty" yaml:"path,omitempty"`
 	// Password holds a keychain reference ("keychain:<account>"), never the secret
-	// itself: .rdm.yml lives in the customer's git repo. It is kept out of JSON so
+	// itself: .rdm/config.yml lives in the customer's git repo. It is kept out of JSON so
 	// it cannot leak to the frontend either.
 	Password string `json:"-" yaml:"password,omitempty"`
 }
@@ -81,7 +81,7 @@ type ProjectConfig struct {
 	Testing       *TestingCfg       `yaml:"testing,omitempty"  json:"testing,omitempty"`
 }
 
-// TestingCfg lives under `testing:` in .rdm.yml (committed, no secrets).
+// TestingCfg lives under `testing:` in .rdm/config.yml (committed, no secrets).
 // acc/prod URLs still come from deploy_conf.json; only `local` is set here.
 type TestingCfg struct {
 	Environments map[string]string    `yaml:"environments,omitempty" json:"environments,omitempty"`

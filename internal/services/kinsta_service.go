@@ -47,7 +47,7 @@ func (s *KinstaService) IsConfigured() bool {
 	return s.cfg.Kinsta.APIKey != ""
 }
 
-// GetLinkedSiteID returns the Kinsta site_id stored in .rdm.yml for a project, or "" if not set.
+// GetLinkedSiteID returns the Kinsta site_id stored in .rdm/config.yml for a project, or "" if not set.
 func (s *KinstaService) GetLinkedSiteID(projectID string) (string, error) {
 	p, err := s.projectFor(projectID)
 	if err != nil {
@@ -116,7 +116,7 @@ func (s *KinstaService) projectWithSite(exceptProjectID, siteID string) string {
 	return ""
 }
 
-// LinkSite saves a Kinsta site_id to the project's .rdm.yml so it persists.
+// LinkSite saves a Kinsta site_id to the project's .rdm/config.yml so it persists.
 // Linking a site that already belongs to another project is refused: that is how
 // projects end up reading each other's data.
 func (s *KinstaService) LinkSite(projectID, siteID string) error {
@@ -133,7 +133,7 @@ func (s *KinstaService) LinkSite(projectID, siteID string) error {
 	}
 	cfg.Kinsta.SiteID = siteID
 	if err := config.SaveProject(p.Path, cfg); err != nil {
-		return fmt.Errorf("opslaan .rdm.yml: %w", err)
+		return fmt.Errorf("opslaan .rdm/config.yml: %w", err)
 	}
 	s.project.UpdateProjectConfig(projectID, cfg)
 	return nil

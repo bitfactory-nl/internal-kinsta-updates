@@ -139,9 +139,9 @@ export function RestoreQuarantine(projectID: string, envID: string, batch: strin
 }
 
 /**
- * SaveSSHAccess stores the SSH username and optional webroot in .rdm.yml. An empty
+ * SaveSSHAccess stores the SSH username and optional webroot in .rdm/config.yml. An empty
  * path means: find it on the server during the next scan. A non-empty password goes
- * into the macOS keychain and only a reference to it is written to .rdm.yml —
+ * into the macOS keychain and only a reference to it is written to .rdm/config.yml —
  * that file is committed in the customer's repo, so the secret can never live
  * there. An empty password leaves any stored one untouched.
  */

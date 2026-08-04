@@ -837,7 +837,7 @@ export default function MediaTab({ projectId }: Props) {
     }
   }, [site, envId])
 
-  // Het wachtwoord gaat naar de macOS-keychain; .rdm.yml krijgt alleen een
+  // Het wachtwoord gaat naar de macOS-keychain; .rdm/config.yml krijgt alleen een
   // verwijzing, want dat bestand staat in de repo van de klant.
   const bewaarToegang = useCallback(async () => {
     await Services.MediaService.SaveSSHAccess(projectId, user, pad, wachtwoord)
@@ -1030,7 +1030,7 @@ export default function MediaTab({ projectId }: Props) {
           className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[150px]" />
         <input type="password" value={wachtwoord} onChange={e => setWachtwoord(e.target.value)}
           placeholder={heeftWachtwoord ? 'wachtwoord bewaard' : 'wachtwoord'}
-          title="Wordt in de macOS-keychain bewaard; .rdm.yml krijgt alleen een verwijzing. Leeg laten houdt het bestaande wachtwoord."
+          title="Wordt in de macOS-keychain bewaard; .rdm/config.yml krijgt alleen een verwijzing. Leeg laten houdt het bestaande wachtwoord."
           className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[140px]" />
         <input value={pad} onChange={e => setPad(e.target.value)} placeholder="pad (leeg = zelf zoeken)"
           className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-[12.5px] text-fg w-[200px] font-mono" />

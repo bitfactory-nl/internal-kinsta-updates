@@ -694,8 +694,13 @@ func (s *GitService) GetUpdateBranchDetail(projectID, shortName string) (*Update
 		ref = shortName
 	}
 
-	// 1. Manifest path.
-	if out, err := gitcli.Run(ctx, path, "show", ref+":.updates.json"); err == nil && out != "" {
+	// 1. Manifest path. The workflow writes into .rdm/ now; branches created
+	// before that move still carry the file in the repo root, so both are tried.
+	for _, p := range []string{".rdm/updates.json", ".updates.json"} {
+		out, err := gitcli.Run(ctx, path, "show", ref+":"+p)
+		if err != nil || out == "" {
+			continue
+		}
 		if d, err := parseUpdateManifest([]byte(out)); err == nil {
 			return d, nil
 		}
@@ -707,8 +712,11 @@ func (s *GitService) GetUpdateBranchDetail(projectID, shortName string) (*Update
 		WPPlugins: []PackageUpdate{}, WPThemes: []PackageUpdate{},
 		NpmApplied: []PackageUpdate{}, NpmAvailableMajors: []PackageUpdate{},
 	}
-	if log, err := gitcli.Run(ctx, path, "show", ref+":.wp-update-log"); err == nil && log != "" {
-		d.WPCore, d.WPPlugins, d.WPThemes = parseWpUpdateLog(log)
+	for _, p := range []string{".rdm/wp-update-log", ".wp-update-log"} {
+		if log, err := gitcli.Run(ctx, path, "show", ref+":"+p); err == nil && log != "" {
+			d.WPCore, d.WPPlugins, d.WPThemes = parseWpUpdateLog(log)
+			break
+		}
 	}
 	after, errA := gitcli.Run(ctx, path, "show", ref+":package.json")
 	before, errB := gitcli.Run(ctx, path, "show", ref+"~1:package.json")

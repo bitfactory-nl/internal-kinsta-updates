@@ -134,7 +134,7 @@ type TestRun struct {
 }
 
 // ResolveEnvURL returns the URL for env. `local` comes from the project's
-// testing config in .rdm.yml; `acc`/`prod` come from deploy_conf.json.
+// testing config in .rdm/config.yml; `acc`/`prod` come from deploy_conf.json.
 func ResolveEnvURL(p Project, env EnvKey) (string, error) {
 	switch env {
 	case EnvLocal:
@@ -143,7 +143,7 @@ func ResolveEnvURL(p Project, env EnvKey) (string, error) {
 				return u, nil
 			}
 		}
-		return "", fmt.Errorf("geen local-URL in .rdm.yml (testing.environments.local)")
+		return "", fmt.Errorf("geen local-URL in .rdm/config.yml (testing.environments.local)")
 	case EnvAcc:
 		if u := strings.TrimSpace(p.Deploy.Link.Acc); u != "" {
 			return u, nil

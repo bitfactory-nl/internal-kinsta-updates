@@ -31,7 +31,7 @@ type kinstaSSHSource interface {
 }
 
 // secretStore keeps SSH passwords out of config files (test seam). Set takes an
-// account name, Get takes the reference stored in .rdm.yml.
+// account name, Get takes the reference stored in .rdm/config.yml.
 type secretStore interface {
 	Set(account, secret string) error
 	Get(ref string) (string, error)
@@ -204,7 +204,7 @@ func (s *MediaService) ScanEnvironment(projectID, envID string, folders []string
 	return sum, nil
 }
 
-// onthoudWebroot stores a freshly discovered webroot in .rdm.yml so the next scan
+// onthoudWebroot stores a freshly discovered webroot in .rdm/config.yml so the next scan
 // does not have to search for it. Failing to save is not worth aborting a scan
 // that already succeeded.
 func (s *MediaService) onthoudWebroot(p domain.Project, root string) {
@@ -247,9 +247,9 @@ func (s *MediaService) GetSSHAccess(projectID string) (SSHAccess, error) {
 	}, nil
 }
 
-// SaveSSHAccess stores the SSH username and optional webroot in .rdm.yml. An empty
+// SaveSSHAccess stores the SSH username and optional webroot in .rdm/config.yml. An empty
 // path means: find it on the server during the next scan. A non-empty password goes
-// into the macOS keychain and only a reference to it is written to .rdm.yml —
+// into the macOS keychain and only a reference to it is written to .rdm/config.yml —
 // that file is committed in the customer's repo, so the secret can never live
 // there. An empty password leaves any stored one untouched.
 func (s *MediaService) SaveSSHAccess(projectID, user, path, password string) error {
@@ -279,7 +279,7 @@ func (s *MediaService) SaveSSHAccess(projectID, user, path, password string) err
 
 	cfg.SSH = &ssh
 	if err := config.SaveProject(p.Path, cfg); err != nil {
-		return fmt.Errorf("opslaan .rdm.yml: %w", err)
+		return fmt.Errorf("opslaan .rdm/config.yml: %w", err)
 	}
 	s.projects.UpdateProjectConfig(projectID, cfg)
 	return nil

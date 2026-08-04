@@ -5,6 +5,7 @@
 // de drift-test in manifest.test.js bewaakt dit.
 
 import fs from 'node:fs'
+import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 export function parseSemver(v) {
@@ -65,6 +66,7 @@ export function main({ generatedAt, wpAppliedFile, npmCurrentFile, npmMinorFile,
     latest: readJson(npmLatestFile, {}),
   })
   const manifest = buildManifest({ generatedAt, wordpress, npm })
+  fs.mkdirSync(path.dirname(outFile), { recursive: true })
   fs.writeFileSync(outFile, JSON.stringify(manifest, null, 2) + '\n')
   console.log(`Manifest geschreven naar ${outFile}`)
 }
@@ -76,6 +78,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     npmCurrentFile: '/tmp/npm-current.json',
     npmMinorFile: '/tmp/npm-minor.json',
     npmLatestFile: '/tmp/npm-latest.json',
-    outFile: '.updates.json',
+    outFile: '.rdm/updates.json',
   })
 }

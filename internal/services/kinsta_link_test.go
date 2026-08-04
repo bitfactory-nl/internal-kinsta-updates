@@ -9,7 +9,7 @@ import (
 )
 
 // newKinstaService bouwt een service met twee projecten in eigen tijdelijke mappen,
-// zodat LinkSite een echt .rdm.yml kan schrijven.
+// zodat LinkSite een echt .rdm/config.yml kan schrijven.
 func newKinstaService(t *testing.T) (*KinstaService, *ProjectService) {
 	t.Helper()
 	ps := NewProjectService(nil)

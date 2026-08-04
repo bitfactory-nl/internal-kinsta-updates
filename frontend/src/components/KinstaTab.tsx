@@ -129,7 +129,7 @@ export default function KinstaTab({ projectId }: Props) {
         <div className="px-6 py-5 pb-10">
           <p className="text-[12.5px] text-fg-muted mb-3.5">
             Koppel dit project aan een Kinsta site om de dashboard te activeren.
-            De keuze wordt opgeslagen in <code className="text-fg font-mono">.rdm.yml</code>.
+            De keuze wordt opgeslagen in <code className="text-fg font-mono">.rdm/config.yml</code>.
           </p>
           <input
             type="search"

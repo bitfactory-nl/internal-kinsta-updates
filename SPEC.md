@@ -23,7 +23,7 @@ RDM Sites Tool is a macOS-native desktop application for a web agency team of 6�
 2. **Fast** — the sidebar should render Git status for 50+ repos in under 1 second using `go-git`.
 3. **Familiar** — SourceTree-equivalent Git UX so designers and developers can switch without retraining.
 4. **Native** — feels like a Mac app: notarized, signed, Keychain-integrated, native notifications.
-5. **Team-shareable config** — per-project `.rdm.yml` checked into the repo so any teammate sees the same metadata.
+5. **Team-shareable config** — per-project `.rdm/config.yml` checked into the repo so any teammate sees the same metadata.
 
 ### 1.3 Non-Goals
 
@@ -116,7 +116,7 @@ RDM-Sites-tool/
 │   │
 │   ├── config/
 │   │   ├── global.go           # ~/.config/rdm/config.yml loader
-│   │   ├── project.go          # .rdm.yml loader/validator
+│   │   ├── project.go          # .rdm/config.yml loader/validator
 │   │   ├── schema.go           # Go structs for both configs
 │   │   └── keychain.go         # macOS Keychain wrapper (security cmd / go-keyring)
 │   │
@@ -239,7 +239,7 @@ RDM-Sites-tool/
 Goal: replace the most painful daily workflows. Read-only Git + Kinsta visibility.
 
 - [ ] App shell (Wails v3 + React + Tailwind + shadcn/ui boots).
-- [ ] Project discovery: scan a configurable root folder (e.g. `~/Projects`) for repos containing `.rdm.yml`.
+- [ ] Project discovery: scan a configurable root folder (e.g. `~/Projects`) for repos containing `.rdm/config.yml`.
 - [ ] Project list sidebar with display name, provider badge, branch, ahead/behind, dirty marker.
 - [ ] Git read-only views: status, current branch, last 100 commits, working tree diff, staged diff.
 - [ ] Global config + per-project config loader/validator.
@@ -275,8 +275,8 @@ Goal: deployment + plugin management automation.
 - [ ] Batch operations: pull-all, fetch-all, status-across-all.
 - [ ] Cross-project / cross-branch search.
 - [ ] Kinsta update dashboard with vulnerability flags (red badges).
-- [ ] Auto-generate `.github/workflows/check-updates.yml` from `.rdm.yml`.
-- [ ] AWS/VPS info panels (read-only display from `.rdm.yml`).
+- [ ] Auto-generate `.github/workflows/check-updates.yml` from `.rdm/config.yml`.
+- [ ] AWS/VPS info panels (read-only display from `.rdm/config.yml`).
 - [ ] Embedded SSH terminal (xterm.js + `golang.org/x/crypto/ssh`).
 - [ ] macOS native notifications for vulnerable plugin updates.
 - [ ] Paid plugin sync: compare private repo zips vs Kinsta installed versions; trigger update via SSH.
@@ -667,10 +667,10 @@ Close(ctx, sessionID) error
 
 ## 7. Config Schema
 
-### 7.1 Per-Project `.rdm.yml` (committed to repo)
+### 7.1 Per-Project `.rdm/config.yml` (committed to repo)
 
 ```yaml
-# .rdm.yml — RDM Sites Tool project config
+# .rdm/config.yml — RDM Sites Tool project config
 # Lives at repo root. Safe to commit; never contains secrets.
 
 provider: kinsta              # kinsta | aws | vps | none
@@ -808,7 +808,7 @@ Output streams back to the embedded terminal in real time.
 
 ### 8.5 Auto-Generated GitHub Workflow
 
-`KinstaService.WriteGitHubWorkflow(projectID)` writes `.github/workflows/check-updates.yml` with env IDs interpolated from `.rdm.yml`:
+`KinstaService.WriteGitHubWorkflow(projectID)` writes `.github/workflows/check-updates.yml` with env IDs interpolated from `.rdm/config.yml`:
 
 ```yaml
 name: Check Kinsta Plugin Updates
@@ -953,14 +953,14 @@ wails3 dev          # hot-reload: Go + Vite
 | ADR-002 | Wails v3 over Tauri/Electron — Go-native, single binary, smaller footprint |
 | ADR-003 | shadcn/ui over MUI — lower bundle size, easier theming |
 | ADR-004 | Keychain for secrets — no encrypted file, no plaintext risk |
-| ADR-005 | Per-project `.rdm.yml` committed — any teammate clone sees same metadata |
+| ADR-005 | Per-project `.rdm/config.yml` committed — any teammate clone sees same metadata |
 | ADR-006 | SSH path for paid plugin updates — simpler than SFTP upload to Kinsta API |
 
 ---
 
 ## 13. Open Questions
 
-1. Should `.rdm.yml` have a `rdm_schema_version: 1` field for future migrations?
+1. Should `.rdm/config.yml` have a `rdm_schema_version: 1` field for future migrations?
 2. Multi-user conflict: if two devs trigger a Kinsta update simultaneously, track in-flight operation per env and disable the button.
 3. Telemetry/crash reporting — out of scope for v1.
-4. Should the tool support detecting projects **without** `.rdm.yml` (Git repos only, no deployment config)?
+4. Should the tool support detecting projects **without** `.rdm/config.yml` (Git repos only, no deployment config)?
