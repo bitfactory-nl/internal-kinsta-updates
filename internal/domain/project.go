@@ -12,9 +12,10 @@ const (
 )
 
 type DeployLinks struct {
-	Test string `json:"test"`
-	Acc  string `json:"acc"`
-	Prod string `json:"prod"`
+	Test  string `json:"test"`
+	Acc   string `json:"acc"`
+	Prod  string `json:"prod"`
+	Local string `json:"local,omitempty"`
 }
 
 type DeployConf struct {
