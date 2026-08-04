@@ -208,8 +208,8 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-bg">
       {/* Header */}
-      <header className="h-[56px] shrink-0 flex items-center gap-3 px-[22px] border-b border-border bg-panel">
-        <h2 className="text-[15px] font-bold tracking-[-.01em] text-fg truncate">
+      <header className="h-16 shrink-0 flex items-center gap-3 px-[22px] border-b border-border bg-panel">
+        <h2 className="font-display text-[20px] font-extrabold tracking-[-.02em] text-fg truncate">
           {project.displayName}
         </h2>
         {status?.isRepo && status.branch && (
@@ -289,7 +289,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
                       key={it.id}
                       onClick={() => setActiveTab(it.id)}
                       className={`w-full flex items-center justify-between gap-2 mx-0 my-px px-[11px] py-[7px]
-                                  rounded-[7px] text-[13px] transition-colors text-left
+                                  rounded-nav text-[13px] transition-colors text-left
                                   ${on
                                     ? 'font-semibold text-fg bg-sel shadow-[inset_2px_0_0_var(--accent)]'
                                     : 'font-[450] text-fg-muted hover:bg-hover'}`}

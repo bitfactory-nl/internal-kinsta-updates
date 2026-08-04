@@ -1,64 +1,123 @@
-@import "@fontsource-variable/ibm-plex-sans";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource/inter-tight/500.css";
+@import "@fontsource/inter-tight/600.css";
+@import "@fontsource/inter-tight/700.css";
+@import "@fontsource/inter-tight/800.css";
 @import "tailwindcss";
 
-/* ─── Design tokens (RDM Sites design, light + dark) ─────────────────────── */
+/* ─── Design tokens — NOBEARS GrowthScan (licht + donker) ─────────────────
+   Warme cream/brown basis met koraal accent. De navigatiebalk (--rail) is
+   in béide thema's donkerbruin; dat is het handelsmerk van het design.
+   ────────────────────────────────────────────────────────────────────────── */
 :root {
-  --sans: 'IBM Plex Sans Variable', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
-  --mono: 'IBM Plex Mono', 'SF Mono', ui-monospace, monospace;
-  --desk: #e4e4e8;
-  --sidebar: #f0f0f2;
-  --bg: #f6f6f7;
-  --panel: #ffffff;
-  --panel-2: #fafafb;
-  --border: rgba(20, 22, 26, .10);
-  --border-strong: rgba(20, 22, 26, .16);
-  --fg: #191b1f;
-  --fg-muted: #63676d;
-  --fg-faint: #9298a0;
-  --hover: rgba(20, 22, 26, .045);
-  --accent: oklch(0.55 0.17 268);
-  --accent-2: oklch(0.48 0.18 268);
-  --sel: oklch(0.55 0.17 268 / .11);
-  --accent-soft: oklch(0.55 0.17 268 / .12);
-  --green: oklch(0.60 0.14 150);
-  --green-soft: oklch(0.60 0.14 150 / .14);
-  --red: oklch(0.57 0.20 27);
-  --red-soft: oklch(0.57 0.20 27 / .13);
-  --amber: oklch(0.72 0.15 72);
-  --amber-soft: oklch(0.72 0.15 72 / .18);
-  --orange: oklch(0.64 0.18 42);
-  --orange-soft: oklch(0.64 0.18 42 / .15);
-  --purple: oklch(0.56 0.17 300);
+  --display: 'Inter Tight', 'Inter Variable', system-ui, sans-serif;
+  --sans: 'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'SF Mono', ui-monospace, 'Cascadia Code', Menlo, monospace;
+
+  /* Oppervlakken */
+  --desk: #EFE3D2;
+  --bg: #F7EEE1;          /* cream — canvas */
+  --panel: #FFFDFA;       /* paper — kaarten, topbars */
+  --panel-2: #FCF7EF;     /* cream-2 — subtiel verhoogd */
+  --sidebar: #FCF7EF;     /* projectkolom */
+
+  /* Navigatiebalk — altijd donkerbruin */
+  --rail: #33251C;
+  --rail-2: #5E4636;
+  --rail-fg: #E7D8C9;
+  --rail-muted: #A68D78;
+  --rail-hover: rgba(255, 255, 255, .06);
+  --rail-border: rgba(255, 255, 255, .08);
+
+  /* Tekst */
+  --fg: #161311;
+  --fg-muted: #4C4139;
+  --fg-faint: #8C7C6C;
+
+  /* Lijnen */
+  --border: rgba(22, 19, 17, .12);
+  --border-strong: rgba(22, 19, 17, .22);
+  --hover: rgba(22, 19, 17, .05);
+
+  /* Accent — koraal */
+  --accent: #E0451F;
+  --accent-2: #F05A34;
+  --accent-soft: #FBE4DC;
+  --sel: rgba(224, 69, 31, .10);
+
+  /* Signalen */
+  --green: #2E8B57;
+  --green-soft: rgba(46, 139, 87, .14);
+  --red: #C23B1E;
+  --red-soft: rgba(194, 59, 30, .13);
+  --amber: #E09A1C;
+  --amber-soft: rgba(224, 154, 28, .18);
+  --orange: #D2691E;
+  --orange-soft: rgba(210, 105, 30, .15);
+  --purple: #068C7B;      /* teal — het derde accent van het design */
+
+  /* Tekstveilige varianten — alleen voor kleine tekst.
+     De zuivere merkkleuren hierboven blijven voor vlakken, randen en
+     grote/vette tekst; deze halen 4.5:1 op cream (het slechtste geval). */
+  --fg-faint-text: #786B5D;
+  --accent-text:   #C53D1B;
+  --green-text:    #297B4D;
+  --red-text:      #C23B1E;   /* haalde het al */
+  --amber-text:    #926412;
+  --orange-text:   #AA5518;
+  --purple-text:   #057B6C;
+
+  /* Radii uit het design */
+  --radius-nav: 9px;
+  --radius-control: 10px;
+  --radius-card: 14px;
 }
 
 [data-theme="dark"] {
-  --desk: #08080a;
-  --sidebar: #141519;
-  --bg: #0f1013;
-  --panel: #17181c;
-  --panel-2: #1c1e23;
-  --border: rgba(255, 255, 255, .08);
-  --border-strong: rgba(255, 255, 255, .16);
-  --fg: #e9ebee;
-  --fg-muted: #969ca4;
-  --fg-faint: #676d75;
-  --hover: rgba(255, 255, 255, .05);
-  --accent: oklch(0.70 0.14 268);
-  --accent-2: oklch(0.75 0.13 268);
-  --sel: oklch(0.70 0.14 268 / .20);
-  --accent-soft: oklch(0.70 0.14 268 / .18);
-  --green: oklch(0.72 0.15 150);
-  --green-soft: oklch(0.72 0.15 150 / .16);
-  --red: oklch(0.68 0.19 27);
-  --red-soft: oklch(0.68 0.19 27 / .16);
-  --amber: oklch(0.80 0.14 78);
-  --amber-soft: oklch(0.80 0.14 78 / .16);
-  --orange: oklch(0.70 0.17 45);
-  --orange-soft: oklch(0.70 0.17 45 / .16);
-  --purple: oklch(0.72 0.15 300);
+  --desk: #1A120C;
+  --bg: #241A13;
+  --panel: #3E2D22;
+  --panel-2: #2C2018;
+  --sidebar: #2C2018;
+
+  --rail: #1C130D;
+  --rail-2: #5E4636;
+  --rail-fg: #E7D8C9;
+  --rail-muted: #A68D78;
+  --rail-hover: rgba(255, 255, 255, .07);
+  --rail-border: rgba(255, 255, 255, .09);
+
+  --fg: #F3E7DA;
+  --fg-muted: #CFBDAB;
+  --fg-faint: #9C8A78;
+
+  --border: rgba(243, 231, 218, .14);
+  --border-strong: rgba(243, 231, 218, .26);
+  --hover: rgba(243, 231, 218, .06);
+
+  --accent: #F05A34;
+  --accent-2: #F27352;
+  --accent-soft: rgba(224, 69, 31, .20);
+  --sel: rgba(240, 90, 52, .16);
+
+  --green: #3CA46B;
+  --green-soft: rgba(60, 164, 107, .16);
+  --red: #E0573A;
+  --red-soft: rgba(224, 87, 58, .16);
+  --amber: #E7A93A;
+  --amber-soft: rgba(231, 169, 58, .16);
+  --orange: #E08240;
+  --orange-soft: rgba(224, 130, 64, .16);
+  --purple: #22A594;
+
+  /* Tekstveilig in donker: opgelicht t.o.v. --panel (slechtste geval) */
+  --fg-faint-text: #A59584;
+  --accent-text:   #F27150;
+  --green-text:    #49AA75;
+  --red-text:      #E67860;
+  --amber-text:    #E7A93A;   /* haalde het al */
+  --orange-text:   #E08240;   /* haalde het al */
+  --purple-text:   #2BA998;
 }
 
 /* Expose tokens as Tailwind utilities: bg-panel, text-fg-muted, border-border, … */
@@ -89,6 +148,32 @@
   --color-orange: var(--orange);
   --color-orange-soft: var(--orange-soft);
   --color-purple: var(--purple);
+
+  /* Navigatiebalk (donkerbruin in beide thema's) */
+  --color-rail: var(--rail);
+  --color-rail-2: var(--rail-2);
+  --color-rail-fg: var(--rail-fg);
+  --color-rail-muted: var(--rail-muted);
+  --color-rail-hover: var(--rail-hover);
+  --color-rail-border: var(--rail-border);
+
+  --font-display: var(--display);
+  --radius-nav: var(--radius-nav);
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+}
+
+/* Alleen de tekst-utilities krijgen de tekstveilige variant; bg-*, border-*
+   en fill-* houden de zuivere merkkleur. Zo blijft het koraal van de knoppen
+   en de actieve balkjes exact zoals het design het voorschrijft. */
+@layer utilities {
+  .text-fg-faint { color: var(--fg-faint-text); }
+  .text-accent   { color: var(--accent-text); }
+  .text-green    { color: var(--green-text); }
+  .text-red      { color: var(--red-text); }
+  .text-amber    { color: var(--amber-text); }
+  .text-orange   { color: var(--orange-text); }
+  .text-purple   { color: var(--purple-text); }
 }
 
 @layer base {

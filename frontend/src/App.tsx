@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useSyncExternalStore } from 'react'
 import * as ProjectService from '../bindings/github.com/rdm/sites-tool/internal/services'
 import type { ProjectStatusSummary, Project } from '../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import ProjectDetail from './components/ProjectDetail'
@@ -11,8 +11,9 @@ import WordPressPage from './components/WordPressPage'
 import ErrorBoundary from './components/ErrorBoundary'
 import {
   RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
-  PackageIcon, PaletteIcon, GlobeIcon,
+  PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon,
 } from './components/icons'
+import { type ThemeMode, getThemeMode, setThemeMode, subscribeTheme } from './lib/thema'
 
 type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'settings'
 
@@ -33,18 +34,54 @@ function IconBtn({ onClick, title, children, drag = false }: {
   )
 }
 
+// ─── thema-schakelaar ──────────────────────────────────────────────────────
+const THEMES: { mode: ThemeMode; label: string; icon: React.ReactNode }[] = [
+  { mode: 'system', label: 'Systeem', icon: <MonitorIcon size={14} /> },
+  { mode: 'light', label: 'Licht', icon: <SunIcon size={14} /> },
+  { mode: 'dark', label: 'Donker', icon: <MoonIcon size={14} /> },
+]
+
+function ThemeSwitcher() {
+  const mode = useSyncExternalStore(subscribeTheme, getThemeMode)
+  return (
+    <div
+      role="radiogroup"
+      aria-label="Thema"
+      className="flex items-center gap-0.5 p-0.5 rounded-control bg-black/25"
+    >
+      {THEMES.map(t => (
+        <button
+          key={t.mode}
+          role="radio"
+          aria-checked={mode === t.mode}
+          onClick={() => setThemeMode(t.mode)}
+          title={t.label}
+          className={`flex-1 h-7 flex items-center justify-center rounded-[7px]
+            transition-colors select-none
+            ${mode === t.mode
+              ? 'bg-rail-2 text-white'
+              : 'text-rail-muted hover:text-rail-fg'}`}
+        >
+          {t.icon}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── nav menu item ─────────────────────────────────────────────────────────
+// Staat op de donkerbruine rail: actief = koraal balkje links (GrowthScan).
 function NavItem({ icon, label, active, onClick }: {
   icon: React.ReactNode; label: string; active: boolean; onClick: () => void
 }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px]
-        font-medium transition-colors select-none
+      className={`w-full flex items-center gap-3 h-10 px-3 rounded-nav text-[14px]
+        font-medium transition-colors select-none border-l-2
         ${active
-          ? 'bg-sel text-fg shadow-[inset_0_0_0_1px_var(--border-strong)]'
-          : 'text-fg-muted hover:text-fg hover:bg-hover'}`}
+          ? 'border-accent-2 bg-rail-hover text-white'
+          : 'border-transparent text-rail-fg/75 hover:text-rail-fg hover:bg-rail-hover'}`}
     >
       <span className="shrink-0 flex items-center">{icon}</span>
       <span className="truncate">{label}</span>
@@ -177,21 +214,22 @@ export default function App() {
   return (
     <div className="flex w-full h-screen overflow-hidden bg-bg text-fg font-sans">
 
-      {/* ── Nav sidebar ── */}
-      <div className="w-[200px] shrink-0 flex flex-col bg-sidebar border-r border-border">
+      {/* ── Nav rail — donkerbruin in beide thema's ── */}
+      <div className="w-[224px] shrink-0 flex flex-col bg-rail text-rail-fg">
 
-        {/* title bar — draggable, leaves room for traffic lights */}
+        {/* title bar — draggable; de stoplichten lopen tot x=80, dus 88px marge */}
         <div
-          className="h-[52px] flex items-center pl-[76px] pr-3 shrink-0 border-b border-border"
+          className="h-16 flex items-center pl-[88px] pr-2 shrink-0 border-b border-rail-border"
           style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
         >
-          <span className="text-[13px] font-bold tracking-[-.01em] text-fg whitespace-nowrap">
+          <span className="font-display text-[15px] font-extrabold tracking-[-.02em]
+                           text-white whitespace-nowrap">
             Kinsta Updater
           </span>
         </div>
 
-        {/* menu */}
-        <nav className="px-2 pt-2.5 space-y-0.5">
+        {/* menu — px-2 hier; de knoppen hebben zelf al px-3 */}
+        <nav className="px-2 pt-3.5 space-y-0.5">
           <NavItem
             icon={<FolderIcon size={15} />}
             label="Projecten"
@@ -238,14 +276,15 @@ export default function App() {
 
         <div className="flex-1" />
 
-        {/* footer: settings */}
-        <div className="px-2 py-2 border-t border-border">
+        {/* footer: settings + thema */}
+        <div className="px-2 py-3 border-t border-rail-border space-y-2">
           <NavItem
             icon={<GearIcon size={15} />}
             label="Instellingen"
             active={view === 'settings'}
             onClick={() => setView('settings')}
           />
+          <ThemeSwitcher />
         </div>
       </div>
 
@@ -255,10 +294,10 @@ export default function App() {
 
           {/* header — draggable */}
           <div
-            className="h-[52px] flex items-center px-3.5 gap-1 shrink-0 border-b border-border"
+            className="h-16 flex items-center px-3.5 gap-1 shrink-0 border-b border-border bg-panel"
             style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
           >
-            <span className="flex-1 text-[13px] font-bold tracking-[-.01em] text-fg">
+            <span className="flex-1 font-display text-[17px] font-bold tracking-[-.02em] text-fg">
               Projecten
             </span>
             <IconBtn onClick={refresh} title="Opnieuw scannen" drag>
