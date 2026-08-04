@@ -35,6 +35,7 @@ func main() {
 	services.Project.SetApp(a)
 	services.SSH.SetApp(a)
 	services.Report.SetApp(a)
+	services.DBClone.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()

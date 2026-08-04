@@ -354,6 +354,148 @@ export class Commit {
     }
 }
 
+/**
+ * DBCloneRequest is what the user has filled in/confirmed in the UI for one
+ * clone operation.
+ */
+export class DBCloneRequest {
+    "prodSiteUrl": string;
+    "localUrl": string;
+    "localDbName": string;
+
+    /**
+     * "mysql" | "mysql84"
+     */
+    "localDbHost": string;
+
+    /**
+     * TablePrefix comes from an earlier Probe, so the service does not need to
+     * probe again just for the multisite domain fix.
+     */
+    "tablePrefix": string;
+    "multisite": boolean;
+
+    /** Creates a new DBCloneRequest instance. */
+    constructor($$source: Partial<DBCloneRequest> = {}) {
+        if (!("prodSiteUrl" in $$source)) {
+            this["prodSiteUrl"] = "";
+        }
+        if (!("localUrl" in $$source)) {
+            this["localUrl"] = "";
+        }
+        if (!("localDbName" in $$source)) {
+            this["localDbName"] = "";
+        }
+        if (!("localDbHost" in $$source)) {
+            this["localDbHost"] = "";
+        }
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("multisite" in $$source)) {
+            this["multisite"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBCloneRequest instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBCloneRequest {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBCloneRequest($$parsedSource as Partial<DBCloneRequest>);
+    }
+}
+
+/**
+ * DBCloneResult is the outcome of a completed clone.
+ */
+export class DBCloneResult {
+    "localDbName": string;
+    "siteUrlBefore": string;
+    "siteUrlAfter": string;
+    "tablesImported": number;
+    "dumpBytes": number;
+    "backupPath"?: string;
+    "multisiteFixApplied": boolean;
+    "warnings"?: string[];
+
+    /** Creates a new DBCloneResult instance. */
+    constructor($$source: Partial<DBCloneResult> = {}) {
+        if (!("localDbName" in $$source)) {
+            this["localDbName"] = "";
+        }
+        if (!("siteUrlBefore" in $$source)) {
+            this["siteUrlBefore"] = "";
+        }
+        if (!("siteUrlAfter" in $$source)) {
+            this["siteUrlAfter"] = "";
+        }
+        if (!("tablesImported" in $$source)) {
+            this["tablesImported"] = 0;
+        }
+        if (!("dumpBytes" in $$source)) {
+            this["dumpBytes"] = 0;
+        }
+        if (!("multisiteFixApplied" in $$source)) {
+            this["multisiteFixApplied"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBCloneResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBCloneResult {
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField7_0($$parsedSource["warnings"]);
+        }
+        return new DBCloneResult($$parsedSource as Partial<DBCloneResult>);
+    }
+}
+
+/**
+ * DBProbe is a quick, read-only check of the production environment: what is
+ * there and how big it is.
+ */
+export class DBProbe {
+    "siteUrl": string;
+    "tablePrefix": string;
+    "isMultisite": boolean;
+    "dbSizeBytes": number;
+    "tmpFreeBytes"?: number;
+
+    /** Creates a new DBProbe instance. */
+    constructor($$source: Partial<DBProbe> = {}) {
+        if (!("siteUrl" in $$source)) {
+            this["siteUrl"] = "";
+        }
+        if (!("tablePrefix" in $$source)) {
+            this["tablePrefix"] = "";
+        }
+        if (!("isMultisite" in $$source)) {
+            this["isMultisite"] = false;
+        }
+        if (!("dbSizeBytes" in $$source)) {
+            this["dbSizeBytes"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBProbe instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBProbe {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBProbe($$parsedSource as Partial<DBProbe>);
+    }
+}
+
 export class DeployConf {
     "type": string;
     "link": DeployLinks;
@@ -392,6 +534,7 @@ export class DeployLinks {
     "test": string;
     "acc": string;
     "prod": string;
+    "local"?: string;
 
     /** Creates a new DeployLinks instance. */
     constructor($$source: Partial<DeployLinks> = {}) {
@@ -899,6 +1042,47 @@ export class KinstaProjectCfg {
             $$parsedSource["environments"] = $$createField1_0($$parsedSource["environments"]);
         }
         return new KinstaProjectCfg($$parsedSource as Partial<KinstaProjectCfg>);
+    }
+}
+
+/**
+ * LocalEnvDefaults are the local defaults read from the project's own .env
+ * file — purely local, no SSH needed — used to prefill form fields.
+ */
+export class LocalEnvDefaults {
+    "dbName": string;
+
+    /**
+     * "mysql" | "mysql84" | empty if unknown
+     */
+    "dbHost": string;
+
+    /**
+     * https://<APP_DOMAIN>, empty if .env is absent
+     */
+    "url": string;
+
+    /** Creates a new LocalEnvDefaults instance. */
+    constructor($$source: Partial<LocalEnvDefaults> = {}) {
+        if (!("dbName" in $$source)) {
+            this["dbName"] = "";
+        }
+        if (!("dbHost" in $$source)) {
+            this["dbHost"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new LocalEnvDefaults instance from a string or object.
+     */
+    static createFrom($$source: any = {}): LocalEnvDefaults {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new LocalEnvDefaults($$parsedSource as Partial<LocalEnvDefaults>);
     }
 }
 

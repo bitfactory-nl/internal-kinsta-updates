@@ -14,6 +14,7 @@ import * as time$0 from "../../../../../time/models.js";
  */
 export class AppSettings {
     "editor": string;
+    "dbApp": string;
     "kinstaApiKey": string;
     "kinstaCompanyId": string;
     "githubToken": string;
@@ -29,6 +30,9 @@ export class AppSettings {
     constructor($$source: Partial<AppSettings> = {}) {
         if (!("editor" in $$source)) {
             this["editor"] = "";
+        }
+        if (!("dbApp" in $$source)) {
+            this["dbApp"] = "";
         }
         if (!("kinstaApiKey" in $$source)) {
             this["kinstaApiKey"] = "";

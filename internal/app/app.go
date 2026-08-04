@@ -42,6 +42,7 @@ type Services struct {
 	Inventory       *services.InventoryService
 	WPCoreUpdate    *services.WPCoreUpdateService
 	Media           *services.MediaService
+	DBClone         *services.DBCloneService
 }
 
 func NewServices(cfg Config) *Services {
@@ -84,6 +85,7 @@ func NewServices(cfg Config) *Services {
 		Inventory:       services.NewInventoryService(project, &cfg.Global),
 		WPCoreUpdate:    services.NewWPCoreUpdateService(project, &cfg.Global),
 		Media:           services.NewMediaService(project, kinsta, services.NewMediaScanStore(services.DefaultMediaScanDir())),
+		DBClone:         services.NewDBCloneService(project, kinsta),
 	}
 }
 
@@ -109,5 +111,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Inventory),
 		application.NewService(s.WPCoreUpdate),
 		application.NewService(s.Media),
+		application.NewService(s.DBClone),
 	}
 }
