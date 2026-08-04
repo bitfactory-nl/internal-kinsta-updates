@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/go-git/go-git/v5 v5.16.4
+	github.com/tidwall/sjson v1.2.5
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.80
 	golang.org/x/crypto v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -41,6 +42,9 @@ require (
 	github.com/samber/lo v1.52.0 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.2 // indirect
+	github.com/tidwall/gjson v1.14.2 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/wailsapp/go-webview2 v1.0.23 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	golang.org/x/net v0.49.0 // indirect

@@ -24,3 +24,31 @@ func TestSettingsWordfenceRoundTrip(t *testing.T) {
 		t.Errorf("Get roundtrip: %q", got.WordfenceAPIKey)
 	}
 }
+
+func TestSettingsDBAppDefault(t *testing.T) {
+	cfg := &config.Global{Editor: "cursor"}
+	s := NewSettingsService(cfg)
+	if got := s.Get(); got.DBApp != "Sequel Ace" {
+		t.Errorf("default DBApp = %q, want %q", got.DBApp, "Sequel Ace")
+	}
+	if cfg.DBApp != "" {
+		t.Errorf("Get() should not persist the default, got cfg.DBApp = %q", cfg.DBApp)
+	}
+}
+
+func TestSettingsDBAppRoundTrip(t *testing.T) {
+	cfg := &config.Global{Editor: "cursor"}
+	s := NewSettingsService(cfg)
+	in := s.Get()
+	in.DBApp = "TablePlus"
+	t.Setenv("HOME", t.TempDir())
+	if err := s.Save(in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if cfg.DBApp != "TablePlus" {
+		t.Errorf("cfg not updated: %q", cfg.DBApp)
+	}
+	if got := s.Get(); got.DBApp != "TablePlus" {
+		t.Errorf("Get roundtrip: %q", got.DBApp)
+	}
+}
