@@ -167,6 +167,63 @@ func (c *Client) Upload(ctx context.Context, t Target, remotePath string, data [
 	}
 }
 
+// progressWriter wraps an io.Writer and reports the cumulative byte count to
+// onProgress after each Write, so a caller can show download progress without
+// the destination writer itself needing to know about it.
+type progressWriter struct {
+	w          io.Writer
+	onProgress func(written int64)
+	total      int64
+}
+
+func (p *progressWriter) Write(b []byte) (int, error) {
+	n, err := p.w.Write(b)
+	p.total += int64(n)
+	if p.onProgress != nil {
+		p.onProgress(p.total)
+	}
+	return n, err
+}
+
+// Download streams a remote file to w over a single SSH session, reporting
+// cumulative bytes written via onProgress (which may be nil). It mirrors
+// Upload's structure exactly, just in the opposite direction.
+func (c *Client) Download(ctx context.Context, t Target, remotePath string, w io.Writer, onProgress func(written int64)) error {
+	if strings.ContainsAny(remotePath, "'\n") {
+		return fmt.Errorf("ongeldig remote pad: %q", remotePath)
+	}
+	client, closeFn, err := c.dial(ctx, t)
+	if err != nil {
+		return err
+	}
+	defer closeFn()
+
+	sess, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("ssh sessie: %w", err)
+	}
+	defer sess.Close()
+
+	sess.Stdout = &progressWriter{w: w, onProgress: onProgress}
+	var stderr bytes.Buffer
+	sess.Stderr = &stderr
+
+	cmd := fmt.Sprintf("cat '%s'", remotePath)
+	done := make(chan error, 1)
+	go func() { done <- sess.Run(cmd) }()
+
+	select {
+	case <-ctx.Done():
+		_ = sess.Signal(ssh.SIGKILL)
+		return ctx.Err()
+	case err := <-done:
+		if err != nil {
+			return fmt.Errorf("download mislukt: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+}
+
 // Session is an interactive PTY shell session. Output is delivered to the
 // onOutput callback passed to OpenShell; input is sent via Write.
 type Session struct {
