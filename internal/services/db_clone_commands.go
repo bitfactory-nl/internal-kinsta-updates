@@ -57,14 +57,24 @@ func parseDBProbe(out string) domain.DBProbe {
 // transformed result to a file instead of the database (confirmed via the
 // wp-cli documentation). A guard test (TestDBCloneCommandsNeverMutateRemote)
 // enforces this invariant on every non-"buildLocal" function in this file.
-func buildDBExportCommand(webroot, prodSiteURL, localURL string, multisite bool, remoteFile string) string {
+//
+// searchTerm/replaceTerm are pre-computed by the caller (Clone in
+// db_clone_service.go): for a single site they are the full site URLs, but
+// for multisite they must be the bare network domains instead. A full-URL
+// search term like "https://vanluyken.nl" is not a substring of a subsite's
+// own URL "https://site2.vanluyken.nl" (there's "site2." in between), so it
+// would never touch any subsite but the primary one — bare-domain terms
+// ("vanluyken.nl") match every subdomain and are what --network is combined
+// with here to actually reach every wp_<blogid>_options row plus wp_blogs and
+// wp_site (both scanned by --network, and both storing bare hostnames).
+func buildDBExportCommand(webroot, searchTerm, replaceTerm string, multisite bool, remoteFile string) string {
 	network := ""
 	if multisite {
 		network = " --network"
 	}
 	lines := []string{
 		"cd " + shellQuote(webroot) + " && rm -f " + shellQuote(remoteFile) + " " + shellQuote(remoteFile+".gz") + " \\",
-		"  && nice -n 19 wp search-replace " + shellQuote(prodSiteURL) + " " + shellQuote(localURL) +
+		"  && nice -n 19 wp search-replace " + shellQuote(searchTerm) + " " + shellQuote(replaceTerm) +
 			" --all-tables-with-prefix --skip-columns=guid" + network + " --export=" + shellQuote(remoteFile) + " 2>&1 \\",
 		"  && gzip -f " + shellQuote(remoteFile) + " \\",
 		"  && echo \"RDM-DBSIZE:$(wc -c < " + shellQuote(remoteFile+".gz") + ")\"",

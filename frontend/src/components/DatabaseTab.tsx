@@ -20,7 +20,7 @@ const FASE_LABEL: Record<string, string> = {
   export: 'Dump maken op de server',
   download: 'Dump ophalen',
   import: 'Lokaal importeren',
-  'multisite-fix': 'Multisite-domeinen bijwerken (bèta)',
+  'multisite-fix': 'Multisite-domeinen controleren (vangnet)',
   verify: 'Resultaat controleren',
   done: 'Klaar',
   error: 'Mislukt',

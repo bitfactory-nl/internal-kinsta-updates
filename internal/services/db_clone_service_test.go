@@ -437,6 +437,58 @@ func TestDBCloneMultisiteFixUsesNetworkDomainsNotBareLocalURL(t *testing.T) {
 	if !strings.Contains(multisiteSQL, "REPLACE(domain, 'vanluyken.nl', 'vanluykennl.test')") {
 		t.Errorf("verwacht de expliciete netwerk-domeinen in de fix, kreeg: %s", multisiteSQL)
 	}
+
+	// De kern van de fix: het REMOTE search-replace-commando moet voor
+	// multisite het KALE domein gebruiken, niet de volledige site-URL — een
+	// volledige URL als zoekterm mist elke subsite behalve de hoofdsite (zie
+	// commentaar bij buildDBExportCommand).
+	var exportCmd string
+	for _, cmd := range ssh.calls {
+		if strings.Contains(cmd, "wp search-replace") {
+			exportCmd = cmd
+		}
+	}
+	if exportCmd == "" {
+		t.Fatal("geen wp search-replace-commando gevonden")
+	}
+	if !strings.Contains(exportCmd, "wp search-replace 'vanluyken.nl' 'vanluykennl.test'") {
+		t.Errorf("verwacht kale domeinen als zoek/vervang-termen bij multisite, kreeg: %s", exportCmd)
+	}
+	if strings.Contains(exportCmd, "wp search-replace 'https://vanluyken.nl'") {
+		t.Errorf("de volledige site-URL als zoekterm mist subsites (site2.vanluyken.nl bevat 'https://vanluyken.nl' niet als substring): %s", exportCmd)
+	}
+}
+
+func TestDBCloneSingleSiteExportUsesFullURLNotBareDomain(t *testing.T) {
+	dir := t.TempDir()
+	writeEnvFile(t, dir) // geen multisite
+
+	dump := gzipBytes(t, "-- fake dump --\n")
+	ssh := &fakeDBSSH{downloadContent: dump}
+	docker := &fakeDockerExec{tableNames: []string{"wp_options"}, siteURL: "https://vanluykennl.test"}
+	svc, _ := newDBCloneService(t, ssh, docker, dir)
+
+	if _, err := svc.Clone("p1", "env-1", domain.DBCloneRequest{
+		ProdSiteURL: "https://vanluyken.nl",
+		LocalURL:    "https://vanluykennl.test",
+		LocalDBName: "dev_vanluykennl",
+		LocalDBHost: "mysql",
+	}); err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+
+	var exportCmd string
+	for _, cmd := range ssh.calls {
+		if strings.Contains(cmd, "wp search-replace") {
+			exportCmd = cmd
+		}
+	}
+	// Voor single-site blijft de volledige URL de zoekterm — bare-domain
+	// zoeken zou hier onnodig breed zijn (bv. e-mailadressen op hetzelfde
+	// domein zouden ook worden aangepast).
+	if !strings.Contains(exportCmd, "wp search-replace 'https://vanluyken.nl' 'https://vanluykennl.test'") {
+		t.Errorf("verwacht de volledige URL's voor single-site, kreeg: %s", exportCmd)
+	}
 }
 
 func TestDBCloneMultisiteFixFallsBackToBareURLWhenNetworkDomainsEmpty(t *testing.T) {

@@ -356,13 +356,33 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 	result.BackupPath = backupPath
 
 	// --- Export (remote, read-only) -------------------------------------
+	// For a single site the search/replace pair is the full site URL. For
+	// multisite it must be the bare network domain instead: a subsite's own
+	// URL ("https://site2.vanluyken.nl") never contains the primary site's
+	// full URL ("https://vanluyken.nl") as a substring — there's "site2." in
+	// between — so a full-URL search would silently skip every subsite but
+	// the primary one. The bare domain matches all of them, and is also what
+	// wp_blogs.domain/wp_site.domain store (see buildDBExportCommand).
+	searchTerm, replaceTerm := req.ProdSiteURL, req.LocalURL
+	prodDomain := strings.TrimSpace(req.ProdNetworkDomain)
+	if prodDomain == "" {
+		prodDomain = bareDomain(req.ProdSiteURL)
+	}
+	localDomain := strings.TrimSpace(req.LocalNetworkDomain)
+	if localDomain == "" {
+		localDomain = bareDomain(req.LocalURL)
+	}
+	if req.Multisite {
+		searchTerm, replaceTerm = prodDomain, localDomain
+	}
+
 	s.emit(projectID, domain.DBCloneProgress{Phase: "export", Detail: "dump maken op de server (productie wordt niet gewijzigd)"})
 	rnd, err := randomHex(8)
 	if err != nil {
 		return domain.DBCloneResult{}, err
 	}
 	remoteFile := "/tmp/rdm-db-" + rnd + ".sql"
-	out, err := s.ssh.RunCommand(ctx, tgt.SSH, buildDBExportCommand(tgt.Webroot, req.ProdSiteURL, req.LocalURL, req.Multisite, remoteFile))
+	out, err := s.ssh.RunCommand(ctx, tgt.SSH, buildDBExportCommand(tgt.Webroot, searchTerm, replaceTerm, req.Multisite, remoteFile))
 	dumpBytes := parseDBExportSize(out)
 	if err != nil {
 		return domain.DBCloneResult{}, s.failureWithBackupNote(projectID, backupPath, fmt.Errorf("export op de server mislukt: %w: %s", err, strings.TrimSpace(out)))
@@ -403,28 +423,29 @@ func (s *DBCloneService) Clone(projectID, envID string, req domain.DBCloneReques
 		return domain.DBCloneResult{}, s.failureWithBackupNote(projectID, backupPath, fmt.Errorf("lokaal importeren mislukt: %w", err))
 	}
 
-	// --- Multisite fix (local only) -------------------------------------
+	// --- Multisite domain safety net (local only) -----------------------
 	// req.Multisite is normally driven by the project's own .env (MULTISITE=
 	// true), which is the clearest signal of whether a project runs as
 	// multisite — clearer than inferring it from the production probe alone.
+	//
+	// The bare-domain export above already rewrites wp_blogs.domain and
+	// wp_site.domain (both scanned by --network, both storing bare
+	// hostnames, both matched by the same bare search term). This local
+	// re-application is therefore mostly redundant now — but it's a cheap,
+	// idempotent no-op when the export already did its job, and it still
+	// catches the one case the export can't: a domain-mapped subsite whose
+	// hostname doesn't share the network's root domain at all (no single
+	// search/replace pair can guess an unrelated custom domain).
 	if req.Multisite {
-		s.emit(projectID, domain.DBCloneProgress{Phase: "multisite-fix", Detail: "domeinen in wp_blogs/wp_site bijwerken (beta)"})
+		s.emit(projectID, domain.DBCloneProgress{Phase: "multisite-fix", Detail: "domeinen in wp_blogs/wp_site controleren"})
 		prefix := sanitizeTablePrefix(req.TablePrefix)
-		prodDomain := strings.TrimSpace(req.ProdNetworkDomain)
-		if prodDomain == "" {
-			prodDomain = bareDomain(req.ProdSiteURL)
-		}
-		localDomain := strings.TrimSpace(req.LocalNetworkDomain)
-		if localDomain == "" {
-			localDomain = bareDomain(req.LocalURL)
-		}
 		sql := buildLocalMultisiteDomainFixSQL(prefix, prodDomain, localDomain)
 		var stderr bytes.Buffer
 		if err := s.dockerExec(ctx, container, []string{"mysql", "-u" + dbUser, "-e", sql, req.LocalDBName}, mysqlEnv, nil, &stderr); err != nil {
-			result.Warnings = append(result.Warnings, "multisite-domeinfix (beta) is mislukt: "+err.Error())
+			result.Warnings = append(result.Warnings, "multisite-domeinfix (vangnet) is mislukt: "+err.Error())
 		} else {
 			result.MultisiteFixApplied = true
-			result.Warnings = append(result.Warnings, "multisite-domeinfix is best-effort (beta); controleer de subsites handmatig")
+			result.Warnings = append(result.Warnings, "multisite: subsites met een eigen, niet-gerelateerd domein (domain mapping) worden niet automatisch herkend — controleer die handmatig")
 		}
 	}
 
