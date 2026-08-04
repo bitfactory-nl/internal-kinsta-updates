@@ -80,9 +80,22 @@ func buildLocalKeptUsersPredicate(usermetaTabel string, keepRoles, keepLogins []
 		rolChecks = append(rolChecks, "LOCATE('\""+r+"\"', um.meta_value) > 0")
 	}
 	if len(rolChecks) > 0 {
+		// De subquery zit in een derived table (SELECT ... FROM (...) AS x).
+		// Dat is niet cosmetisch: dit predicaat wordt óók gebruikt in een DELETE
+		// op usermeta zelf, en MySQL/MariaDB weigeren een statement waarin de
+		// doeltabel rechtstreeks in een subquery voorkomt met
+		// "ERROR 1093: You can't specify target table for update in FROM clause".
+		// Door de wrap wordt de subquery eerst gematerialiseerd en is dat geen
+		// probleem meer.
+		//
+		// user_id IS NOT NULL houdt het predicaat tweewaardig: een NULL in de
+		// lijst zou van NOT IN (...) NULL maken, waardoor er stil niemand
+		// geanonimiseerd wordt — precies het soort fout dat je niet wilt hebben
+		// in code die persoonsgegevens moet verwijderen.
 		voorwaarden = append(voorwaarden,
-			"u.ID IN (SELECT DISTINCT um.user_id FROM "+quoteIdent(usermetaTabel)+" um"+
-				" WHERE RIGHT(um.meta_key, 12) = 'capabilities' AND ("+strings.Join(rolChecks, " OR ")+"))")
+			"u.ID IN (SELECT x.user_id FROM (SELECT DISTINCT um.user_id FROM "+quoteIdent(usermetaTabel)+" um"+
+				" WHERE um.user_id IS NOT NULL AND RIGHT(um.meta_key, 12) = 'capabilities'"+
+				" AND ("+strings.Join(rolChecks, " OR ")+")) AS x)")
 	}
 
 	var logins []string
@@ -186,6 +199,104 @@ func buildLocalAnonymiseCommentsSQL(commentTabellen []string) (string, error) {
 			"  comment_author_IP = '',",
 			"  comment_agent = '';",
 		}, "\n"))
+	}
+	return strings.Join(regels, "\n"), nil
+}
+
+// wooOrderPostTypes zijn de post-types waaronder WooCommerce orders opslaat
+// zolang HPOS (de aparte wc_orders-tabellen) niet aan staat.
+var wooOrderPostTypes = []string{"shop_order", "shop_order_refund", "shop_subscription"}
+
+// wooPIIMetaSleutels zijn de losse ordermeta-velden met persoonsgegevens die
+// niet onder de billing_/shipping_-prefix vallen.
+var wooPIIMetaSleutels = []string{
+	"_customer_ip_address", "_customer_user_agent", "_order_key",
+	"_payment_method_title", "_transaction_id",
+}
+
+// buildLocalAnonymiseWooLegacyOrdersSQL strips the personal data from
+// WooCommerce orders in the OLD storage: as posts in wp_posts with their
+// details in wp_postmeta.
+//
+// Dit is een echt gat als je het overslaat: pas met HPOS staan orders in eigen
+// tabellen (wc_orders en verwanten, die de catalogus dekt). Een webshop die nog
+// niet gemigreerd is, houdt _billing_email, _billing_address_1, _billing_phone
+// en het IP-adres van de klant gewoon in postmeta — daar komt geen enkele
+// TRUNCATE aan.
+//
+// De orders zelf blijven staan; alleen de persoonsgegevens eruit. Zo kun je
+// lokaal nog steeds met een gevulde orderlijst werken. Er wordt per site een
+// statement gebouwd, want op multisite bestaat elk paar posts/postmeta apart.
+func buildLocalAnonymiseWooLegacyOrdersSQL(paren [][2]string) (string, error) {
+	if len(paren) == 0 {
+		return "", nil
+	}
+
+	types := make([]string, 0, len(wooOrderPostTypes))
+	for _, t := range wooOrderPostTypes {
+		types = append(types, "'"+escapeSQLLiteral(t)+"'")
+	}
+	sleutels := make([]string, 0, len(wooPIIMetaSleutels))
+	for _, k := range wooPIIMetaSleutels {
+		sleutels = append(sleutels, "'"+escapeSQLLiteral(k)+"'")
+	}
+
+	regels := make([]string, 0, len(paren)*2)
+	for _, paar := range paren {
+		postsTabel, postmetaTabel := paar[0], paar[1]
+		if err := valideerIdentifier(postsTabel); err != nil {
+			return "", err
+		}
+		if err := valideerIdentifier(postmetaTabel); err != nil {
+			return "", err
+		}
+		p := quoteIdent(postsTabel)
+		pm := quoteIdent(postmetaTabel)
+
+		// DELETE met een JOIN op een ándere tabel mag wel; alleen de doeltabel in
+		// een subquery van zichzelf is verboden (zie buildLocalKeptUsersPredicate).
+		regels = append(regels,
+			"DELETE "+pm+" FROM "+pm+" JOIN "+p+" p ON p.ID = "+pm+".post_id\n"+
+				"WHERE p.post_type IN ("+strings.Join(types, ", ")+")\n"+
+				"  AND (LEFT("+pm+".meta_key, 9) = '_billing_'\n"+
+				"       OR LEFT("+pm+".meta_key, 10) = '_shipping_'\n"+
+				"       OR "+pm+".meta_key IN ("+strings.Join(sleutels, ", ")+"));")
+
+		// De klantnotitie bij een order staat in post_excerpt.
+		regels = append(regels,
+			"UPDATE "+p+" SET post_excerpt = '' WHERE post_type IN ("+strings.Join(types, ", ")+");")
+	}
+	return strings.Join(regels, "\n"), nil
+}
+
+// beheerEmailSleutels zijn de optienamen waarin WordPress het e-mailadres van de
+// beheerder bewaart.
+var beheerEmailSleutels = []string{"admin_email", "new_admin_email"}
+
+// buildLocalAnonymiseOptionsSQL replaces the site administrator's e-mail address
+// in wp_options. One statement per options table, because multisite has one per
+// site.
+//
+// Dit is een klein maar echt puntje: admin_email is het e-mailadres van een
+// persoon bij de klant, en het is bovendien het adres waar een lokale WordPress
+// ongevraagd mail naartoe stuurt zodra je iets test.
+func buildLocalAnonymiseOptionsSQL(optionsTabellen []string) (string, error) {
+	if len(optionsTabellen) == 0 {
+		return "", nil
+	}
+	namen := make([]string, 0, len(beheerEmailSleutels))
+	for _, n := range beheerEmailSleutels {
+		namen = append(namen, "'"+escapeSQLLiteral(n)+"'")
+	}
+
+	regels := make([]string, 0, len(optionsTabellen))
+	for _, t := range optionsTabellen {
+		if err := valideerIdentifier(t); err != nil {
+			return "", err
+		}
+		regels = append(regels,
+			"UPDATE "+quoteIdent(t)+" SET option_value = 'beheer@voorbeeld.test'"+
+				" WHERE option_name IN ("+strings.Join(namen, ", ")+") AND option_value <> '';")
 	}
 	return strings.Join(regels, "\n"), nil
 }

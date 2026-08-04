@@ -189,6 +189,20 @@ export class AnonymiseCfg {
     "anonymiseComments": boolean;
 
     /**
+     * AnonymiseWooOrders haalt de persoonsgegevens uit WooCommerce-orders die
+     * nog in wp_posts/wp_postmeta staan (zonder HPOS). Op een site zonder
+     * webshop is dit een no-op, dus het staat standaard aan.
+     */
+    "anonymiseWooOrders": boolean;
+
+    /**
+     * AnonymiseAdminEmail vervangt admin_email in wp_options. Dat is niet alleen
+     * een persoonsgegeven; het is ook het adres waar een lokale WordPress
+     * ongevraagd mail naartoe stuurt zodra je iets test.
+     */
+    "anonymiseAdminEmail": boolean;
+
+    /**
      * EmptyTables zijn de tabellen die na de import worden geleegd. Het schema
      * blijft staan, zodat plugins niet omvallen over een ontbrekende tabel.
      */
@@ -205,6 +219,12 @@ export class AnonymiseCfg {
         if (!("anonymiseComments" in $$source)) {
             this["anonymiseComments"] = false;
         }
+        if (!("anonymiseWooOrders" in $$source)) {
+            this["anonymiseWooOrders"] = false;
+        }
+        if (!("anonymiseAdminEmail" in $$source)) {
+            this["anonymiseAdminEmail"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -215,7 +235,7 @@ export class AnonymiseCfg {
     static createFrom($$source: any = {}): AnonymiseCfg {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
-        const $$createField5_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("keepRoles" in $$parsedSource) {
             $$parsedSource["keepRoles"] = $$createField1_0($$parsedSource["keepRoles"]);
@@ -224,7 +244,7 @@ export class AnonymiseCfg {
             $$parsedSource["keepUserLogins"] = $$createField2_0($$parsedSource["keepUserLogins"]);
         }
         if ("emptyTables" in $$parsedSource) {
-            $$parsedSource["emptyTables"] = $$createField5_0($$parsedSource["emptyTables"]);
+            $$parsedSource["emptyTables"] = $$createField7_0($$parsedSource["emptyTables"]);
         }
         return new AnonymiseCfg($$parsedSource as Partial<AnonymiseCfg>);
     }
@@ -248,7 +268,16 @@ export class AnonymiseResult {
     "usersAnonymised": number;
     "usersKept": number;
     "commentsAnonymised": number;
+    "wooOrdersStripped": boolean;
+    "adminEmailReplaced": boolean;
     "warnings"?: string[];
+
+    /**
+     * Limitations zijn de dingen die deze anonimisatie bewust niet dekt. Ze
+     * horen in het resultaat, niet alleen in documentatie: een onvolledige
+     * belofte is bij persoonsgegevens net zo riskant als een fout.
+     */
+    "limitations"?: string[];
 
     /** Creates a new AnonymiseResult instance. */
     constructor($$source: Partial<AnonymiseResult> = {}) {
@@ -264,6 +293,12 @@ export class AnonymiseResult {
         if (!("commentsAnonymised" in $$source)) {
             this["commentsAnonymised"] = 0;
         }
+        if (!("wooOrdersStripped" in $$source)) {
+            this["wooOrdersStripped"] = false;
+        }
+        if (!("adminEmailReplaced" in $$source)) {
+            this["adminEmailReplaced"] = false;
+        }
 
         Object.assign(this, $$source);
     }
@@ -274,7 +309,8 @@ export class AnonymiseResult {
     static createFrom($$source: any = {}): AnonymiseResult {
         const $$createField1_0 = $$createType0;
         const $$createField2_0 = $$createType0;
-        const $$createField6_0 = $$createType0;
+        const $$createField8_0 = $$createType0;
+        const $$createField9_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tablesEmptied" in $$parsedSource) {
             $$parsedSource["tablesEmptied"] = $$createField1_0($$parsedSource["tablesEmptied"]);
@@ -283,7 +319,10 @@ export class AnonymiseResult {
             $$parsedSource["tablesMissing"] = $$createField2_0($$parsedSource["tablesMissing"]);
         }
         if ("warnings" in $$parsedSource) {
-            $$parsedSource["warnings"] = $$createField6_0($$parsedSource["warnings"]);
+            $$parsedSource["warnings"] = $$createField8_0($$parsedSource["warnings"]);
+        }
+        if ("limitations" in $$parsedSource) {
+            $$parsedSource["limitations"] = $$createField9_0($$parsedSource["limitations"]);
         }
         return new AnonymiseResult($$parsedSource as Partial<AnonymiseResult>);
     }

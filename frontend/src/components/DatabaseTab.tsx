@@ -350,6 +350,12 @@ export default function DatabaseTab({ projectId }: Props) {
                         <span className="font-mono">{(result.anonymise.tablesEmptied ?? []).join(', ')}</span>
                       </div>
                     )}
+                    {result.anonymise.wooOrdersStripped && (
+                      <div>WooCommerce-orders in de oude opslag opgeschoond</div>
+                    )}
+                    {result.anonymise.adminEmailReplaced && (
+                      <div>beheerders-e-mailadres vervangen</div>
+                    )}
                     {(result.anonymise.tablesMissing ?? []).length > 0 && (
                       <div>
                         niet aangetroffen (stond wel in de instellingen):{' '}

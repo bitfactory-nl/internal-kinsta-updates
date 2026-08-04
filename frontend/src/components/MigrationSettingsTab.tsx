@@ -21,6 +21,7 @@ export default function MigrationSettingsTab({ projectId }: Props) {
   const [extra, setExtra] = useState<DomainPair[]>([])
   const [avg, setAvg] = useState<AnonymiseCfg>({
     enabled: false, anonymiseUsers: true, anonymiseComments: true,
+    anonymiseWooOrders: true, anonymiseAdminEmail: true,
     keepRoles: [], keepUserLogins: [], emptyTables: [],
   })
 

@@ -168,8 +168,32 @@ export default function AvgPaneel({ projectId, cfg, onChange }: Props) {
               onChange={e => zet('anonymiseComments', e.target.checked)} />
             Reacties anonimiseren
           </label>
-          <p className="text-[10.5px] text-fg-faint mb-4 pl-5">
+          <p className="text-[10.5px] text-fg-faint mb-3 pl-5">
             Naam, e-mailadres, website, IP-adres en browserinformatie van reageerders worden gewist.
+          </p>
+
+          {/* ── WooCommerce-orders zonder HPOS ─────────────────────────── */}
+          <label className="flex items-center gap-2 text-[11.5px] font-semibold text-fg mb-1 cursor-pointer">
+            <input type="checkbox" checked={cfg.anonymiseWooOrders}
+              onChange={e => zet('anonymiseWooOrders', e.target.checked)} />
+            WooCommerce-orders in de oude opslag opschonen
+          </label>
+          <p className="text-[10.5px] text-fg-faint mb-3 pl-5 max-w-[600px]">
+            Zonder HPOS staan orders als bericht in wp_posts met factuuradres, telefoonnummer en
+            IP-adres in wp_postmeta — daar komt geen enkele tabel-leging aan. De orders zelf blijven
+            staan, alleen de persoonsgegevens gaan eruit. Op een site zonder webshop verandert dit niets.
+          </p>
+
+          {/* ── Beheerders-e-mailadres ─────────────────────────────────── */}
+          <label className="flex items-center gap-2 text-[11.5px] font-semibold text-fg mb-1 cursor-pointer">
+            <input type="checkbox" checked={cfg.anonymiseAdminEmail}
+              onChange={e => zet('anonymiseAdminEmail', e.target.checked)} />
+            Beheerders-e-mailadres vervangen
+          </label>
+          <p className="text-[10.5px] text-fg-faint mb-4 pl-5 max-w-[600px]">
+            admin_email in de opties wordt beheer@voorbeeld.test. Dat is niet alleen een
+            persoonsgegeven; het is ook het adres waar een lokale WordPress ongevraagd mail naartoe
+            stuurt zodra je iets test.
           </p>
 
           {/* ── Gevoelige tabellen ─────────────────────────────────────── */}
@@ -222,6 +246,18 @@ export default function AvgPaneel({ projectId, cfg, onChange }: Props) {
               ))}
             </>
           )}
+
+          {/* Eerlijk over wat dit niet dekt: een onvolledige belofte is bij
+              persoonsgegevens net zo riskant als een fout. */}
+          <div className="mt-4 bg-panel-2 border border-border rounded-lg px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-fg-faint mb-1">Wat dit niet dekt</div>
+            <ul className="text-[10.5px] text-fg-muted space-y-0.5 list-disc pl-4">
+              <li>reactie-metadata van plugins (bijvoorbeeld beoordelingen)</li>
+              <li>persoonsgegevens die iemand in een pagina, bericht of custom field heeft getypt</li>
+              <li>e-mailadressen in plugin-instellingen (behalve admin_email)</li>
+              <li>plugintabellen buiten de catalogus — loop de volledige lijst na bij de inspectie</li>
+            </ul>
+          </div>
         </>
       )}
     </div>

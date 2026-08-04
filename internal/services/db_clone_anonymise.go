@@ -10,11 +10,6 @@ import (
 	"github.com/rdm/sites-tool/internal/domain"
 )
 
-// anonymiseerTimeout bounds the local scrub. It runs plain SQL against the
-// freshly imported database, but a users table of hundreds of thousands of rows
-// takes a moment.
-const anonymiseerTimeout = 10 * 60 // seconden, gebruikt via de kloon-context
-
 // InspectSensitiveData reads the production database's table list and reports
 // which tables hold personal data, which roles exist and how many users there
 // are. Read-only: this only looks.
@@ -146,7 +141,53 @@ func (s *DBCloneService) anonymiseerLokaal(
 		}
 	}
 
-	// 3. Reacties, per site: op multisite bestaat er een comments-tabel per blog.
+	// 3. WooCommerce-orders in de oude opslag (zonder HPOS): die staan als posts
+	//    in wp_posts met hun klantgegevens in wp_postmeta, waar geen TRUNCATE bij
+	//    komt. Op een site zonder webshop raakt dit niets.
+	if cfg.AnonymiseWooOrders {
+		var paren [][2]string
+		for _, t := range inventaris {
+			if stripTabelPrefix(t, prefix) != "posts" {
+				continue
+			}
+			postmeta := strings.TrimSuffix(t, "posts") + "postmeta"
+			if aanwezig[postmeta] {
+				paren = append(paren, [2]string{t, postmeta})
+			}
+		}
+		if len(paren) > 0 {
+			sql, err := buildLocalAnonymiseWooLegacyOrdersSQL(paren)
+			if err != nil {
+				return res, err
+			}
+			if err := s.voerLokaleSQL(ctx, container, dbUser, env, dbName, sql); err != nil {
+				return res, fmt.Errorf("WooCommerce-orders anonimiseren: %w", err)
+			}
+			res.WooOrdersStripped = true
+		}
+	}
+
+	// 4. Het e-mailadres van de beheerder in wp_options.
+	if cfg.AnonymiseAdminEmail {
+		var optionsTabellen []string
+		for _, t := range inventaris {
+			if stripTabelPrefix(t, prefix) == "options" {
+				optionsTabellen = append(optionsTabellen, t)
+			}
+		}
+		if len(optionsTabellen) > 0 {
+			sql, err := buildLocalAnonymiseOptionsSQL(optionsTabellen)
+			if err != nil {
+				return res, err
+			}
+			if err := s.voerLokaleSQL(ctx, container, dbUser, env, dbName, sql); err != nil {
+				return res, fmt.Errorf("beheerders-e-mailadres vervangen: %w", err)
+			}
+			res.AdminEmailReplaced = true
+		}
+	}
+
+	// 5. Reacties, per site: op multisite bestaat er een comments-tabel per blog.
 	if cfg.AnonymiseComments {
 		var commentTabellen []string
 		for _, t := range inventaris {
@@ -174,7 +215,21 @@ func (s *DBCloneService) anonymiseerLokaal(
 		}
 	}
 
+	res.Limitations = anonymisatieBeperkingen()
 	return res, nil
+}
+
+// anonymisatieBeperkingen zijn de dingen die deze anonimisatie niet dekt. Ze
+// gaan mee in het resultaat in plaats van in documentatie: bij persoonsgegevens
+// is een onvolledige belofte net zo riskant als een fout, en een lijst die de
+// gebruiker ziet is de enige die wordt gelezen.
+func anonymisatieBeperkingen() []string {
+	return []string{
+		"commentmeta: reactie-metadata van plugins (bv. beoordelingen) wordt niet doorzocht op persoonsgegevens",
+		"berichtinhoud: persoonsgegevens die iemand in een pagina, bericht of custom field heeft getypt blijven staan",
+		"plugin-opties: e-mailadressen in instellingen van plugins worden niet vervangen (behalve admin_email)",
+		"onbekende plugintabellen: alleen tabellen uit de catalogus worden herkend — controleer de volledige lijst bij de inspectie",
+	}
 }
 
 // lokaleTabellen lists the tables of the imported local database.

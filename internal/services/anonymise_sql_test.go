@@ -2,6 +2,7 @@ package services
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -29,6 +30,133 @@ func TestAnonymiseSQLNeverTouchesRemote(t *testing.T) {
 			!strings.HasPrefix(naam, "quote") && !strings.HasPrefix(naam, "escape") {
 			t.Errorf("functie %s: geef lokale SQL-bouwers een buildLocal-prefix, anders slaan de guard-tests hem over", naam)
 		}
+	}
+}
+
+// reDeleteDoel haalt de doeltabel uit een "DELETE `x` FROM ..."-statement.
+var reDeleteDoel = regexp.MustCompile("DELETE\\s+`([A-Za-z0-9_]+)`\\s+FROM")
+
+// TestGegenereerdeSQLNoemtDoeltabelNietInSubquery vangt een hele klasse fouten
+// af die geen enkele test met een nagemaakte database kan zien: MySQL en MariaDB
+// weigeren een UPDATE of DELETE waarin de doeltabel óók in een subquery van
+// hetzelfde statement voorkomt, met "ERROR 1093: You can't specify target table
+// for update in FROM clause".
+//
+// Dat is hier echt gebeurd: het predicaat dat bepaalt welke gebruikers hun
+// gegevens houden bevatte een subquery op usermeta, en datzelfde predicaat werd
+// gebruikt in een DELETE op usermeta. De unit tests draaiden tegen een fake die
+// SQL nooit uitvoert, dus alles was groen terwijl de feature in het
+// hoofdscenario (een rol behouden) bij elke echte kloon zou klappen. De oplossing
+// is de subquery in een derived table wikkelen; deze test controleert dat dat zo
+// blijft.
+func TestGegenereerdeSQLNoemtDoeltabelNietInSubquery(t *testing.T) {
+	// Alle statements die deze feature echt naar de database stuurt, met de
+	// configuratie waarin het misging: een rol behouden.
+	gevallen := map[string]func() (string, error){
+		"gebruikers met rol behouden": func() (string, error) {
+			return buildLocalAnonymiseUsersSQL("wp_users", "wp_usermeta", []string{"administrator"}, nil)
+		},
+		"gebruikers met rol en login behouden": func() (string, error) {
+			return buildLocalAnonymiseUsersSQL("wp_users", "wp_usermeta", []string{"administrator", "shop_manager"}, []string{"jeffrey"})
+		},
+		"woocommerce-orders": func() (string, error) {
+			return buildLocalAnonymiseWooLegacyOrdersSQL([][2]string{{"wp_posts", "wp_postmeta"}})
+		},
+	}
+
+	for naam, bouw := range gevallen {
+		sql, err := bouw()
+		if err != nil {
+			t.Fatalf("%s: %v", naam, err)
+		}
+		for _, statement := range strings.Split(sql, ";") {
+			m := reDeleteDoel.FindStringSubmatch(statement)
+			if m == nil {
+				continue
+			}
+			doel := m[1]
+			// Alles ná de eerste FROM-clausule met de doeltabel: als de doeltabel
+			// binnen een subquery (tussen haakjes na SELECT) nog eens voorkomt,
+			// weigert MySQL het statement.
+			idx := strings.Index(statement, "SELECT")
+			if idx < 0 {
+				continue
+			}
+			subquery := statement[idx:]
+			if strings.Contains(subquery, "`"+doel+"`") && !strings.Contains(subquery, ") AS x") {
+				t.Errorf("%s: DELETE op %s heeft die tabel ook in een subquery zonder derived-table-wrap;"+
+					" MySQL weigert dat met ERROR 1093. Statement:\n%s", naam, doel, statement)
+			}
+		}
+	}
+}
+
+// TestKeptUsersPredicateGebruiktDerivedTable maakt de eis uit de vorige test
+// expliciet op de plek waar hij ontstaat.
+func TestKeptUsersPredicateGebruiktDerivedTable(t *testing.T) {
+	pred, err := buildLocalKeptUsersPredicate("wp_usermeta", []string{"administrator"}, nil)
+	if err != nil {
+		t.Fatalf("buildLocalKeptUsersPredicate: %v", err)
+	}
+	if !strings.Contains(pred, ") AS x)") {
+		t.Errorf("predicaat mist de derived-table-wrap die ERROR 1093 voorkomt: %s", pred)
+	}
+	// Zonder deze check zou een NULL in de lijst van NOT IN(...) het hele
+	// predicaat NULL maken, en dan wordt er stil niemand geanonimiseerd.
+	if !strings.Contains(pred, "um.user_id IS NOT NULL") {
+		t.Errorf("predicaat sluit NULL-user_id niet uit: %s", pred)
+	}
+}
+
+func TestBuildLocalAnonymiseWooLegacyOrdersSQL(t *testing.T) {
+	sql, err := buildLocalAnonymiseWooLegacyOrdersSQL([][2]string{
+		{"wp_posts", "wp_postmeta"},
+		{"wp_2_posts", "wp_2_postmeta"}, // multisite
+	})
+	if err != nil {
+		t.Fatalf("buildLocalAnonymiseWooLegacyOrdersSQL: %v", err)
+	}
+	// Orders zonder HPOS staan als post met hun klantgegevens in postmeta; die
+	// worden door geen enkele TRUNCATE geraakt.
+	if !strings.Contains(sql, "LEFT(`wp_postmeta`.meta_key, 9) = '_billing_'") {
+		t.Errorf("factuurgegevens worden niet verwijderd: %s", sql)
+	}
+	if !strings.Contains(sql, "'_customer_ip_address'") {
+		t.Error("het IP-adres van de klant wordt niet verwijderd")
+	}
+	if !strings.Contains(sql, "'shop_order'") {
+		t.Error("verwacht dat alleen orders worden geraakt, niet alle posts")
+	}
+	// De klantnotitie staat in post_excerpt.
+	if !strings.Contains(sql, "SET post_excerpt = ''") {
+		t.Error("de klantnotitie bij een order wordt niet gewist")
+	}
+	// Per site een set statements.
+	if !strings.Contains(sql, "`wp_2_postmeta`") {
+		t.Error("de multisite-variant mist")
+	}
+}
+
+func TestBuildLocalAnonymiseWooLegacyOrdersSQLWeigertOngeldigeTabel(t *testing.T) {
+	if _, err := buildLocalAnonymiseWooLegacyOrdersSQL([][2]string{{"wp_posts; DROP", "wp_postmeta"}}); err == nil {
+		t.Fatal("verwachtte een fout op een ongeldige tabelnaam")
+	}
+}
+
+func TestBuildLocalAnonymiseOptionsSQL(t *testing.T) {
+	sql, err := buildLocalAnonymiseOptionsSQL([]string{"wp_options", "wp_2_options"})
+	if err != nil {
+		t.Fatalf("buildLocalAnonymiseOptionsSQL: %v", err)
+	}
+	if strings.Count(sql, "UPDATE") != 2 {
+		t.Errorf("verwacht een statement per site: %s", sql)
+	}
+	if !strings.Contains(sql, "'admin_email'") || !strings.Contains(sql, "'new_admin_email'") {
+		t.Errorf("verwacht beide beheerders-e-mailopties: %s", sql)
+	}
+	// Een lege optie hoeft niet gevuld te worden met een nepadres.
+	if !strings.Contains(sql, "option_value <> ''") {
+		t.Error("verwacht dat lege opties worden overgeslagen")
 	}
 }
 

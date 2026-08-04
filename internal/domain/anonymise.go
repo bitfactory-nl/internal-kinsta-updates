@@ -38,6 +38,16 @@ type AnonymiseCfg struct {
 	AnonymiseUsers    bool `yaml:"anonymise_users"    json:"anonymiseUsers"`
 	AnonymiseComments bool `yaml:"anonymise_comments" json:"anonymiseComments"`
 
+	// AnonymiseWooOrders haalt de persoonsgegevens uit WooCommerce-orders die
+	// nog in wp_posts/wp_postmeta staan (zonder HPOS). Op een site zonder
+	// webshop is dit een no-op, dus het staat standaard aan.
+	AnonymiseWooOrders bool `yaml:"anonymise_woo_orders" json:"anonymiseWooOrders"`
+
+	// AnonymiseAdminEmail vervangt admin_email in wp_options. Dat is niet alleen
+	// een persoonsgegeven; het is ook het adres waar een lokale WordPress
+	// ongevraagd mail naartoe stuurt zodra je iets test.
+	AnonymiseAdminEmail bool `yaml:"anonymise_admin_email" json:"anonymiseAdminEmail"`
+
 	// EmptyTables zijn de tabellen die na de import worden geleegd. Het schema
 	// blijft staan, zodat plugins niet omvallen over een ontbrekende tabel.
 	EmptyTables []string `yaml:"empty_tables,omitempty" json:"emptyTables,omitempty"`
@@ -52,5 +62,12 @@ type AnonymiseResult struct {
 	UsersAnonymised    int64    `json:"usersAnonymised"`
 	UsersKept          int64    `json:"usersKept"`
 	CommentsAnonymised int64    `json:"commentsAnonymised"`
+	WooOrdersStripped  bool     `json:"wooOrdersStripped"`
+	AdminEmailReplaced bool     `json:"adminEmailReplaced"`
 	Warnings           []string `json:"warnings,omitempty"`
+
+	// Limitations zijn de dingen die deze anonimisatie bewust niet dekt. Ze
+	// horen in het resultaat, niet alleen in documentatie: een onvolledige
+	// belofte is bij persoonsgegevens net zo riskant als een fout.
+	Limitations []string `json:"limitations,omitempty"`
 }
