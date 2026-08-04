@@ -216,6 +216,53 @@ func TestBuildLocalMultisiteDomainFixSQL(t *testing.T) {
 	if !strings.Contains(escaped, "van''luyken.nl") {
 		t.Errorf("single quote niet correct ge-escaped: %s", escaped)
 	}
+
+	// Een domein dat op een backslash eindigt mag de stringliteral niet laten
+	// "ontsnappen": MySQL behandelt \' standaard als een ge-escapete quote, dus
+	// de backslash moet EERST verdubbeld worden, anders sluit de daaropvolgende
+	// quote de literal niet af zoals de query verwacht.
+	metBackslash := buildLocalMultisiteDomainFixSQL("wp_", `evil.nl\`, "local.test")
+	if !strings.Contains(metBackslash, `evil.nl\\`) {
+		t.Errorf("backslash niet correct verdubbeld: %s", metBackslash)
+	}
+	if strings.Contains(metBackslash, `evil.nl\'`) {
+		t.Errorf("backslash direct voor een quote zou de stringliteral laten ontsnappen: %s", metBackslash)
+	}
+}
+
+// reRunCommandCall matches an s.ssh.RunCommand(...) call site and captures the
+// expression passed as the command argument.
+var reRunCommandCall = regexp.MustCompile(`s\.ssh\.RunCommand\([^,]+,[^,]+,\s*([A-Za-z0-9_]+)\(`)
+
+// reSafeCommandBuilder lists the only functions allowed to construct the
+// command string passed to RunCommand — every one of them is covered by
+// TestDBCloneCommandsNeverMutateRemote above. If db_clone_service.go ever
+// calls RunCommand with a command built some other way (e.g. a raw string
+// literal, or a new helper this test doesn't know about), that call is
+// exactly the kind of change the guard test on db_clone_commands.go cannot
+// see — so this test catches it from the other side instead.
+var reSafeCommandBuilder = map[string]bool{
+	"buildDBProbeCommand":       true,
+	"buildDBExportCommand":      true,
+	"buildRemoteCleanupCommand": true,
+}
+
+func TestDBCloneServiceOnlyCallsRunCommandWithKnownSafeBuilders(t *testing.T) {
+	raw, err := os.ReadFile("db_clone_service.go")
+	if err != nil {
+		t.Fatalf("db_clone_service.go lezen: %v", err)
+	}
+	src := zonderGoCommentaar(string(raw))
+	matches := reRunCommandCall.FindAllStringSubmatch(src, -1)
+	if len(matches) == 0 {
+		t.Fatal("geen enkele s.ssh.RunCommand-aanroep gevonden — is het bestand/de regex kapot?")
+	}
+	for _, m := range matches {
+		builder := m[1]
+		if !reSafeCommandBuilder[builder] {
+			t.Errorf("s.ssh.RunCommand wordt aangeroepen met %s(...), dat is geen bekende, door de guard-test gedekte commandbouwer", builder)
+		}
+	}
 }
 
 // TestGuardTestCatchesMissingExport proves the guard test is not a no-op: a

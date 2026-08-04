@@ -89,8 +89,14 @@ func bareDomain(url string) string {
 	return strings.TrimSuffix(d, "/")
 }
 
-// escapeSQLString escapes single quotes for a SQL string literal.
+// escapeSQLString escapes backslashes and single quotes for a SQL string
+// literal. Backslash must be escaped first: MySQL treats backslash as an
+// escape character by default (NO_BACKSLASH_ESCAPES is not assumed on), so a
+// value ending in an unescaped backslash — e.g. a production siteurl crafted
+// to end in "\" — would otherwise let a following "'" close the literal
+// early instead of being escaped.
 func escapeSQLString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
 	return strings.ReplaceAll(s, "'", "''")
 }
 
