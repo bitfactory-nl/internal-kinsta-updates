@@ -42,6 +42,16 @@ func (s *KinstaService) projectFor(id string) (*domain.Project, error) {
 	return nil, fmt.Errorf("project not found: %s", id)
 }
 
+// EnvironmentLogs fetches one of an environment's log files. Read-only, and the
+// endpoint is rate limited to 35 requests per minute, so callers must not poll.
+func (s *KinstaService) EnvironmentLogs(ctx context.Context, envID, fileName string, lines int) (string, error) {
+	c, err := s.client()
+	if err != nil {
+		return "", err
+	}
+	return c.GetEnvironmentLogs(ctx, envID, fileName, lines)
+}
+
 // IsConfigured returns true if the global Kinsta API key is set.
 func (s *KinstaService) IsConfigured() bool {
 	return s.cfg.Kinsta.APIKey != ""

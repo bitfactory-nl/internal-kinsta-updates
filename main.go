@@ -37,6 +37,7 @@ func main() {
 	services.Report.SetApp(a)
 	services.DBClone.SetApp(a)
 	services.Migration.SetApp(a)
+	services.LogFix.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()

@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/rdm/sites-tool/internal/config"
@@ -29,6 +30,9 @@ func (s *EditorService) OpenInEditor(projectID string, projectPath string) error
 	default:
 		cmd = exec.Command("cursor", projectPath)
 	}
+	// cursor/code/phpstorm zijn wrappers in /usr/local/bin; die valt buiten de
+	// PATH van een uit Finder gestarte .app.
+	cmd.Env = MetPATH(os.Environ(), GereedschapPATH())
 	if err := cmd.Start(); err != nil {
 		// Try open as fallback
 		fallback := exec.Command("open", "-a", editorAppName(editor), projectPath)

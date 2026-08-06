@@ -7,6 +7,8 @@ import * as EditorService from "./editorservice.js";
 import * as GitService from "./gitservice.js";
 import * as InventoryService from "./inventoryservice.js";
 import * as KinstaService from "./kinstaservice.js";
+import * as LogFixService from "./logfixservice.js";
+import * as LogService from "./logservice.js";
 import * as MakeService from "./makeservice.js";
 import * as MediaService from "./mediaservice.js";
 import * as MigrationService from "./migrationservice.js";
@@ -30,6 +32,8 @@ export {
     GitService,
     InventoryService,
     KinstaService,
+    LogFixService,
+    LogService,
     MakeService,
     MediaService,
     MigrationService,

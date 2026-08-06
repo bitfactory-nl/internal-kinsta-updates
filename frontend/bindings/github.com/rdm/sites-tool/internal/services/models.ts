@@ -5,6 +5,10 @@
 // @ts-ignore: Unused imports
 import { Create as $Create } from "@wailsio/runtime";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as time$0 from "../../../../../time/models.js";
+
 /**
  * AppSettings is the flat DTO exposed to the frontend.
  */
@@ -200,13 +204,13 @@ export class EnvSSHEndpoint {
 }
 
 export class FeedMeta {
-    "fetchedAt": string;
+    "fetchedAt": time$0.Time;
     "count": number;
 
     /** Creates a new FeedMeta instance. */
     constructor($$source: Partial<FeedMeta> = {}) {
         if (!("fetchedAt" in $$source)) {
-            this["fetchedAt"] = "0001-01-01T00:00:00.000Z";
+            this["fetchedAt"] = null;
         }
         if (!("count" in $$source)) {
             this["count"] = 0;
@@ -685,7 +689,7 @@ export class MediaCrawlConflict {
 export class MediaCrawlResult {
     "scanId": string;
     "siteUrl": string;
-    "crawledAt": string;
+    "crawledAt": time$0.Time;
     "pagesVisited": number;
     "pagesPlanned": number;
     "uploadsSeen": number;
@@ -702,7 +706,7 @@ export class MediaCrawlResult {
             this["siteUrl"] = "";
         }
         if (!("crawledAt" in $$source)) {
-            this["crawledAt"] = "0001-01-01T00:00:00.000Z";
+            this["crawledAt"] = null;
         }
         if (!("pagesVisited" in $$source)) {
             this["pagesVisited"] = 0;
@@ -1311,7 +1315,7 @@ export class SecurityFinding {
  */
 export class SecurityScanResult {
     "repo": string;
-    "scannedAt": string;
+    "scannedAt": time$0.Time;
     "hasComposerReport": boolean;
     "hasNpmReport": boolean;
     "findings": SecurityFinding[];
@@ -1322,7 +1326,7 @@ export class SecurityScanResult {
             this["repo"] = "";
         }
         if (!("scannedAt" in $$source)) {
-            this["scannedAt"] = "0001-01-01T00:00:00.000Z";
+            this["scannedAt"] = null;
         }
         if (!("hasComposerReport" in $$source)) {
             this["hasComposerReport"] = false;

@@ -44,6 +44,8 @@ type Services struct {
 	Media           *services.MediaService
 	DBClone         *services.DBCloneService
 	Migration       *services.MigrationService
+	Logs            *services.LogService
+	LogFix          *services.LogFixService
 }
 
 func NewServices(cfg Config) *Services {
@@ -61,6 +63,7 @@ func NewServices(cfg Config) *Services {
 	reportSvc := services.NewReportService(project, kinsta, security, reportStore, pdfRunner, endoflife.NewClient(), services.GitRepoFiles{})
 
 	git := services.NewGitService(project)
+	logs := services.NewLogService(project, kinsta)
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
 
@@ -88,6 +91,8 @@ func NewServices(cfg Config) *Services {
 		Media:           services.NewMediaService(project, kinsta, services.NewMediaScanStore(services.DefaultMediaScanDir())),
 		DBClone:         services.NewDBCloneService(project, kinsta),
 		Migration:       services.NewMigrationService(project, kinsta),
+		Logs:            logs,
+		LogFix:          services.NewLogFixService(project, logs, &cfg.Global),
 	}
 }
 
@@ -115,5 +120,7 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Media),
 		application.NewService(s.DBClone),
 		application.NewService(s.Migration),
+		application.NewService(s.Logs),
+		application.NewService(s.LogFix),
 	}
 }

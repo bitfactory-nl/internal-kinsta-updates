@@ -137,13 +137,26 @@ type createPullBody struct {
 	Head  string `json:"head"`
 	Base  string `json:"base"`
 	Body  string `json:"body"`
+	Draft bool   `json:"draft,omitempty"`
 }
 
 // CreatePull maakt een nieuwe pull request van head naar base. Bij HTTP 422
 // (bijv. "pull request bestaat al" of "no commits between") bevat de fout de
 // GitHub-boodschap uit de response, zodat de aanroeper dat geval herkent.
 func (c *PullClient) CreatePull(ctx context.Context, owner, repo, head, base, title, body string) (*PullRequest, error) {
-	payload, err := json.Marshal(createPullBody{Title: title, Head: head, Base: base, Body: body})
+	return c.createPull(ctx, owner, repo, createPullBody{Title: title, Head: head, Base: base, Body: body})
+}
+
+// CreateDraftPull is CreatePull maar opent de pull request als draft. Dat is wat
+// je wil voor werk dat een machine heeft gemaakt: het staat op GitHub zodat het
+// te bekijken is, maar het leest niet als iets dat al beoordeeld is en
+// review-automatisering slaat er niet op aan.
+func (c *PullClient) CreateDraftPull(ctx context.Context, owner, repo, head, base, title, body string) (*PullRequest, error) {
+	return c.createPull(ctx, owner, repo, createPullBody{Title: title, Head: head, Base: base, Body: body, Draft: true})
+}
+
+func (c *PullClient) createPull(ctx context.Context, owner, repo string, in createPullBody) (*PullRequest, error) {
+	payload, err := json.Marshal(in)
 	if err != nil {
 		return nil, fmt.Errorf("github: create pull payload: %w", err)
 	}
