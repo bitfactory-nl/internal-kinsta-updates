@@ -14,6 +14,14 @@ import * as kinsta$0 from "../adapters/kinsta/models.js";
 import * as $models from "./models.js";
 
 /**
+ * EnvironmentLogs fetches one of an environment's log files. Read-only, and the
+ * endpoint is rate limited to 35 requests per minute, so callers must not poll.
+ */
+export function EnvironmentLogs(envID: string, fileName: string, lines: number): $CancellablePromise<string> {
+    return $Call.ByID(2387646941, envID, fileName, lines);
+}
+
+/**
  * EnvironmentSSH resolves the SSH endpoint of one environment of the project's
  * linked Kinsta site. An empty envID picks the live environment, or the only one
  * when the site has just a single environment.

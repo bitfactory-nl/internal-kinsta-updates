@@ -155,11 +155,14 @@ func TestMigrationSaveSettingsSchrijftGeenGeheimen(t *testing.T) {
 	if err := svc.SaveSettings("p1", domain.MigrationCfg{ProdURL: "https://vanluyken.nl"}); err != nil {
 		t.Fatalf("SaveSettings: %v", err)
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, ".rdm.yml"))
+	// De projectconfig staat op .rdm/config.yml; het root-level .rdm.yml is de
+	// oude plek. Dit pad hardcoderen als ".rdm.yml" liet de test slagen op een
+	// bestand dat niet meer bestaat — en dus niets meer controleren.
+	raw, err := os.ReadFile(filepath.Join(dir, config.ProjectConfigFile))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// .rdm.yml staat in de klantrepo; er mag nooit een wachtwoord in staan.
+	// Dit bestand staat in de klantrepo; er mag nooit een wachtwoord in staan.
 	for _, verboden := range []string{"secret", "password:", "MYSQL_PWD"} {
 		if strings.Contains(string(raw), verboden) {
 			t.Errorf(".rdm.yml bevat %q: %s", verboden, raw)

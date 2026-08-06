@@ -97,6 +97,12 @@ func (s *MakeService) Run(projectID, target string) (*MakeResult, error) {
 
 	cmd := exec.CommandContext(ctx, "make", target)
 	cmd.Dir = path
+	// Zonder dit vindt `make` wel zichzelf (/usr/bin/make) maar niet het
+	// gereedschap dat het recept aanroept: een uit Finder gestarte .app heeft
+	// alleen PATH=/usr/bin:/bin:/usr/sbin:/sbin, dus docker-compose, docker en
+	// npm ontbreken. Dat is het verschil tussen "werkt in de dev-build" en
+	// "make: docker-compose: No such file or directory" in de geïnstalleerde app.
+	cmd.Env = MetPATH(os.Environ(), GereedschapPATH())
 	out, err := cmd.CombinedOutput()
 
 	result := &MakeResult{
