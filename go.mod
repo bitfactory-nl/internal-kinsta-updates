@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/go-git/go-git/v5 v5.16.4
+	github.com/go-sql-driver/mysql v1.10.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.80
 	golang.org/x/crypto v0.47.0
@@ -12,6 +13,7 @@ require (
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.3.0 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect

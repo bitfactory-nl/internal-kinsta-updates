@@ -34,6 +34,23 @@ export function Clone(projectID: string, envID: string, req: domain$0.DBCloneReq
 }
 
 /**
+ * backupIfExists dumps the current local database before it gets overwritten,
+ * unless it doesn't exist yet or has no tables. Returns the backup path (or
+ * empty) and an optional warning to surface in the result. dbName is already
+ * validated by Clone before this is called; re-checked here too (defense in
+ * depth), the same way importLocal does.
+ * DumpLocal maakt een dump van een lokale database van dit project, op dezelfde
+ * plek en met dezelfde bewaartermijn als de backup vóór een kloon. Het pad is
+ * leeg met een melding als er nog niets te dumpen was.
+ * 
+ * Dit hangt hier en niet in de database-editor omdat het dezelfde code is: één
+ * plek die weet hoe een lokale dump gemaakt en opgeruimd wordt.
+ */
+export function DumpLocal(projectID: string, dbName: string): $CancellablePromise<[string, string]> {
+    return $Call.ByID(4161516395, projectID, dbName);
+}
+
+/**
  * InspectSensitiveData reads the production database's table list and reports
  * which tables hold personal data, which roles exist and how many users there
  * are. Read-only: this only looks.

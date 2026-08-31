@@ -533,6 +533,33 @@ func (s *DBCloneService) failureWithBackupNote(projectID, backupPath string, err
 // empty) and an optional warning to surface in the result. dbName is already
 // validated by Clone before this is called; re-checked here too (defense in
 // depth), the same way importLocal does.
+// DumpLocal maakt een dump van een lokale database van dit project, op dezelfde
+// plek en met dezelfde bewaartermijn als de backup vóór een kloon. Het pad is
+// leeg met een melding als er nog niets te dumpen was.
+//
+// Dit hangt hier en niet in de database-editor omdat het dezelfde code is: één
+// plek die weet hoe een lokale dump gemaakt en opgeruimd wordt.
+func (s *DBCloneService) DumpLocal(projectID, dbName string) (string, string, error) {
+	p, err := s.project(projectID)
+	if err != nil {
+		return "", "", err
+	}
+	env, err := config.LoadProjectEnv(p.Path)
+	if err != nil {
+		return "", "", err
+	}
+	container, err := containerForHost(envOrDefault(env, "DB_HOST", "mysql"))
+	if err != nil {
+		return "", "", err
+	}
+	dbUser := envOrDefault(env, "DB_USER", "root")
+	dbPass := envOrDefault(env, "DB_PASSWORD", "secret")
+
+	ctx, cancel := context.WithTimeout(context.Background(), dbCloneTimeout)
+	defer cancel()
+	return s.backupIfExists(ctx, container, dbUser, []string{"MYSQL_PWD=" + dbPass}, projectID, dbName)
+}
+
 func (s *DBCloneService) backupIfExists(ctx context.Context, container, dbUser string, env []string, projectID, dbName string) (string, string, error) {
 	if err := validateLocalDBName(dbName); err != nil {
 		return "", "", err

@@ -7,7 +7,94 @@ import { Create as $Create } from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as mysqldb$0 from "../adapters/mysqldb/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as time$0 from "../../../../../time/models.js";
+
+/**
+ * AIQueryVoorstel is een voorstel van de AI. Er is niets uitgevoerd: dat gebeurt
+ * pas als de gebruiker apart op uitvoeren klikt, en dan door dezelfde poort als
+ * een handmatig getypte query.
+ */
+export class AIQueryVoorstel {
+    "vraag": string;
+    "sql": string;
+    "uitleg": string;
+    "aannames": string[];
+    "waarschuwing": string;
+
+    /**
+     * Beoordeling is ons eigen oordeel over de SQL die de AI gaf, met dezelfde
+     * regels als voor een getypte query. De UI kan hiermee vooraf laten zien dat
+     * uitvoeren om bevestiging gaat vragen.
+     */
+    "beoordeling": SQLBeoordeling;
+
+    /**
+     * Tabellen zijn de tabellen uit deze database die in de query voorkomen.
+     */
+    "tabellen": string[];
+
+    /**
+     * Waarschuwingen komen van de tool zelf, niet van de AI.
+     */
+    "waarschuwingen": string[];
+
+    /** Creates a new AIQueryVoorstel instance. */
+    constructor($$source: Partial<AIQueryVoorstel> = {}) {
+        if (!("vraag" in $$source)) {
+            this["vraag"] = "";
+        }
+        if (!("sql" in $$source)) {
+            this["sql"] = "";
+        }
+        if (!("uitleg" in $$source)) {
+            this["uitleg"] = "";
+        }
+        if (!("aannames" in $$source)) {
+            this["aannames"] = [];
+        }
+        if (!("waarschuwing" in $$source)) {
+            this["waarschuwing"] = "";
+        }
+        if (!("beoordeling" in $$source)) {
+            this["beoordeling"] = (new SQLBeoordeling());
+        }
+        if (!("tabellen" in $$source)) {
+            this["tabellen"] = [];
+        }
+        if (!("waarschuwingen" in $$source)) {
+            this["waarschuwingen"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AIQueryVoorstel instance from a string or object.
+     */
+    static createFrom($$source: any = {}): AIQueryVoorstel {
+        const $$createField3_0 = $$createType0;
+        const $$createField5_0 = $$createType1;
+        const $$createField6_0 = $$createType0;
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("aannames" in $$parsedSource) {
+            $$parsedSource["aannames"] = $$createField3_0($$parsedSource["aannames"]);
+        }
+        if ("beoordeling" in $$parsedSource) {
+            $$parsedSource["beoordeling"] = $$createField5_0($$parsedSource["beoordeling"]);
+        }
+        if ("tabellen" in $$parsedSource) {
+            $$parsedSource["tabellen"] = $$createField6_0($$parsedSource["tabellen"]);
+        }
+        if ("waarschuwingen" in $$parsedSource) {
+            $$parsedSource["waarschuwingen"] = $$createField7_0($$parsedSource["waarschuwingen"]);
+        }
+        return new AIQueryVoorstel($$parsedSource as Partial<AIQueryVoorstel>);
+    }
+}
 
 /**
  * AppSettings is the flat DTO exposed to the frontend.
@@ -115,6 +202,58 @@ export class BatchResult {
 }
 
 /**
+ * CelVerzoek beschrijft één celwijziging.
+ */
+export class CelVerzoek {
+    "database": string;
+    "tabel": string;
+    "sleutel": mysqldb$0.SleutelWaarde[];
+    "kolom": string;
+    "waarde": string;
+
+    /**
+     * NaarNull zet de cel op NULL in plaats van op Waarde.
+     */
+    "naarNull": boolean;
+
+    /** Creates a new CelVerzoek instance. */
+    constructor($$source: Partial<CelVerzoek> = {}) {
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("tabel" in $$source)) {
+            this["tabel"] = "";
+        }
+        if (!("sleutel" in $$source)) {
+            this["sleutel"] = [];
+        }
+        if (!("kolom" in $$source)) {
+            this["kolom"] = "";
+        }
+        if (!("waarde" in $$source)) {
+            this["waarde"] = "";
+        }
+        if (!("naarNull" in $$source)) {
+            this["naarNull"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CelVerzoek instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CelVerzoek {
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sleutel" in $$parsedSource) {
+            $$parsedSource["sleutel"] = $$createField2_0($$parsedSource["sleutel"]);
+        }
+        return new CelVerzoek($$parsedSource as Partial<CelVerzoek>);
+    }
+}
+
+/**
  * CoreUpdateResult is de uitkomst van één core-update.
  */
 export class CoreUpdateResult {
@@ -167,6 +306,57 @@ export class CoreUpdateResult {
     static createFrom($$source: any = {}): CoreUpdateResult {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new CoreUpdateResult($$parsedSource as Partial<CoreUpdateResult>);
+    }
+}
+
+/**
+ * DBEditorInfo vertelt de frontend of er iets te bewerken valt, en waarop.
+ */
+export class DBEditorInfo {
+    /**
+     * Beschikbaar is false als dit project geen lokale database heeft.
+     */
+    "beschikbaar": boolean;
+    "reden": string;
+    "database": string;
+    "host": string;
+    "poort": number;
+    "container": string;
+    "gebruiker": string;
+
+    /** Creates a new DBEditorInfo instance. */
+    constructor($$source: Partial<DBEditorInfo> = {}) {
+        if (!("beschikbaar" in $$source)) {
+            this["beschikbaar"] = false;
+        }
+        if (!("reden" in $$source)) {
+            this["reden"] = "";
+        }
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("host" in $$source)) {
+            this["host"] = "";
+        }
+        if (!("poort" in $$source)) {
+            this["poort"] = 0;
+        }
+        if (!("container" in $$source)) {
+            this["container"] = "";
+        }
+        if (!("gebruiker" in $$source)) {
+            this["gebruiker"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DBEditorInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DBEditorInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DBEditorInfo($$parsedSource as Partial<DBEditorInfo>);
     }
 }
 
@@ -299,7 +489,7 @@ export class InventoryItem {
      * Creates a new InventoryItem instance from a string or object.
      */
     static createFrom($$source: any = {}): InventoryItem {
-        const $$createField4_0 = $$createType2;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField4_0($$parsedSource["projects"]);
@@ -445,7 +635,7 @@ export class LocalApplyResult {
      * Creates a new LocalApplyResult instance from a string or object.
      */
     static createFrom($$source: any = {}): LocalApplyResult {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField1_0($$parsedSource["plugins"]);
@@ -522,7 +712,7 @@ export class LocalPluginOverview {
      * Creates a new LocalPluginOverview instance from a string or object.
      */
     static createFrom($$source: any = {}): LocalPluginOverview {
-        const $$createField1_0 = $$createType6;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
@@ -732,7 +922,7 @@ export class MediaCrawlResult {
      */
     static createFrom($$source: any = {}): MediaCrawlResult {
         const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType7;
+        const $$createField8_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField7_0($$parsedSource["errors"]);
@@ -922,7 +1112,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType9;
+        const $$createField5_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -967,7 +1157,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType11;
+        const $$createField3_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -1136,9 +1326,9 @@ export class QuarantineResult {
      * Creates a new QuarantineResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QuarantineResult {
-        const $$createField1_0 = $$createType13;
-        const $$createField2_0 = $$createType15;
-        const $$createField5_0 = $$createType17;
+        const $$createField1_0 = $$createType16;
+        const $$createField2_0 = $$createType18;
+        const $$createField5_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("moved" in $$parsedSource) {
             $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
@@ -1182,6 +1372,236 @@ export class QuarantineSkip {
 }
 
 /**
+ * QueryUitkomst is het resultaat van een handmatige query.
+ */
+export class QueryUitkomst {
+    "beoordeling": SQLBeoordeling;
+    "resultaat": mysqldb$0.Resultaat | null;
+    "geraakt": number;
+    "duurMs": number;
+
+    /**
+     * BevestigingNodig is true als de query niet is uitgevoerd omdat er eerst
+     * toestemming moet komen.
+     */
+    "bevestigingNodig": boolean;
+    "waarschuwingen": string[];
+
+    /** Creates a new QueryUitkomst instance. */
+    constructor($$source: Partial<QueryUitkomst> = {}) {
+        if (!("beoordeling" in $$source)) {
+            this["beoordeling"] = (new SQLBeoordeling());
+        }
+        if (!("resultaat" in $$source)) {
+            this["resultaat"] = null;
+        }
+        if (!("geraakt" in $$source)) {
+            this["geraakt"] = 0;
+        }
+        if (!("duurMs" in $$source)) {
+            this["duurMs"] = 0;
+        }
+        if (!("bevestigingNodig" in $$source)) {
+            this["bevestigingNodig"] = false;
+        }
+        if (!("waarschuwingen" in $$source)) {
+            this["waarschuwingen"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new QueryUitkomst instance from a string or object.
+     */
+    static createFrom($$source: any = {}): QueryUitkomst {
+        const $$createField0_0 = $$createType1;
+        const $$createField1_0 = $$createType22;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("beoordeling" in $$parsedSource) {
+            $$parsedSource["beoordeling"] = $$createField0_0($$parsedSource["beoordeling"]);
+        }
+        if ("resultaat" in $$parsedSource) {
+            $$parsedSource["resultaat"] = $$createField1_0($$parsedSource["resultaat"]);
+        }
+        if ("waarschuwingen" in $$parsedSource) {
+            $$parsedSource["waarschuwingen"] = $$createField5_0($$parsedSource["waarschuwingen"]);
+        }
+        return new QueryUitkomst($$parsedSource as Partial<QueryUitkomst>);
+    }
+}
+
+/**
+ * RijVerzoek beschrijft een rij om toe te voegen of te verwijderen.
+ */
+export class RijVerzoek {
+    "database": string;
+    "tabel": string;
+    "sleutel": mysqldb$0.SleutelWaarde[];
+    "waarden": mysqldb$0.NieuweWaarde[];
+
+    /** Creates a new RijVerzoek instance. */
+    constructor($$source: Partial<RijVerzoek> = {}) {
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("tabel" in $$source)) {
+            this["tabel"] = "";
+        }
+        if (!("sleutel" in $$source)) {
+            this["sleutel"] = [];
+        }
+        if (!("waarden" in $$source)) {
+            this["waarden"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RijVerzoek instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RijVerzoek {
+        const $$createField2_0 = $$createType3;
+        const $$createField3_0 = $$createType24;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sleutel" in $$parsedSource) {
+            $$parsedSource["sleutel"] = $$createField2_0($$parsedSource["sleutel"]);
+        }
+        if ("waarden" in $$parsedSource) {
+            $$parsedSource["waarden"] = $$createField3_0($$parsedSource["waarden"]);
+        }
+        return new RijVerzoek($$parsedSource as Partial<RijVerzoek>);
+    }
+}
+
+/**
+ * RijenVerzoek is wat de frontend meestuurt om een pagina op te vragen.
+ */
+export class RijenVerzoek {
+    "database": string;
+    "tabel": string;
+    "sorteer": string;
+    "aflopend": boolean;
+    "zoekKolom": string;
+    "zoek": string;
+    "limiet": number;
+    "offset": number;
+
+    /** Creates a new RijenVerzoek instance. */
+    constructor($$source: Partial<RijenVerzoek> = {}) {
+        if (!("database" in $$source)) {
+            this["database"] = "";
+        }
+        if (!("tabel" in $$source)) {
+            this["tabel"] = "";
+        }
+        if (!("sorteer" in $$source)) {
+            this["sorteer"] = "";
+        }
+        if (!("aflopend" in $$source)) {
+            this["aflopend"] = false;
+        }
+        if (!("zoekKolom" in $$source)) {
+            this["zoekKolom"] = "";
+        }
+        if (!("zoek" in $$source)) {
+            this["zoek"] = "";
+        }
+        if (!("limiet" in $$source)) {
+            this["limiet"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RijenVerzoek instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RijenVerzoek {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RijenVerzoek($$parsedSource as Partial<RijenVerzoek>);
+    }
+}
+
+/**
+ * SQLBeoordeling beschrijft wat een query gaat doen.
+ */
+export class SQLBeoordeling {
+    "soort": SQLSoort;
+
+    /**
+     * Reden legt uit waarom er bevestiging nodig is; leeg als dat niet zo is.
+     */
+    "reden": string;
+
+    /**
+     * Sleutelwoord is het eerste commando, bv SELECT of DROP.
+     */
+    "sleutelwoord": string;
+
+    /**
+     * Fout is gevuld als de query hier al niet door kan (bv meerdere statements).
+     */
+    "fout": string;
+
+    /** Creates a new SQLBeoordeling instance. */
+    constructor($$source: Partial<SQLBeoordeling> = {}) {
+        if (!("soort" in $$source)) {
+            this["soort"] = SQLSoort.$zero;
+        }
+        if (!("reden" in $$source)) {
+            this["reden"] = "";
+        }
+        if (!("sleutelwoord" in $$source)) {
+            this["sleutelwoord"] = "";
+        }
+        if (!("fout" in $$source)) {
+            this["fout"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SQLBeoordeling instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SQLBeoordeling {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SQLBeoordeling($$parsedSource as Partial<SQLBeoordeling>);
+    }
+}
+
+/**
+ * SQLSoort is de uitkomst van de beoordeling.
+ */
+export enum SQLSoort {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * SQLLezen verandert niets.
+     */
+    SQLLezen = "lezen",
+
+    /**
+     * SQLSchrijven verandert rijen, maar begrensd (er staat een WHERE).
+     */
+    SQLSchrijven = "schrijven",
+
+    /**
+     * SQLBevestigen vereist expliciete toestemming.
+     */
+    SQLBevestigen = "bevestigen",
+};
+
+/**
  * SSHAccess is what a project knows about reaching its own server. Kinsta's API
  * supplies none of this, so it is entered once and then remembered. The password
  * itself never leaves the keychain — only whether there is one.
@@ -1212,6 +1632,42 @@ export class SSHAccess {
     static createFrom($$source: any = {}): SSHAccess {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new SSHAccess($$parsedSource as Partial<SSHAccess>);
+    }
+}
+
+/**
+ * SchrijfUitkomst meldt wat er gebeurd is, inclusief waar het vangnet staat.
+ */
+export class SchrijfUitkomst {
+    "gelukt": boolean;
+    "dumpPad": string;
+    "melding": string;
+    "nieuweId": number;
+
+    /** Creates a new SchrijfUitkomst instance. */
+    constructor($$source: Partial<SchrijfUitkomst> = {}) {
+        if (!("gelukt" in $$source)) {
+            this["gelukt"] = false;
+        }
+        if (!("dumpPad" in $$source)) {
+            this["dumpPad"] = "";
+        }
+        if (!("melding" in $$source)) {
+            this["melding"] = "";
+        }
+        if (!("nieuweId" in $$source)) {
+            this["nieuweId"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SchrijfUitkomst instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SchrijfUitkomst {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SchrijfUitkomst($$parsedSource as Partial<SchrijfUitkomst>);
     }
 }
 
@@ -1345,7 +1801,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType19;
+        const $$createField4_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1383,6 +1839,70 @@ export class SiteLinkConflict {
             $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
         }
         return new SiteLinkConflict($$parsedSource as Partial<SiteLinkConflict>);
+    }
+}
+
+/**
+ * TabelWeergave is een tabel met zijn kolommen en één pagina rijen.
+ */
+export class TabelWeergave {
+    "tabel": mysqldb$0.Tabel;
+    "kolommen": mysqldb$0.Kolom[];
+    "rijen": mysqldb$0.Resultaat;
+
+    /**
+     * Totaal is het echte aantal rijen dat bij de huidige filter hoort.
+     */
+    "totaal": number;
+
+    /**
+     * Bewerkbaar is false zonder primary key; Reden legt dan uit waarom.
+     */
+    "bewerkbaar": boolean;
+    "reden": string;
+
+    /** Creates a new TabelWeergave instance. */
+    constructor($$source: Partial<TabelWeergave> = {}) {
+        if (!("tabel" in $$source)) {
+            this["tabel"] = (new mysqldb$0.Tabel());
+        }
+        if (!("kolommen" in $$source)) {
+            this["kolommen"] = [];
+        }
+        if (!("rijen" in $$source)) {
+            this["rijen"] = (new mysqldb$0.Resultaat());
+        }
+        if (!("totaal" in $$source)) {
+            this["totaal"] = 0;
+        }
+        if (!("bewerkbaar" in $$source)) {
+            this["bewerkbaar"] = false;
+        }
+        if (!("reden" in $$source)) {
+            this["reden"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TabelWeergave instance from a string or object.
+     */
+    static createFrom($$source: any = {}): TabelWeergave {
+        const $$createField0_0 = $$createType27;
+        const $$createField1_0 = $$createType29;
+        const $$createField2_0 = $$createType21;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tabel" in $$parsedSource) {
+            $$parsedSource["tabel"] = $$createField0_0($$parsedSource["tabel"]);
+        }
+        if ("kolommen" in $$parsedSource) {
+            $$parsedSource["kolommen"] = $$createField1_0($$parsedSource["kolommen"]);
+        }
+        if ("rijen" in $$parsedSource) {
+            $$parsedSource["rijen"] = $$createField2_0($$parsedSource["rijen"]);
+        }
+        return new TabelWeergave($$parsedSource as Partial<TabelWeergave>);
     }
 }
 
@@ -1478,11 +1998,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType21;
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType23;
-        const $$createField5_0 = $$createType23;
-        const $$createField6_0 = $$createType23;
+        const $$createField2_0 = $$createType31;
+        const $$createField3_0 = $$createType33;
+        const $$createField4_0 = $$createType33;
+        const $$createField5_0 = $$createType33;
+        const $$createField6_0 = $$createType33;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -1603,7 +2123,7 @@ export class WPCoreReport {
      * Creates a new WPCoreReport instance from a string or object.
      */
     static createFrom($$source: any = {}): WPCoreReport {
-        const $$createField1_0 = $$createType2;
+        const $$createField1_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
@@ -1707,26 +2227,36 @@ export class WordfenceVulnFinding {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = InventoryProjectRef.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = LocalApplyPlugin.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = LocalPluginRow.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $Create.Map($Create.Any, $$createType0);
-const $$createType8 = PluginUpdateResult.createFrom;
+const $$createType1 = SQLBeoordeling.createFrom;
+const $$createType2 = mysqldb$0.SleutelWaarde.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = InventoryProjectRef.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = LocalApplyPlugin.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = LocalPluginRow.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = WordfenceVulnFinding.createFrom;
-const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = QuarantineEntry.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = QuarantineSkip.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = QuarantineBatch.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = SecurityFinding.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = WPCoreUpdate.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = PackageUpdate.createFrom;
-const $$createType23 = $Create.Array($$createType22);
+const $$createType10 = $Create.Map($Create.Any, $$createType0);
+const $$createType11 = PluginUpdateResult.createFrom;
+const $$createType12 = $Create.Array($$createType11);
+const $$createType13 = WordfenceVulnFinding.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = QuarantineEntry.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = QuarantineSkip.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = QuarantineBatch.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = mysqldb$0.Resultaat.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = mysqldb$0.NieuweWaarde.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = SecurityFinding.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = mysqldb$0.Tabel.createFrom;
+const $$createType28 = mysqldb$0.Kolom.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = WPCoreUpdate.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = PackageUpdate.createFrom;
+const $$createType33 = $Create.Array($$createType32);
