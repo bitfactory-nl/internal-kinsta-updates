@@ -3,6 +3,7 @@
 
 import * as BatchService from "./batchservice.js";
 import * as DBCloneService from "./dbcloneservice.js";
+import * as DBEditorService from "./dbeditorservice.js";
 import * as EditorService from "./editorservice.js";
 import * as GitService from "./gitservice.js";
 import * as InventoryService from "./inventoryservice.js";
@@ -28,6 +29,7 @@ import * as WordfenceUpdateService from "./wordfenceupdateservice.js";
 export {
     BatchService,
     DBCloneService,
+    DBEditorService,
     EditorService,
     GitService,
     InventoryService,
@@ -53,9 +55,12 @@ export {
 };
 
 export {
+    AIQueryVoorstel,
     AppSettings,
     BatchResult,
+    CelVerzoek,
     CoreUpdateResult,
+    DBEditorInfo,
     EnvSSHEndpoint,
     FeedMeta,
     FetchAllResult,
@@ -80,11 +85,18 @@ export {
     QuarantineEntry,
     QuarantineResult,
     QuarantineSkip,
+    QueryUitkomst,
+    RijVerzoek,
+    RijenVerzoek,
+    SQLBeoordeling,
+    SQLSoort,
     SSHAccess,
+    SchrijfUitkomst,
     SearchHit,
     SecurityFinding,
     SecurityScanResult,
     SiteLinkConflict,
+    TabelWeergave,
     UpdateBranch,
     UpdateDetail,
     UpdateSelection,

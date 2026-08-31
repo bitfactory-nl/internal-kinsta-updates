@@ -220,6 +220,8 @@ const (
 	TaskCompare RoutingTask = "compare"
 	TaskHeal    RoutingTask = "heal"
 	TaskAuthor  RoutingTask = "author"
+	// TaskSQL zet een vraag in natuurlijke taal om in een SQL-query.
+	TaskSQL RoutingTask = "sql"
 )
 
 // RoutingInput drives ChooseModelTier.
@@ -239,7 +241,7 @@ func ChooseModelTier(in RoutingInput) ModelTier {
 	switch in.Task {
 	case TaskTriage:
 		return TierHaiku
-	case TaskHeal, TaskAuthor:
+	case TaskHeal, TaskAuthor, TaskSQL:
 		return TierSonnet
 	case TaskCompare:
 		if in.HighImpact || in.Ambiguous {

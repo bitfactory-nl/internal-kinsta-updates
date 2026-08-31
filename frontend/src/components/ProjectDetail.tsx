@@ -19,6 +19,7 @@ import SecurityTab from './SecurityTab'
 import TestsTab from './TestsTab'
 import MediaTab from './MediaTab'
 import LogsTab from './LogsTab'
+import DBEditorTab from './DBEditorTab'
 import DatabaseTab from './DatabaseTab'
 import MigrationSettingsTab from './MigrationSettingsTab'
 import MigrationMediaTab from './MigrationMediaTab'
@@ -32,7 +33,7 @@ export interface ProjectDetailProps {
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'logs' | 'database' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'logs' | 'database' | 'dbeditor' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
 
 // Elke menugroep is inklapbaar; de vouwstand staat per groepstitel in
 // localStorage, zodat het menu er na een herstart uitziet zoals je het liet.
@@ -85,6 +86,16 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       return {}
     }
   })
+
+  // De DB editor verschijnt alleen als er echt een lokale database is; dat weet
+  // alleen de backend (uit .env), dus dat wordt opgevraagd.
+  const [dbEditorBeschikbaar, setDbEditorBeschikbaar] = useState(false)
+  useEffect(() => {
+    setDbEditorBeschikbaar(false)
+    Services.DBEditorService.Info(project.id)
+      .then(i => setDbEditorBeschikbaar(i.beschikbaar))
+      .catch(() => setDbEditorBeschikbaar(false))
+  }, [project.id])
 
   const isKinsta = project.deploy?.type === 'wordpress_kinsta'
 
@@ -165,6 +176,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       title: 'MIGRATIE',
       items: [
         { id: 'database' as TabId, label: 'Database' },
+        ...(dbEditorBeschikbaar ? [{ id: 'dbeditor' as TabId, label: 'DB editor' }] : []),
         { id: 'migrationmedia' as TabId, label: 'Media' },
         { id: 'migrationsettings' as TabId, label: 'Instellingen' },
       ],
@@ -331,6 +343,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'tests' && <TestsTab projectId={project.id} />}
           {activeTab === 'media' && <MediaTab projectId={project.id} />}
           {activeTab === 'logs' && <LogsTab projectId={project.id} />}
+          {activeTab === 'dbeditor' && <DBEditorTab projectId={project.id} />}
           {activeTab === 'database' && <DatabaseTab projectId={project.id} />}
           {activeTab === 'migrationmedia' && <MigrationMediaTab projectId={project.id} />}
           {activeTab === 'migrationsettings' && <MigrationSettingsTab projectId={project.id} />}

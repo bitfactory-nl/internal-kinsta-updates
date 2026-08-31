@@ -46,6 +46,7 @@ type Services struct {
 	Migration       *services.MigrationService
 	Logs            *services.LogService
 	LogFix          *services.LogFixService
+	DBEditor        *services.DBEditorService
 }
 
 func NewServices(cfg Config) *Services {
@@ -64,6 +65,7 @@ func NewServices(cfg Config) *Services {
 
 	git := services.NewGitService(project)
 	logs := services.NewLogService(project, kinsta)
+	dbClone := services.NewDBCloneService(project, kinsta)
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
 
@@ -89,10 +91,11 @@ func NewServices(cfg Config) *Services {
 		Inventory:       services.NewInventoryService(project, &cfg.Global),
 		WPCoreUpdate:    services.NewWPCoreUpdateService(project, &cfg.Global),
 		Media:           services.NewMediaService(project, kinsta, services.NewMediaScanStore(services.DefaultMediaScanDir())),
-		DBClone:         services.NewDBCloneService(project, kinsta),
+		DBClone:         dbClone,
 		Migration:       services.NewMigrationService(project, kinsta),
 		Logs:            logs,
 		LogFix:          services.NewLogFixService(project, logs, &cfg.Global),
+		DBEditor:        services.NewDBEditorService(project, dbClone, &cfg.Global),
 	}
 }
 
@@ -122,5 +125,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Migration),
 		application.NewService(s.Logs),
 		application.NewService(s.LogFix),
+		application.NewService(s.DBEditor),
 	}
 }
