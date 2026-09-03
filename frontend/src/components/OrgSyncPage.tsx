@@ -5,7 +5,7 @@ import type { OrgSyncResult, OrgSyncRepo, OrgSyncLocalOnly, OrgCloneResult } fro
 import Foutvak from './Foutvak'
 import ExternalLink from './ExternalLink'
 import Tooltip from './Tooltip'
-import { CloudDownloadIcon, CloseIcon, FolderIcon } from './icons'
+import { CloudDownloadIcon, CloseIcon, FolderIcon, ChevronIcon } from './icons'
 
 interface Props { onClose: () => void }
 
@@ -139,6 +139,7 @@ export default function OrgSyncPage({ onClose }: Props) {
   const [cloneBezig, setCloneBezig] = useState(false)
   const [cloneProgress, setCloneProgress] = useState<OrgCloneProgress | null>(null)
   const [cloneResult, setCloneResult] = useState<OrgCloneResult | null>(null)
+  const [warningsOpen, setWarningsOpen] = useState(false)
 
   const laadLaatste = useCallback(async () => {
     setError(null)
@@ -373,12 +374,27 @@ export default function OrgSyncPage({ onClose }: Props) {
 
             {/* ── warnings ── */}
             {warnings.length > 0 && (
-              <div className="space-y-1.5">
-                {zichtbareWarnings.map((w, i) => (
-                  <div key={i} className="bg-amber-soft text-amber px-3 py-1.5 rounded-lg text-[11px]">{w}</div>
-                ))}
-                {restWarnings > 0 && (
-                  <p className="text-[11px] text-fg-faint">…en {restWarnings} meer</p>
+              <div>
+                <button
+                  onClick={() => setWarningsOpen(!warningsOpen)}
+                  className="flex items-center gap-2 text-[12.5px] font-semibold text-fg-muted hover:text-fg transition-colors"
+                >
+                  <ChevronIcon size={13} open={warningsOpen} />
+                  <span>Meldingen</span>
+                  <span className="text-[10.5px] font-semibold text-amber bg-amber/10 border border-amber/30
+                                   rounded-full px-2 py-px">
+                    {warnings.length}
+                  </span>
+                </button>
+                {warningsOpen && (
+                  <div className="space-y-1.5 mt-2">
+                    {zichtbareWarnings.map((w, i) => (
+                      <div key={i} className="bg-amber-soft text-amber px-3 py-1.5 rounded-lg text-[11px]">{w}</div>
+                    ))}
+                    {restWarnings > 0 && (
+                      <p className="text-[11px] text-fg-faint px-3">…en {restWarnings} meer</p>
+                    )}
+                  </div>
                 )}
               </div>
             )}
