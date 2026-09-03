@@ -56,8 +56,9 @@ export function Skip(v: string): $CancellablePromise<void> {
 
 /**
  * Start begint de achtergrondloop en ruimt een achtergebleven back-upbundle op.
- * No-op wanneer de loop al draait, in een dev-build, of als automatisch
- * controleren uit staat.
+ * No-op wanneer de loop al draait of in een dev-build. Staat automatisch
+ * controleren uit, dan draait de loop wel maar slaat elke ronde over — zo
+ * werkt de toggle in Instellingen direct, zonder herstart.
  */
 export function Start(): $CancellablePromise<void> {
     return $Call.ByID(349001032);
