@@ -41,7 +41,11 @@ tasks:
     cmds:
       - go build {{.BUILD_FLAGS}} -o "{{.OUTPUT}}"
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      # De versie komt uit APP_VERSION (in CI de git-tag). Zonder die env-var
+      # blijft het "dev" en biedt de build geen updates aan.
+      VERSION_FLAG:
+        sh: 'echo "-X github.com/rdm/sites-tool/internal/version.Version=${APP_VERSION:-dev}"'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}{{if .EXTRA_TAGS}}-tags {{.EXTRA_TAGS}} {{end}}-buildvcs=false -gcflags=all="-l" -ldflags="{{.VERSION_FLAG}}"{{else}}-tags production{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s {{.VERSION_FLAG}}"{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
     env:

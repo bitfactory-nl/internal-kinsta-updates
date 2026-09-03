@@ -859,7 +859,7 @@ Build pipeline (`make sign`):
 
 ### 9.2 Keychain for Secrets
 
-Use `github.com/zalando/go-keyring`. Service name: `nl.micromanage.rdm-sites-tool`. On first run, user pastes Kinsta API key and GitHub token; both stored in Keychain. Config references them as `keychain:rdm.kinsta.apiKey`.
+Use `github.com/zalando/go-keyring`. Service name: `nl.nobears.kinsta-updater`. Keys die nog onder de oude naam `nl.micromanage.rdm-sites-tool` staan, worden bij het opstarten eenmalig overgezet door `config.MigrateKeychainService()`. On first run, user pastes Kinsta API key and GitHub token; both stored in Keychain. Config references them as `keychain:rdm.kinsta.apiKey`.
 
 ### 9.3 Native Notifications
 

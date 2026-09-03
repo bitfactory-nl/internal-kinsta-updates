@@ -1,0 +1,90 @@
+#!/bin/bash
+# Vervangt de app-bundle nadat de app zelf is afgesloten, draait de
+# nabewerkingscommando's en start de nieuwe versie. Dit script wordt door de
+# tool gegenereerd en losgekoppeld gestart; alle uitvoer gaat naar het
+# logbestand, want er is op dat moment geen venster meer om iets in te tonen.
+set -uo pipefail
+
+LOG="{{.LogPath}}"
+mkdir -p "$(dirname "$LOG")"
+exec >>"$LOG" 2>&1
+
+BUNDLE="{{.BundlePath}}"
+STAGED="{{.StagedApp}}"
+BAK="${BUNDLE}.bak"
+
+# De app start vanuit Finder met een minimale PATH; zonder deze aanvulling vindt
+# het script Homebrew- of nvm-node niet en zou het chromium nooit installeren.
+export PATH="{{.PATH}}"
+NODE="{{.NodePath}}"
+if [ -z "$NODE" ] || [ ! -x "$NODE" ]; then
+  NODE="$(command -v node 2>/dev/null || true)"
+fi
+
+echo "=== update gestart $(date -Iseconds) ==="
+echo "pid={{.PID}}"
+echo "bundle=$BUNDLE"
+echo "nieuw=$STAGED"
+
+# 1. Wachten tot de app echt weg is. Een bundle vervangen terwijl het proces
+#    nog draait kan, maar dan blijft de oude versie in het geheugen met een
+#    halve nieuwe installatie eronder.
+for _ in $(seq 1 30); do
+  kill -0 "{{.PID}}" 2>/dev/null || break
+  sleep 1
+done
+if kill -0 "{{.PID}}" 2>/dev/null; then
+  echo "app reageert niet binnen 30s, wordt afgesloten"
+  kill "{{.PID}}" 2>/dev/null || true
+  sleep 2
+fi
+
+# 2. Oude bundle apart zetten en de nieuwe erin. Mislukt het kopiëren, dan gaat
+#    de oude versie terug: liever de vorige versie dan geen werkende app.
+rm -rf "$BAK"
+if ! mv "$BUNDLE" "$BAK"; then
+  echo "FOUT: kon de bestaande app niet wegzetten; er is niets gewijzigd"
+  # De oude versie weer openen zodat de gebruiker niet met niets achterblijft.
+  open "$BUNDLE" 2>/dev/null || true
+  exit 1
+fi
+if ! ditto "$STAGED" "$BUNDLE"; then
+  echo "FOUT: kopiëren van de nieuwe app mislukte; oude versie wordt teruggezet"
+  rm -rf "$BUNDLE"
+  mv "$BAK" "$BUNDLE"
+  # De oude versie weer openen zodat de gebruiker niet met niets achterblijft.
+  open "$BUNDLE" 2>/dev/null || true
+  exit 1
+fi
+echo "nieuwe app geplaatst"
+
+# 3. Quarantine-vlag weghalen, zodat de app zonder Terminal-commando opent.
+xattr -dr com.apple.quarantine "$BUNDLE" 2>/dev/null || true
+
+# 4. Playwright-chromium, en alleen wanneer die ontbreekt. Playwright zelf weet
+#    welke browserversie bij deze sidecar hoort; bestaat dat pad al, dan is er
+#    niets te doen. Een nieuwere Playwright verwacht een andere revisie en komt
+#    dus automatisch op "ontbreekt" uit.
+SIDECAR="$BUNDLE/Contents/Resources/sidecar"
+if [ -d "$SIDECAR" ]; then
+  if [ -n "$NODE" ] && [ -x "$NODE" ]; then
+    echo "node: $NODE"
+    CHROMIUM=$(cd "$SIDECAR" && "$NODE" -e "process.stdout.write(require('playwright').chromium.executablePath())" 2>/dev/null || true)
+    if [ -n "$CHROMIUM" ] && [ -x "$CHROMIUM" ]; then
+      echo "chromium staat al goed: $CHROMIUM"
+    else
+      echo "chromium ontbreekt of hoort bij een andere versie, wordt opgehaald"
+      if ! (cd "$SIDECAR" && "$NODE" node_modules/playwright/cli.js install chromium); then
+        echo "LET OP: installeren van chromium mislukte; PDF-export, tests en mediascan werken nog niet"
+      fi
+    fi
+  else
+    echo "LET OP: node ontbreekt op deze machine; PDF-export, tests en mediascan werken niet tot Node 20+ is geïnstalleerd"
+  fi
+else
+  echo "LET OP: geen sidecar in de nieuwe bundle gevonden"
+fi
+
+# 5. Nieuwe versie starten. Die ruimt de back-up op en toont wat er nieuw is.
+echo "=== update klaar $(date -Iseconds) ==="
+open "$BUNDLE"

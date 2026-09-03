@@ -11,6 +11,26 @@ type Global struct {
 	Git           GitGlobal       `yaml:"git"`
 	AI            AIGlobal        `yaml:"ai"`
 	Wordfence     WordfenceGlobal `yaml:"wordfence"`
+	Updates       UpdatesGlobal   `yaml:"updates"`
+}
+
+// UpdatesGlobal regelt de zelf-update van de tool.
+type UpdatesGlobal struct {
+	// AutoCheck is een pointer zodat een config.yml zonder updates-sectie —
+	// wat elke bestaande installatie is — niet als "uitgezet" wordt gelezen.
+	// applyDefaults vult nil aan met true.
+	AutoCheck *bool `yaml:"auto_check"`
+
+	// GithubToken is optioneel: leeg betekent dat het token van de plugin-repo
+	// wordt gebruikt. Formaat als elders: keychain:rdm.github.token of een
+	// literal (alleen voor dev).
+	GithubToken string `yaml:"github_token,omitempty"`
+}
+
+// AutoCheckEnabled meldt of automatisch controleren aan staat; niet ingevuld
+// betekent aan.
+func (u UpdatesGlobal) AutoCheckEnabled() bool {
+	return u.AutoCheck == nil || *u.AutoCheck
 }
 
 type KinstaGlobal struct {
@@ -25,6 +45,14 @@ type PluginRepo struct {
 	// LocalDir is een (tijdelijke) map op deze machine met de nieuwste zips van
 	// betaalde plugins; een alternatief naast de repo, niet in plaats daarvan.
 	LocalDir string `yaml:"local_dir,omitempty"`
+	// ReferenceProjectPath is een lokale WordPress-checkout die als levende
+	// referentie-installatie dient voor betaalde plugins: buiten deze tool om
+	// actueel gehouden, en hier gebruikt als (a) bron voor de "laatste versie"
+	// in het Plugins-overzicht — ook wanneer wp.org een andere versie kent, want
+	// voor betaalde plugins is deze installatie de waarheid, niet wp.org — en
+	// (b) bron om projecten vanuit bij te werken. Het project zelf hoort geen
+	// klantsite te lijken, dus het wordt uit het Plugins-overzicht uitgesloten.
+	ReferenceProjectPath string `yaml:"reference_project_path,omitempty"`
 }
 
 type Notifications struct {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useSyncExternalStore } from 'react'
+import { Events } from '@wailsio/runtime'
 import * as ProjectService from '../bindings/github.com/rdm/sites-tool/internal/services'
-import type { ProjectStatusSummary, Project } from '../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { ProjectStatusSummary, Project, AvailableUpdate } from '../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import ProjectDetail from './components/ProjectDetail'
 import BatchTab from './components/BatchTab'
 import SearchPanel from './components/SearchPanel'
@@ -8,14 +9,17 @@ import SettingsPage from './components/SettingsPage'
 import WordfencePage from './components/WordfencePage'
 import InventoryPage from './components/InventoryPage'
 import WordPressPage from './components/WordPressPage'
+import OrgSyncPage from './components/OrgSyncPage'
+import BulkUpdatePage from './components/BulkUpdatePage'
+import AppUpdateDialog from './components/AppUpdateDialog'
 import ErrorBoundary from './components/ErrorBoundary'
 import {
   RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
-  PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon,
+  PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon, CloudDownloadIcon,
 } from './components/icons'
 import { type ThemeMode, getThemeMode, setThemeMode, subscribeTheme } from './lib/thema'
 
-type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'settings'
+type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'orgsync' | 'bulkupdate' | 'settings'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children, drag = false }: {
@@ -152,6 +156,12 @@ export default function App() {
   const [roots, setRoots] = useState<string[]>([])
   const [view, setView] = useState<View>('projects')
 
+  // Zelf-update: de badge in de rail volgt `appUpdate`, de popup `updateOpen`.
+  const [appUpdate, setAppUpdate] = useState<AvailableUpdate | null>(null)
+  const [updateOpen, setUpdateOpen] = useState(false)
+  const [appVersie, setAppVersie] = useState('')
+  const [watIsNieuw, setWatIsNieuw] = useState<AvailableUpdate | null>(null)
+
   const doScan = useCallback(async (currentRoots: string[]) => {
     if (currentRoots.length === 0) return
     setScanning(true)
@@ -191,6 +201,38 @@ export default function App() {
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
+
+  useEffect(() => {
+    // Eerst: is dit de eerste start na een geslaagde update?
+    ProjectService.UpdateService.WhatsNew()
+      .then(w => { if (w) setWatIsNieuw(w) })
+      .catch(() => {})
+
+    ProjectService.UpdateService.Status()
+      .then(s => {
+        setAppVersie(s.currentVersion)
+        if (s.available) {
+          setAppUpdate(s.available)
+          // Een al weggeklikte versie geeft alleen de badge, geen popup.
+          if (!s.available.skipped) setUpdateOpen(true)
+        }
+      })
+      .catch(() => {})
+
+    // De achtergrondloop meldt een nieuwe versie via dit event.
+    const stop = Events.On('updates:available', ev => {
+      const data = ev.data
+      const u: AvailableUpdate | null = typeof data === 'string'
+        ? (() => { try { return JSON.parse(data) } catch { return null } })()
+        : (Array.isArray(data) ? data[0] : (data as AvailableUpdate | undefined)) ?? null
+      if (!u) return
+      // De badge volgt elke nieuwere versie, ook een al weggeklikte (zo komt
+      // hij na een herstart terug); de popup alleen als hij niet is overgeslagen.
+      setAppUpdate(u)
+      if (!u.skipped) setUpdateOpen(true)
+    })
+    return () => stop()
+  }, [])
 
   // distinct deploy types (from deploy_conf.json), with per-type counts
   const typeCounts = summaries.reduce<Record<string, number>>((acc, s) => {
@@ -261,6 +303,18 @@ export default function App() {
             onClick={() => setView('plugins')}
           />
           <NavItem
+            icon={<CloudDownloadIcon size={15} />}
+            label="Alles bijwerken"
+            active={view === 'bulkupdate'}
+            onClick={() => setView('bulkupdate')}
+          />
+          <NavItem
+            icon={<CloudDownloadIcon size={15} />}
+            label="Org-sync"
+            active={view === 'orgsync'}
+            onClick={() => setView('orgsync')}
+          />
+          <NavItem
             icon={<PaletteIcon size={15} />}
             label="Thema's"
             active={view === 'themes'}
@@ -276,8 +330,20 @@ export default function App() {
 
         <div className="flex-1" />
 
-        {/* footer: settings + thema */}
+        {/* footer: update-melding + settings + thema */}
         <div className="px-2 py-3 border-t border-rail-border space-y-2">
+          {appUpdate && (
+            <button
+              onClick={() => setUpdateOpen(true)}
+              title={`Versie ${appUpdate.version} is beschikbaar`}
+              className="w-full flex items-center gap-2 h-9 px-3 rounded-nav text-[12.5px] font-semibold
+                         bg-accent/15 text-accent-2 hover:bg-accent/25 transition-colors select-none"
+            >
+              <span className="shrink-0 flex items-center"><CloudDownloadIcon size={14} /></span>
+              <span className="truncate">Update {appUpdate.version}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-2 shrink-0" />
+            </button>
+          )}
           <NavItem
             icon={<GearIcon size={15} />}
             label="Instellingen"
@@ -446,6 +512,14 @@ export default function App() {
         <ErrorBoundary label="WordPress error">
           <WordPressPage />
         </ErrorBoundary>
+      ) : view === 'bulkupdate' ? (
+        <ErrorBoundary label="Alles bijwerken error">
+          <BulkUpdatePage />
+        </ErrorBoundary>
+      ) : view === 'orgsync' ? (
+        <ErrorBoundary label="Org-sync error">
+          <OrgSyncPage onClose={() => setView('projects')} />
+        </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">
           <ProjectDetail project={selected} onRefresh={refresh} />
@@ -455,6 +529,26 @@ export default function App() {
           Selecteer een project
         </div>
       )}
+
+      {/* Zelf-update: eerst het "wat is er nieuw"-venster na een update, en
+          anders de vraag om te installeren. Nooit beide tegelijk. */}
+      {watIsNieuw ? (
+        <AppUpdateDialog
+          mode="whatsnew"
+          currentVersion={appVersie}
+          update={watIsNieuw}
+          onLater={() => setWatIsNieuw(null)}
+          onKlaar={() => setWatIsNieuw(null)}
+        />
+      ) : updateOpen && appUpdate ? (
+        <AppUpdateDialog
+          mode="available"
+          currentVersion={appVersie}
+          update={appUpdate}
+          onLater={() => setUpdateOpen(false)}
+          onKlaar={() => setUpdateOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }

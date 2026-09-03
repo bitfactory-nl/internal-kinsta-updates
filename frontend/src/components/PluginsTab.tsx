@@ -6,6 +6,7 @@ import { DiffStatus, PluginSource } from '../../bindings/github.com/rdm/sites-to
 
 import type { LocalPluginOverview, LocalApplyResult } from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import { bevestig } from '../lib/bevestig'
+import ExternalLink from './ExternalLink'
 
 interface Props { projectId: string }
 
@@ -24,6 +25,11 @@ function LokaleMapPanel({ projectId }: Props) {
   const [gekozen, setGekozen] = useState<Set<string>>(new Set())
   const [bezig, setBezig] = useState(false)
   const [melding, setMelding] = useState<string | null>(null)
+  // resultaat houdt het volledige antwoord vast: de stash en de pull request
+  // horen niet in één platte meldingsregel te verdwijnen.
+  const [resultaat, setResultaat] = useState<LocalApplyResult | null>(null)
+  const [mergeBezig, setMergeBezig] = useState(false)
+  const [mergeUitkomst, setMergeUitkomst] = useState<string | null>(null)
   const [fout, setFout] = useState<string | null>(null)
 
   const laden = useCallback(() => {
@@ -33,7 +39,8 @@ function LokaleMapPanel({ projectId }: Props) {
   }, [projectId])
 
   useEffect(() => {
-    setOverzicht(null); setGekozen(new Set()); setMelding(null); setFout(null); setActief(false)
+    setOverzicht(null); setGekozen(new Set()); setMelding(null); setResultaat(null); setFout(null); setActief(false)
+    setMergeUitkomst(null); setMergeBezig(false)
     Services.PluginService.LocalDirConfigured()
       .then(aan => { setActief(aan); if (aan) laden() })
       .catch(() => setActief(false))
@@ -49,21 +56,34 @@ function LokaleMapPanel({ projectId }: Props) {
       return v
     })
   }
+  // Zodra er een referentie-plugin bij de keuze zit, gaat de héle commit naar
+  // een eigen nieuwe branch in plaats van de huidige checkout — zie
+  // ensureBranchFor in de backend. De tekst moet dat vooraf al kloppend
+  // zeggen, niet pas achteraf blijken.
+  const referentieGekozen = rijen.some(r => gekozen.has(r.slug) && r.source === 'referentie')
+  const doelBranch = referentieGekozen ? 'een nieuwe eigen branch (referentie-installatie)' : (overzicht?.branch || '…')
 
   const plaats = async () => {
     if (!overzicht) return
     const slugs = Array.from(gekozen)
     const ok = await bevestig('Plugins in project zetten',
-      `${slugs.length} plugin(s) worden in het project gezet en per plugin gecommit op branch "${overzicht.branch}".\n\n` +
-      `Er wordt niet gepusht; dat blijft een aparte handeling.`)
+      `${slugs.length} plugin(s) worden in het project gezet en per plugin gecommit op ${doelBranch}.\n\n` +
+      (referentieGekozen
+        ? 'Openstaand werk gaat automatisch in een stash (je krijgt te zien welke), en de branch wordt ' +
+          'gepusht met een pull request erop.'
+        : 'Er wordt niet gepusht; dat blijft een aparte handeling.'))
     if (!ok) return
-    setBezig(true); setFout(null); setMelding(null)
+    setBezig(true); setFout(null); setMelding(null); setResultaat(null); setMergeUitkomst(null)
     try {
       const res: LocalApplyResult = await Services.PluginService.ApplyLocalPlugins(projectId, slugs)
+      setResultaat(res)
       const gelukt = (res.plugins ?? []).filter(p => p.status === 'updated')
-      const mislukt = (res.plugins ?? []).filter(p => p.status !== 'updated')
+      // "unchanged" is geen mislukking: die plugin stond er al byte-identiek in.
+      const ongewijzigd = (res.plugins ?? []).filter(p => p.status === 'unchanged')
+      const mislukt = (res.plugins ?? []).filter(p => p.status !== 'updated' && p.status !== 'unchanged')
       setMelding(
         `${gelukt.length} plugin(s) gecommit op ${res.branch}` +
+        (ongewijzigd.length ? ` · ${ongewijzigd.length} stond er al in (niets gewijzigd)` : '') +
         (mislukt.length ? ` · ${mislukt.length} mislukt: ${mislukt[0].slug} — ${mislukt[0].error}` : ''),
       )
       setGekozen(new Set())
@@ -75,12 +95,34 @@ function LokaleMapPanel({ projectId }: Props) {
     }
   }
 
+  // mergen doet de merge op GitHub: onomkeerbaar richting de default branch,
+  // dus met bevestiging.
+  const mergen = async () => {
+    const nummer = resultaat?.pullRequestNumber
+    if (!nummer) return
+    const ok = await bevestig('Pull request mergen',
+      'De pull request wordt op GitHub gemerged naar de default branch van dit project.\n\n' +
+      'Dit is niet met één klik terug te draaien.')
+    if (!ok) return
+    setMergeBezig(true)
+    try {
+      const res = await Services.PluginService.MergePluginPullRequest(projectId, nummer)
+      setMergeUitkomst(res.merged
+        ? `✓ gemerged${res.sha ? ` (${res.sha.slice(0, 7)})` : ''}`
+        : (res.message || 'niet gemerged'))
+    } catch (e) {
+      setMergeUitkomst(`✗ ${getErrorMessage(e)}`)
+    } finally {
+      setMergeBezig(false)
+    }
+  }
+
   return (
     <div className="shrink-0 border-b border-border bg-panel px-4 py-3 max-h-[40%] overflow-y-auto">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="text-[10px] font-semibold tracking-wide text-fg-faint">UIT LOKALE MAP</span>
         <span className="text-[10.5px] text-fg-faint">
-          commit komt op <span className="font-mono text-fg">{overzicht?.branch || '…'}</span>
+          commit komt op <span className="font-mono text-fg">{doelBranch}</span>
         </span>
         {gekozen.size > 0 && (
           <button onClick={plaats} disabled={bezig}
@@ -92,6 +134,34 @@ function LokaleMapPanel({ projectId }: Props) {
 
       {fout && <div className="mb-1.5 bg-red-soft text-red px-2.5 py-1.5 rounded-lg text-[11px]">{fout}</div>}
       {melding && <div className="mb-1.5 bg-green-soft text-green px-2.5 py-1.5 rounded-lg text-[11px]">{melding}</div>}
+      {resultaat?.stash && (
+        <div className="mb-1.5 bg-amber-soft text-amber px-2.5 py-1.5 rounded-lg text-[11px]">
+          Openstaand werk is geparkeerd: <span className="font-mono">{resultaat.stash}</span> —
+          terughalen met <span className="font-mono">git stash pop</span>.
+        </div>
+      )}
+      {resultaat?.pullRequestUrl && (
+        <div className="mb-1.5 text-[11px] flex items-center gap-2">
+          <ExternalLink href={resultaat.pullRequestUrl}
+            className="text-accent hover:underline cursor-pointer">↗ pull request openen</ExternalLink>
+          {/* Alleen tonen als dit token op deze repo mag mergen. */}
+          {resultaat.canMerge && !!resultaat.pullRequestNumber && !mergeUitkomst && (
+            <button onClick={() => void mergen()} disabled={mergeBezig}
+              className="text-[10.5px] font-semibold text-green bg-green-soft border border-green/30
+                         rounded-full px-2 py-px hover:brightness-95 disabled:opacity-50 transition">
+              {mergeBezig ? 'Mergen…' : 'Mergen'}
+            </button>
+          )}
+          {mergeUitkomst && (
+            <span className={mergeUitkomst.startsWith('✓') ? 'text-green' : 'text-red'}>{mergeUitkomst}</span>
+          )}
+        </div>
+      )}
+      {resultaat?.pullRequestError && (
+        <div className="mb-1.5 bg-amber-soft text-amber px-2.5 py-1.5 rounded-lg text-[11px]">
+          Geen pull request aangemaakt: {resultaat.pullRequestError} — de commit staat er wel.
+        </div>
+      )}
 
       {overzicht === null ? (
         <div className="text-[11.5px] text-fg-faint">Map lezen…</div>
@@ -108,6 +178,10 @@ function LokaleMapPanel({ projectId }: Props) {
             <label key={r.slug} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-hover rounded px-1 -mx-1">
               <input type="checkbox" checked={gekozen.has(r.slug)} onChange={() => toggle(r.slug)}
                 className="shrink-0 accent-accent" />
+              {r.source === 'referentie' && (
+                <span title="Komt uit de referentie-installatie, niet de losse map"
+                      className="text-[9px] font-bold px-1 py-px rounded bg-accent/15 text-accent shrink-0">REF</span>
+              )}
               <span className="font-mono text-[11.5px] text-fg truncate flex-1">{r.slug}</span>
               <span className="font-mono text-[11px] text-fg-faint w-[70px] text-right shrink-0">
                 {r.projectVersion || 'niet aanwezig'}

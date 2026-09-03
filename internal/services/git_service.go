@@ -362,6 +362,105 @@ func (s *GitService) StashSave(projectID, message string) error {
 	return gitcli.StashSave(ctx, path, message)
 }
 
+// StashAllAndDescribe parkeert alles wat er openstaat (inclusief untracked) en
+// geeft de bovenste stash-regel terug, zodat de aanroeper de gebruiker kan
+// vertellen waar zijn werk heen is. Lukt het beschrijven niet, dan is de stash
+// zelf wél gelukt: dan komt er een generieke aanduiding terug in plaats van een
+// fout, want het werk staat veilig en dat is wat telt.
+func (s *GitService) StashAllAndDescribe(projectID, message string) (string, error) {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return "", fmt.Errorf("git stash: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	if err := gitcli.StashPushAll(ctx, path, message); err != nil {
+		return "", err
+	}
+	top, err := gitcli.StashTop(ctx, path)
+	if err != nil || top == "" {
+		return "stash@{0}: " + message, nil
+	}
+	return top, nil
+}
+
+// CommitNoVerify commits met overgeslagen git-hooks — zie gitcli.CommitNoVerify.
+func (s *GitService) CommitNoVerify(projectID, message string) error {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return fmt.Errorf("git commit: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	return gitcli.CommitNoVerify(ctx, path, message)
+}
+
+// PushSetUpstream pusht de branch naar origin en zet 'm als upstream.
+func (s *GitService) PushSetUpstream(projectID, branch string) error {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return fmt.Errorf("git push: %w", err)
+	}
+	ctx, cancel := s.ctxLong()
+	defer cancel()
+	return gitcli.PushSetUpstream(ctx, path, branch)
+}
+
+// StageAllPath doet `git add -A -- <pad>`: alle wijzigingen onder dat pad,
+// inclusief verwijderde bestanden. Nodig voor een core-update, waar de nieuwe
+// WordPress-versie bestanden kan hebben weggehaald die dus ook uit de
+// repository moeten verdwijnen.
+func (s *GitService) StageAllPath(projectID, relPad string) error {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return fmt.Errorf("git add: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	if _, err := gitcli.Run(ctx, path, "add", "-A", "--", relPad); err != nil {
+		return fmt.Errorf("git add -A %s: %w", relPad, err)
+	}
+	return nil
+}
+
+// RevParse lost een ref op naar een commit-hash; een fout betekent dat de ref
+// niet bestaat. Gebruikt om te controleren of origin/<branch> er is voordat
+// daarvan wordt afgetakt.
+func (s *GitService) RevParse(projectID, ref string) (string, error) {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	out, err := gitcli.Run(ctx, path, "rev-parse", "--verify", "--quiet", ref)
+	if err != nil {
+		return "", fmt.Errorf("ref %q bestaat niet: %w", ref, err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// RemoteURL geeft de geconfigureerde origin-URL van het project.
+//
+// Bewust `git config --get` en niet `git remote get-url`: die laatste past
+// url.*.insteadOf-herschrijvingen toe, en dat is een lokale transport-instelling
+// (een mirror, of https→ssh). Voor het bepalen van owner/repo op GitHub wil je
+// de identiteit die in de repo geconfigureerd staat, niet waar het verkeer
+// naartoe wordt omgeleid.
+func (s *GitService) RemoteURL(projectID string) (string, error) {
+	path, err := s.pathFor(projectID)
+	if err != nil {
+		return "", fmt.Errorf("git remote: %w", err)
+	}
+	ctx, cancel := s.ctxDefault()
+	defer cancel()
+	out, err := gitcli.Run(ctx, path, "config", "--get", "remote.origin.url")
+	if err != nil {
+		return "", fmt.Errorf("origin-URL lezen: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
 // StashPop applies and removes stash@{index}.
 func (s *GitService) StashPop(projectID string, index int) error {
 	path, err := s.pathFor(projectID)

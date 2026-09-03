@@ -52,3 +52,45 @@ func TestSettingsDBAppRoundTrip(t *testing.T) {
 		t.Errorf("Get roundtrip: %q", got.DBApp)
 	}
 }
+
+func TestSettingsRondritMetUpdateVelden(t *testing.T) {
+	autoAan := true
+	cfg := &config.Global{
+		Editor:  "cursor",
+		Updates: config.UpdatesGlobal{AutoCheck: &autoAan, GithubToken: "keychain:rdm.github.token"},
+	}
+	s := NewSettingsService(cfg)
+
+	got := s.Get()
+	if !got.UpdatesAutoCheck {
+		t.Error("UpdatesAutoCheck = false, wil true")
+	}
+	if got.UpdatesGithubToken != "keychain:rdm.github.token" {
+		t.Errorf("UpdatesGithubToken = %q", got.UpdatesGithubToken)
+	}
+}
+
+func TestSettingsSaveZetAutoCheckUit(t *testing.T) {
+	// SaveGlobal schrijft naar ~/.config/rdm/config.yml; die kant is hier niet
+	// interessant, alleen dat de waarde in cfg landt. HOME wijzen naar een
+	// tempmap houdt de echte config van de gebruiker buiten de test.
+	t.Setenv("HOME", t.TempDir())
+
+	autoAan := true
+	cfg := &config.Global{Editor: "cursor", Updates: config.UpdatesGlobal{AutoCheck: &autoAan}}
+	s := NewSettingsService(cfg)
+
+	instellingen := s.Get()
+	instellingen.UpdatesAutoCheck = false
+	instellingen.UpdatesGithubToken = " ghp_met_spaties "
+	if err := s.Save(instellingen); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	if cfg.Updates.AutoCheckEnabled() {
+		t.Error("AutoCheckEnabled() = true na uitzetten")
+	}
+	if cfg.Updates.GithubToken != "ghp_met_spaties" {
+		t.Errorf("GithubToken = %q, wil getrimd", cfg.Updates.GithubToken)
+	}
+}

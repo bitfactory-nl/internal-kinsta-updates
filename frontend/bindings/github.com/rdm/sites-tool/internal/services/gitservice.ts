@@ -50,6 +50,13 @@ export function Commit(projectID: string, message: string, amend: boolean): $Can
 }
 
 /**
+ * CommitNoVerify commits met overgeslagen git-hooks — zie gitcli.CommitNoVerify.
+ */
+export function CommitNoVerify(projectID: string, message: string): $CancellablePromise<void> {
+    return $Call.ByID(3086566442, projectID, message);
+}
+
+/**
  * CreateBranch creates a new branch, optionally from a specific starting point.
  */
 export function CreateBranch(projectID: string, name: string, $from: string): $CancellablePromise<void> {
@@ -214,6 +221,35 @@ export function Push(projectID: string, force: boolean): $CancellablePromise<voi
 }
 
 /**
+ * PushSetUpstream pusht de branch naar origin en zet 'm als upstream.
+ */
+export function PushSetUpstream(projectID: string, branch: string): $CancellablePromise<void> {
+    return $Call.ByID(552606874, projectID, branch);
+}
+
+/**
+ * RemoteURL geeft de geconfigureerde origin-URL van het project.
+ * 
+ * Bewust `git config --get` en niet `git remote get-url`: die laatste past
+ * url.*.insteadOf-herschrijvingen toe, en dat is een lokale transport-instelling
+ * (een mirror, of https→ssh). Voor het bepalen van owner/repo op GitHub wil je
+ * de identiteit die in de repo geconfigureerd staat, niet waar het verkeer
+ * naartoe wordt omgeleid.
+ */
+export function RemoteURL(projectID: string): $CancellablePromise<string> {
+    return $Call.ByID(3931954640, projectID);
+}
+
+/**
+ * RevParse lost een ref op naar een commit-hash; een fout betekent dat de ref
+ * niet bestaat. Gebruikt om te controleren of origin/<branch> er is voordat
+ * daarvan wordt afgetakt.
+ */
+export function RevParse(projectID: string, ref: string): $CancellablePromise<string> {
+    return $Call.ByID(64586857, projectID, ref);
+}
+
+/**
  * StageAll stages all changes (git add -A).
  */
 export function StageAll(projectID: string): $CancellablePromise<void> {
@@ -221,10 +257,31 @@ export function StageAll(projectID: string): $CancellablePromise<void> {
 }
 
 /**
+ * StageAllPath doet `git add -A -- <pad>`: alle wijzigingen onder dat pad,
+ * inclusief verwijderde bestanden. Nodig voor een core-update, waar de nieuwe
+ * WordPress-versie bestanden kan hebben weggehaald die dus ook uit de
+ * repository moeten verdwijnen.
+ */
+export function StageAllPath(projectID: string, relPad: string): $CancellablePromise<void> {
+    return $Call.ByID(3507232231, projectID, relPad);
+}
+
+/**
  * StageFiles stages the given file paths.
  */
 export function StageFiles(projectID: string, paths: string[]): $CancellablePromise<void> {
     return $Call.ByID(3675207236, projectID, paths);
+}
+
+/**
+ * StashAllAndDescribe parkeert alles wat er openstaat (inclusief untracked) en
+ * geeft de bovenste stash-regel terug, zodat de aanroeper de gebruiker kan
+ * vertellen waar zijn werk heen is. Lukt het beschrijven niet, dan is de stash
+ * zelf wél gelukt: dan komt er een generieke aanduiding terug in plaats van een
+ * fout, want het werk staat veilig en dat is wat telt.
+ */
+export function StashAllAndDescribe(projectID: string, message: string): $CancellablePromise<string> {
+    return $Call.ByID(3713433671, projectID, message);
 }
 
 /**

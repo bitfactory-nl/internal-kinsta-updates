@@ -291,3 +291,151 @@ func TestCreatePullOtherHTTPError(t *testing.T) {
 		t.Errorf("error = %q, wil de body-snippet bevatten", err.Error())
 	}
 }
+
+// --- GetRepoAccess ---
+
+func TestGetRepoAccessPushRechten(t *testing.T) {
+	tests := []struct {
+		naam    string
+		body    string
+		wilPush bool
+	}{
+		{"push", `{"permissions":{"push":true}}`, true},
+		{"alleen maintain", `{"permissions":{"push":false,"maintain":true}}`, true},
+		{"alleen admin", `{"permissions":{"push":false,"admin":true}}`, true},
+		{"alleen lezen", `{"permissions":{"push":false,"pull":true}}`, false},
+		{"geen permissions-blok", `{}`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.naam, func(t *testing.T) {
+			c := newTestPullClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/repos/acme/web-test" {
+					t.Errorf("pad = %q", r.URL.Path)
+				}
+				_, _ = w.Write([]byte(tt.body))
+			})
+			acc, err := c.GetRepoAccess(context.Background(), "acme", "web-test")
+			if err != nil {
+				t.Fatalf("GetRepoAccess: %v", err)
+			}
+			if acc.CanPush != tt.wilPush {
+				t.Errorf("CanPush = %v, wil %v", acc.CanPush, tt.wilPush)
+			}
+		})
+	}
+}
+
+func TestRepoAccessMergeMethodVoorkeur(t *testing.T) {
+	tests := []struct {
+		naam string
+		acc  RepoAccess
+		wil  string
+	}{
+		{"alles toegestaan: gewone merge", RepoAccess{AllowMergeCommit: true, AllowSquashMerge: true, AllowRebaseMerge: true}, "merge"},
+		{"alleen squash", RepoAccess{AllowSquashMerge: true}, "squash"},
+		{"alleen rebase", RepoAccess{AllowRebaseMerge: true}, "rebase"},
+		{"niets toegestaan", RepoAccess{}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.naam, func(t *testing.T) {
+			if got := tt.acc.MergeMethod(); got != tt.wil {
+				t.Errorf("MergeMethod = %q, wil %q", got, tt.wil)
+			}
+		})
+	}
+}
+
+func TestGetRepoAccessOntbrekendeAllowVeldenZijnToegestaan(t *testing.T) {
+	// Een token dat de repo-instellingen niet mag zien krijgt geen allow_*-velden.
+	// Dan niet stilletjes alles blokkeren.
+	c := newTestPullClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"permissions":{"push":true}}`))
+	})
+	acc, err := c.GetRepoAccess(context.Background(), "acme", "web-test")
+	if err != nil {
+		t.Fatalf("GetRepoAccess: %v", err)
+	}
+	if acc.MergeMethod() != "merge" {
+		t.Errorf("MergeMethod = %q, wil merge", acc.MergeMethod())
+	}
+}
+
+func TestGetRepoAccessSquashUitgezet(t *testing.T) {
+	c := newTestPullClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"permissions":{"push":true},"allow_merge_commit":false,"allow_squash_merge":true,"allow_rebase_merge":false}`))
+	})
+	acc, err := c.GetRepoAccess(context.Background(), "acme", "web-test")
+	if err != nil {
+		t.Fatalf("GetRepoAccess: %v", err)
+	}
+	if acc.MergeMethod() != "squash" {
+		t.Errorf("MergeMethod = %q, wil squash", acc.MergeMethod())
+	}
+}
+
+// --- MergePull ---
+
+func TestMergePullGelukt(t *testing.T) {
+	c := newTestPullClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut {
+			t.Errorf("methode = %q, wil PUT", r.Method)
+		}
+		if r.URL.Path != "/repos/acme/web-test/pulls/7/merge" {
+			t.Errorf("pad = %q", r.URL.Path)
+		}
+		var in map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			t.Fatalf("body: %v", err)
+		}
+		if in["merge_method"] != "squash" {
+			t.Errorf("merge_method = %q, wil squash", in["merge_method"])
+		}
+		_, _ = w.Write([]byte(`{"merged":true,"sha":"abc123","message":"Pull Request successfully merged"}`))
+	})
+
+	mr, err := c.MergePull(context.Background(), "acme", "web-test", 7, "squash")
+	if err != nil {
+		t.Fatalf("MergePull: %v", err)
+	}
+	if !mr.Merged || mr.SHA != "abc123" {
+		t.Errorf("resultaat = %+v", mr)
+	}
+}
+
+func TestMergePullWeigeringen(t *testing.T) {
+	tests := []struct {
+		naam      string
+		status    int
+		body      string
+		wilInFout string
+	}{
+		{"geen rechten", http.StatusForbidden, `{"message":"Resource not accessible by personal access token"}`, "geen rechten om te mergen"},
+		{"niet mergebaar", http.StatusMethodNotAllowed, `{"message":"Pull Request is not mergeable"}`, "kan niet gemerged worden"},
+		{"branch verschoven", http.StatusConflict, `{"message":"Head branch was modified"}`, "inmiddels verschoven"},
+		{"niet gevonden", http.StatusNotFound, `{"message":"Not Found"}`, "niet gevonden"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.naam, func(t *testing.T) {
+			c := newTestPullClient(t, func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.status)
+				_, _ = w.Write([]byte(tt.body))
+			})
+			_, err := c.MergePull(context.Background(), "acme", "web-test", 7, "merge")
+			if err == nil {
+				t.Fatalf("status %d had een fout moeten geven", tt.status)
+			}
+			if !strings.Contains(err.Error(), tt.wilInFout) {
+				t.Errorf("fout = %q, wil %q erin", err.Error(), tt.wilInFout)
+			}
+		})
+	}
+}
+
+func TestMergePullWeigertOngeldigNummer(t *testing.T) {
+	c := newTestPullClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("er had geen request gedaan mogen worden")
+	})
+	if _, err := c.MergePull(context.Background(), "acme", "web-test", 0, "merge"); err == nil {
+		t.Error("nummer 0 had geweigerd moeten worden")
+	}
+}

@@ -1,6 +1,8 @@
 package app
 
 import (
+	"log"
+
 	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/adapters/endoflife"
 	"github.com/rdm/sites-tool/internal/config"
@@ -13,6 +15,12 @@ type Config struct {
 }
 
 func LoadConfig() (Config, error) {
+	// Eenmalig: secrets die nog onder de oude service-naam staan overzetten.
+	// Best effort — bij een lege lijst is er simpelweg niets te migreren.
+	if migrated := config.MigrateKeychainService(); len(migrated) > 0 {
+		log.Printf("keychain: %d secret(s) overgezet naar de nieuwe service-naam: %v", len(migrated), migrated)
+	}
+
 	g, err := config.LoadGlobal()
 	if err != nil {
 		return Config{}, err
@@ -47,6 +55,9 @@ type Services struct {
 	Logs            *services.LogService
 	LogFix          *services.LogFixService
 	DBEditor        *services.DBEditorService
+	OrgSync         *services.OrgSyncService
+	BulkUpdate      *services.BulkUpdateService
+	Update          *services.UpdateService
 }
 
 func NewServices(cfg Config) *Services {
@@ -68,6 +79,7 @@ func NewServices(cfg Config) *Services {
 	dbClone := services.NewDBCloneService(project, kinsta)
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
+	plugin := services.NewPluginService(&cfg.Global, kinsta, project, git)
 
 	return &Services{
 		Project:  project,
@@ -79,7 +91,7 @@ func NewServices(cfg Config) *Services {
 		Search:   services.NewSearchService(project),
 		Settings: services.NewSettingsService(&cfg.Global),
 		Make:     services.NewMakeService(project),
-		Plugin:   services.NewPluginService(&cfg.Global, kinsta, project, git),
+		Plugin:   plugin,
 		SSH:      services.NewSSHService(),
 		VulnScan: services.NewVulnScanService(&cfg.Global, project, kinsta, notify),
 		Security: security,
@@ -96,6 +108,9 @@ func NewServices(cfg Config) *Services {
 		Logs:            logs,
 		LogFix:          services.NewLogFixService(project, logs, &cfg.Global),
 		DBEditor:        services.NewDBEditorService(project, dbClone, &cfg.Global),
+		OrgSync:         services.NewOrgSyncService(project, &cfg.Global),
+		BulkUpdate:      services.NewBulkUpdateService(&cfg.Global, project, git, plugin),
+		Update:          services.NewUpdateService(&cfg.Global),
 	}
 }
 
@@ -126,5 +141,8 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Logs),
 		application.NewService(s.LogFix),
 		application.NewService(s.DBEditor),
+		application.NewService(s.OrgSync),
+		application.NewService(s.BulkUpdate),
+		application.NewService(s.Update),
 	}
 }

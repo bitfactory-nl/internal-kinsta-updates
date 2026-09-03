@@ -2,9 +2,12 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/rdm/sites-tool/internal/app"
+	"github.com/rdm/sites-tool/internal/version"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -12,6 +15,13 @@ import (
 var assets embed.FS
 
 func main() {
+	// Zonder venster te openen de versie melden: hiermee is te controleren of de
+	// build daadwerkelijk een versiestempel heeft meegekregen.
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Println(version.Version)
+		return
+	}
+
 	cfg, err := app.LoadConfig()
 	if err != nil {
 		log.Fatalf("config: %v", err)
@@ -38,9 +48,16 @@ func main() {
 	services.DBClone.SetApp(a)
 	services.Migration.SetApp(a)
 	services.LogFix.SetApp(a)
+	services.OrgSync.SetApp(a)
+	services.BulkUpdate.SetApp(a)
+	services.Update.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()
+
+	// Controleer op een nieuwere versie van de tool zelf: kort na het opstarten
+	// en daarna elke 6 uur. No-op in dev-builds.
+	services.Update.Start()
 
 	a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Kinsta Updater",

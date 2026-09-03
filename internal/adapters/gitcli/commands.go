@@ -103,6 +103,58 @@ func Commit(ctx context.Context, dir, message string, amend bool) error {
 	return nil
 }
 
+// CommitNoVerify creates a commit met --no-verify: de pre-commit- en
+// commit-msg-hooks van het project worden overgeslagen. Bedoeld voor commits
+// die de tool zelf samenstelt uit vendor-bestanden (een betaalde plugin uit de
+// referentie-installatie): die inhoud is niet van ons, en een husky/ESLint-hook
+// die op bestaande projectcode struikelt mag zo'n update niet blokkeren.
+func CommitNoVerify(ctx context.Context, dir, message string) error {
+	_, err := Run(ctx, dir, "commit", "--no-verify", "-m", message)
+	if err != nil {
+		return fmt.Errorf("git commit --no-verify: %w", err)
+	}
+	return nil
+}
+
+// StashPushAll parkeert álles wat in de werkmap openstaat, inclusief nieuwe
+// (untracked) bestanden, zodat een branchwissel daarna schoon kan. Bestanden
+// die door .gitignore worden genegeerd blijven bewust staan: die horen niet in
+// een stash en zijn meestal build-uitvoer.
+func StashPushAll(ctx context.Context, dir, message string) error {
+	args := []string{"stash", "push", "-u"}
+	if strings.TrimSpace(message) != "" {
+		args = append(args, "-m", message)
+	}
+	_, err := Run(ctx, dir, args...)
+	if err != nil {
+		return fmt.Errorf("git stash push -u: %w", err)
+	}
+	return nil
+}
+
+// StashTop geeft de bovenste stash-regel terug (bijv. "stash@{0}: On
+// release/1.0.x: <bericht>"), zodat de gebruiker precies te zien krijgt waar
+// zijn geparkeerde werk staat. Geen stashes levert een lege string zonder
+// fout: dat is een geldige uitkomst, geen probleem.
+func StashTop(ctx context.Context, dir string) (string, error) {
+	out, err := Run(ctx, dir, "stash", "list", "-1", "--pretty=format:%gd: %s")
+	if err != nil {
+		return "", fmt.Errorf("git stash list: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// PushSetUpstream pusht de branch naar origin en zet 'm meteen als upstream —
+// nodig voor een branch die hier net is aangemaakt en op de remote nog niet
+// bestaat.
+func PushSetUpstream(ctx context.Context, dir, branch string) error {
+	_, err := Run(ctx, dir, "push", "--set-upstream", "origin", branch)
+	if err != nil {
+		return fmt.Errorf("git push --set-upstream origin %s: %w", branch, err)
+	}
+	return nil
+}
+
 // CheckoutBranch runs git checkout <name>.
 func CheckoutBranch(ctx context.Context, dir, name string) error {
 	_, err := Run(ctx, dir, "checkout", name)
@@ -256,3 +308,29 @@ func DefaultBranch(ctx context.Context, dir string) (string, error) {
 // ensure ctxDefault and ctxLong are referenced (used by git_service.go via this package).
 var _ = ctxDefault
 var _ = ctxLong
+
+// nonInteractiveEnv dwingt git tot falen in plaats van wachten wanneer auth
+// niet rond komt. Deze tool draait als GUI-app zonder terminal: een
+// wachtwoord- of host-key-prompt heeft daar niemand om te antwoorden, dus
+// zonder deze variabelen hangt een clone tegen een private repo oneindig.
+// BatchMode=yes doet hetzelfde voor ssh, maar leest nog wel ~/.ssh/config
+// (IdentityFile per host blijft dus werken) en gebruikt de ssh-agent.
+func nonInteractiveEnv() []string {
+	return []string{
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_SSH_COMMAND=ssh -o BatchMode=yes",
+	}
+}
+
+// Clone runs git clone <url> <name> met parentDir als werkmap, zodat de
+// checkout op parentDir/name landt. De remote heet expliciet "origin": de rest
+// van de tool leest de origin-remote om een checkout aan een GitHub-repo te
+// koppelen, en een afwijkende clone.defaultRemoteName in de git-config van de
+// gebruiker zou die koppeling stil breken.
+func Clone(ctx context.Context, parentDir, url, name string) error {
+	_, err := RunEnv(ctx, parentDir, nonInteractiveEnv(), "clone", "--origin", "origin", "--", url, name)
+	if err != nil {
+		return fmt.Errorf("git clone: %w", err)
+	}
+	return nil
+}

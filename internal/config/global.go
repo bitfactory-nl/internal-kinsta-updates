@@ -73,6 +73,7 @@ func defaultGlobal() Global {
 			PruneOnFetch:  true,
 		},
 		PluginRepo: PluginRepo{Ref: "main"},
+		Updates:    UpdatesGlobal{AutoCheck: boolPtr(true)},
 	}
 }
 
@@ -89,4 +90,11 @@ func applyDefaults(g *Global) {
 	if g.Editor == "" {
 		g.Editor = "cursor"
 	}
+	if g.Updates.AutoCheck == nil {
+		g.Updates.AutoCheck = boolPtr(true)
+	}
 }
+
+// boolPtr is een hulpje voor optionele yaml-booleans, waar nil "niet ingevuld"
+// betekent en dus iets anders is dan false.
+func boolPtr(b bool) *bool { return &b }
