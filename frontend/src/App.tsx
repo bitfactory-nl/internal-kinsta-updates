@@ -226,8 +226,10 @@ export default function App() {
         ? (() => { try { return JSON.parse(data) } catch { return null } })()
         : (Array.isArray(data) ? data[0] : (data as AvailableUpdate | undefined)) ?? null
       if (!u) return
+      // De badge volgt elke nieuwere versie, ook een al weggeklikte (zo komt
+      // hij na een herstart terug); de popup alleen als hij niet is overgeslagen.
       setAppUpdate(u)
-      setUpdateOpen(true)
+      if (!u.skipped) setUpdateOpen(true)
     })
     return () => stop()
   }, [])

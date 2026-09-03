@@ -73,6 +73,14 @@ func (n *nepEmitter) eventNames() []string {
 	return append([]string(nil), n.events...)
 }
 
+// eventData geeft een snapshot van de uitgestuurde payloads, veilig op te
+// vragen terwijl de achtergrondloop meetelt.
+func (n *nepEmitter) eventData() []any {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return append([]any(nil), n.data...)
+}
+
 // testService bouwt een UpdateService die niets van de echte omgeving
 // aanraakt: eigen state-pad in een tempmap, een nep-bundle-pad zodat de service
 // zich "geïnstalleerd" waant, en een injecteerbare client.
@@ -152,7 +160,7 @@ func TestCheckZonderNieuwereVersie(t *testing.T) {
 	}
 }
 
-func TestCheckMeldtOvergeslagenVersieZonderEvent(t *testing.T) {
+func TestCheckMeldtOvergeslagenVersieMetSkippedEvent(t *testing.T) {
 	f := &nepFetcher{rel: nieuweRelease("v0.2.10", "")}
 	s, em := testService(t, "v0.2.9", f)
 
@@ -167,8 +175,16 @@ func TestCheckMeldtOvergeslagenVersieZonderEvent(t *testing.T) {
 	if status.Available == nil || !status.Available.Skipped {
 		t.Fatalf("Available = %+v, wil Skipped true (de badge blijft, de popup niet)", status.Available)
 	}
-	if len(em.events) != 0 {
-		t.Errorf("events = %v, wil geen popup-event voor een overgeslagen versie", em.events)
+	if len(em.eventNames()) != 1 {
+		t.Fatalf("events = %v, wil precies één updates:available-event", em.eventNames())
+	}
+	data := em.eventData()
+	upd, ok := data[0].(*domain.AvailableUpdate)
+	if !ok {
+		t.Fatalf("payload = %T, wil *domain.AvailableUpdate", data[0])
+	}
+	if !upd.Skipped {
+		t.Errorf("payload.Skipped = false, wil true — de badge moet ook na een herstart terugkomen")
 	}
 }
 
@@ -176,6 +192,12 @@ func TestCheckSkipGeldtNietVoorEenNogNieuwereVersie(t *testing.T) {
 	s, em := testService(t, "v0.2.9", &nepFetcher{rel: nieuweRelease("v0.2.10", "")})
 	if err := s.Skip("v0.2.10"); err != nil {
 		t.Fatalf("Skip: %v", err)
+	}
+
+	// Eerst een check op de overgeslagen versie zelf: die emit nu ook een
+	// event (Skipped true), voor de badge na een herstart.
+	if _, err := s.Check(); err != nil {
+		t.Fatalf("Check (skipped versie): %v", err)
 	}
 
 	s.newClient = func(string, string) releaseFetcher {
@@ -189,8 +211,19 @@ func TestCheckSkipGeldtNietVoorEenNogNieuwereVersie(t *testing.T) {
 	if status.Available == nil || status.Available.Skipped {
 		t.Fatalf("Available = %+v, wil v0.2.11 niet overgeslagen", status.Available)
 	}
-	if len(em.events) != 1 {
-		t.Errorf("events = %v, wil één event voor de nieuwere versie", em.events)
+	if len(em.eventNames()) != 2 {
+		t.Fatalf("events = %v, wil twee events (skipped v0.2.10, daarna v0.2.11)", em.eventNames())
+	}
+	data := em.eventData()
+	laatste, ok := data[len(data)-1].(*domain.AvailableUpdate)
+	if !ok {
+		t.Fatalf("laatste payload = %T, wil *domain.AvailableUpdate", data[len(data)-1])
+	}
+	if laatste.Skipped {
+		t.Error("laatste payload.Skipped = true, wil false voor v0.2.11")
+	}
+	if laatste.Version != "v0.2.11" {
+		t.Errorf("laatste payload.Version = %q, wil v0.2.11", laatste.Version)
 	}
 }
 

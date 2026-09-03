@@ -158,10 +158,13 @@ func (s *UpdateService) Status() domain.UpdateStatus {
 }
 
 // Check haalt de laatste release op en vergelijkt die met de draaiende versie.
-// Is er een nieuwere die niet is overgeslagen, dan gaat er een
-// "updates:available"-event naar de frontend. Een mislukte check levert een
-// fout op en zet LastError, maar stuurt geen event: een popup over een
-// netwerkfout onderbreekt het werk zonder dat er iets te kiezen valt.
+// Is er een nieuwere versie, dan gaat er altijd een "updates:available"-event
+// naar de frontend, met Skipped erin: de badge in de rail moet ook na een
+// herstart terugkomen voor een weggeklikte versie, terwijl de popup alleen
+// voor een niet-weggeklikte versie hoort te verschijnen — die keuze ligt bij
+// de frontend. Een mislukte check levert een fout op en zet LastError, maar
+// stuurt geen event: een popup over een netwerkfout onderbreekt het werk
+// zonder dat er iets te kiezen valt.
 func (s *UpdateService) Check() (domain.UpdateStatus, error) {
 	if !s.enabled() {
 		return s.Status(), nil
@@ -221,7 +224,7 @@ func (s *UpdateService) Check() (domain.UpdateStatus, error) {
 	emitter := s.emitter
 	s.mu.Unlock()
 
-	if !upd.Skipped && emitter != nil {
+	if emitter != nil {
 		emitter.Emit("updates:available", upd)
 	}
 	return s.Status(), nil
