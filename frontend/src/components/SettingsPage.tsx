@@ -197,6 +197,15 @@ export default function SettingsPage({ onClose }: Props) {
                 className={inputClass}
               />
             </div>
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Referentie-installatie</label>
+              <input
+                value={settings.pluginReferencePath}
+                onChange={e => update('pluginReferencePath', e.target.value)}
+                placeholder="/Users/naam/Projects/internal-wordpress-paid-plugins"
+                className={inputClass}
+              />
+            </div>
             <div className="px-4 py-2.5">
               <p className="text-[11.5px] text-fg-muted">
                 Personal access token met leestoegang tot de bitfactory-nl repositories
@@ -204,6 +213,14 @@ export default function SettingsPage({ onClose }: Props) {
                 Gebruikt voor de Security- en Plugins-tab. De plugin-repo
                 (bijv. <span className="font-mono text-fg">bitfactory-nl/paid-plugins</span>) bevat
                 het manifest met betaalde plugins voor de Plugins-tab.
+              </p>
+              <p className="text-[11.5px] text-fg-muted mt-1.5">
+                De referentie-installatie is een lokale WordPress-checkout die je zelf actueel
+                houdt met alle betaalde plugins erin. Dit project wordt uit het Plugins-overzicht
+                in het hoofdmenu gehouden — het is geen klantsite — maar bepaalt daar wél de
+                "laatste versie" voor elke plugin die erin staat (ook als wp.org toevallig een
+                andere versie kent), en is de bron waarvandaan je plugins naar projecten kunt
+                bijwerken.
               </p>
             </div>
           </div>

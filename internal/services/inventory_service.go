@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -99,6 +100,7 @@ type cachedVersion struct {
 type InventoryService struct {
 	projects projectLister
 	wporg    inventoryResolver
+	cfg      *config.Global
 	// syncer houdt de origin-refs gelijk aan GitHub; nil = geen sync (tests).
 	syncer *inventorySyncer
 
@@ -110,6 +112,7 @@ func NewInventoryService(projects *ProjectService, cfg *config.Global) *Inventor
 	return &InventoryService{
 		projects: projects,
 		wporg:    wporg.NewClient(),
+		cfg:      cfg,
 		syncer:   newInventorySyncer(gitSyncSource{cfg: cfg}),
 		cache:    make(map[string]cachedVersion),
 	}
@@ -124,7 +127,8 @@ func (s *InventoryService) Plugins() ([]InventoryItem, error) {
 		v, _, err := s.wporg.LatestVersion(ctx, slug)
 		return v, err
 	})
-	return finishItems(items), nil
+	fromReference := s.applyReferenceLatest(items)
+	return finishItems(items, fromReference), nil
 }
 
 // Themes returns every theme found in any project, with per-project
@@ -133,7 +137,49 @@ func (s *InventoryService) Plugins() ([]InventoryItem, error) {
 func (s *InventoryService) Themes() ([]InventoryItem, error) {
 	items := s.collect(s.readThemes)
 	s.resolveLatest(items, "theme", s.wporg.LatestThemeVersion)
-	return finishItems(items), nil
+	return finishItems(items, nil), nil
+}
+
+// referencePath is de ingestelde referentie-installatie, of "" als er geen is
+// (ook als cfg zelf nil is — dat gebeurt in tests die de service met een
+// struct-literal opbouwen zonder configuratie).
+func (s *InventoryService) referencePath() string {
+	if s.cfg == nil {
+		return ""
+	}
+	return strings.TrimSpace(s.cfg.PluginRepo.ReferenceProjectPath)
+}
+
+// applyReferenceLatest laat de referentie-installatie de "laatste versie"
+// bepalen voor elke geïnstalleerde plugin die daarin staat — ook als wp.org
+// toevallig óók een versie kent. De referentie-installatie is voor betaalde
+// plugins de enige echte bron; voor een plugin die ook op wp.org staat geldt
+// hetzelfde: als de referentie 'm heeft, is dát de versie die naar klantsites
+// hoort te gaan, dus die wint. Geeft de slugs terug die hierdoor zijn bepaald,
+// zodat finishItems ze als "reference" kan labelen in plaats van "wporg".
+//
+// Een plugin die alleen in de referentie-installatie staat maar in geen enkel
+// gescand project geïnstalleerd is, komt hier niet als nieuwe rij bij: dit
+// overzicht toont wat er gebruikt wordt, niet wat er beschikbaar is.
+func (s *InventoryService) applyReferenceLatest(items map[string]*InventoryItem) map[string]bool {
+	touched := map[string]bool{}
+	path := s.referencePath()
+	if path == "" {
+		return touched
+	}
+	installed, err := wpplugins.ReadInstalled(path)
+	if err != nil {
+		return touched // de rest van het overzicht mag hier niet op stuklopen
+	}
+	for _, ip := range installed {
+		it, ok := items[ip.Slug]
+		if !ok || ip.Version == "" {
+			continue
+		}
+		it.LatestVersion = ip.Version
+		touched[ip.Slug] = true
+	}
+	return touched
 }
 
 // WordPress returns each project's WP core version plus the latest release.
@@ -237,6 +283,28 @@ type installedRef struct {
 	version string
 }
 
+// scannableProjects is s.projects.List() zonder de referentie-installatie: die
+// is geen klantsite, en zonder deze uitsluiting zou hij dubbel meetellen —
+// zowel als gewoon projectrij als (via applyReferenceLatest) als bron voor de
+// "laatste versie"-kolom van alle andere projecten.
+func (s *InventoryService) scannableProjects() []domain.Project {
+	path := s.referencePath()
+	if path == "" {
+		return s.projects.List()
+	}
+	path = filepath.Clean(path)
+
+	alle := s.projects.List()
+	uit := make([]domain.Project, 0, len(alle))
+	for _, p := range alle {
+		if filepath.Clean(p.Path) == path {
+			continue
+		}
+		uit = append(uit, p)
+	}
+	return uit
+}
+
 // projectRef resolves the git ref to read a project's files from: the
 // remote-tracking default branch (origin/release/…) when available, else the
 // local default branch. An empty result means "use the working tree".
@@ -251,7 +319,7 @@ func (s *InventoryService) projectRef(path string) string {
 // fall back to the working tree.
 func (s *InventoryService) collect(read func(path, gitRef string) []installedRef) map[string]*InventoryItem {
 	items := make(map[string]*InventoryItem)
-	projects := s.projects.List()
+	projects := s.scannableProjects()
 	s.syncGithubRefs(projects)
 
 	for _, p := range projects {
@@ -475,12 +543,18 @@ func (s *InventoryService) resolveLatest(items map[string]*InventoryItem, kind s
 }
 
 // finishItems derives Source/Outdated flags and returns a sorted slice.
-func finishItems(items map[string]*InventoryItem) []InventoryItem {
+// finishItems sorteert en labelt elk item. fromReference markeert de slugs
+// waarvan de laatste versie uit de referentie-installatie komt (nil bij
+// Themes(), die kent dat begrip niet).
+func finishItems(items map[string]*InventoryItem, fromReference map[string]bool) []InventoryItem {
 	out := make([]InventoryItem, 0, len(items))
-	for _, it := range items {
-		if it.LatestVersion == "" {
+	for slug, it := range items {
+		switch {
+		case fromReference[slug]:
+			it.Source = "reference"
+		case it.LatestVersion == "":
 			it.Source = "manual"
-		} else {
+		default:
 			it.Source = "wporg"
 		}
 		sort.Slice(it.Projects, func(i, j int) bool {

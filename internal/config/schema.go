@@ -25,6 +25,14 @@ type PluginRepo struct {
 	// LocalDir is een (tijdelijke) map op deze machine met de nieuwste zips van
 	// betaalde plugins; een alternatief naast de repo, niet in plaats daarvan.
 	LocalDir string `yaml:"local_dir,omitempty"`
+	// ReferenceProjectPath is een lokale WordPress-checkout die als levende
+	// referentie-installatie dient voor betaalde plugins: buiten deze tool om
+	// actueel gehouden, en hier gebruikt als (a) bron voor de "laatste versie"
+	// in het Plugins-overzicht — ook wanneer wp.org een andere versie kent, want
+	// voor betaalde plugins is deze installatie de waarheid, niet wp.org — en
+	// (b) bron om projecten vanuit bij te werken. Het project zelf hoort geen
+	// klantsite te lijken, dus het wordt uit het Plugins-overzicht uitgesloten.
+	ReferenceProjectPath string `yaml:"reference_project_path,omitempty"`
 }
 
 type Notifications struct {

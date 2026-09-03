@@ -33,6 +33,11 @@ type PluginService struct {
 	// downloadZip is a test seam; when nil, the GitHub client is used.
 	downloadZip func(ctx context.Context, path string) ([]byte, error)
 
+	// pulls is een test seam voor het openen van pull requests; is hij nil,
+	// dan wordt er een verse GitHub-client met het token uit de instellingen
+	// gebouwd. Zie pullClient in plugin_local.go.
+	pulls pluginPulls
+
 	mu     sync.RWMutex
 	cache  []domain.PaidPlugin
 	cached bool

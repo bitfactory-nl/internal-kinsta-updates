@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/rdm/sites-tool/internal/adapters/wporg"
+	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/domain"
 )
 
@@ -255,5 +256,134 @@ func TestInventoryDisjuncteSlugs(t *testing.T) {
 	}
 	if l := byslug["alleen-lokaal"]; l.LocalVersion != "2.0" || l.GithubVersion != "" {
 		t.Errorf("alleen-lokaal = %+v, want lokaal 2.0 en lege github-cel", l)
+	}
+}
+
+func newTestInventoryMetReferentie(lister projectLister, resolver inventoryResolver, referencePath string) *InventoryService {
+	cfg := &config.Global{}
+	cfg.PluginRepo.ReferenceProjectPath = referencePath
+	return &InventoryService{
+		projects: lister,
+		wporg:    resolver,
+		cfg:      cfg,
+		cache:    make(map[string]cachedVersion),
+	}
+}
+
+// TestInventoryPluginsSluitReferentieProjectUit is de kern van de opdracht: de
+// referentie-installatie mag niet als klantproject in het Plugins-overzicht
+// verschijnen, ook al staat hij gewoon onder projects_roots.
+func TestInventoryPluginsSluitReferentieProjectUit(t *testing.T) {
+	referentieRoot := t.TempDir()
+	writePlugin(t, referentieRoot, "acf-pro", "6.9.0")
+
+	klantRoot := t.TempDir()
+	writePlugin(t, klantRoot, "acf-pro", "6.4.1")
+
+	lister := fakeInventoryLister{list: []domain.Project{
+		{ID: "ref", DisplayName: "referentie-installatie", Path: referentieRoot},
+		{ID: "klant", DisplayName: "klant", Path: klantRoot},
+	}}
+	svc := newTestInventoryMetReferentie(lister, fakeInventoryResolver{}, referentieRoot)
+
+	items, err := svc.Plugins()
+	if err != nil {
+		t.Fatalf("Plugins: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items = %+v, wil precies 1 (acf-pro, alleen de klant)", items)
+	}
+	acf := items[0]
+	if len(acf.Projects) != 1 || acf.Projects[0].ProjectID != "klant" {
+		t.Errorf("acf-pro.Projects = %+v; de referentie-installatie hoort er niet in te staan", acf.Projects)
+	}
+}
+
+// TestInventoryPluginsReferentieWintVanWporg dekt de expliciete keuze: als een
+// plugin zowel op wp.org staat als in de referentie-installatie, bepaalt de
+// referentie de "laatste versie" — ook als die ouder lijkt dan wp.org zegt.
+func TestInventoryPluginsReferentieWintVanWporg(t *testing.T) {
+	referentieRoot := t.TempDir()
+	writePlugin(t, referentieRoot, "jetpack-achtig", "3.0.0") // de referentie is de waarheid
+
+	klantRoot := t.TempDir()
+	writePlugin(t, klantRoot, "jetpack-achtig", "2.9.0")
+
+	lister := fakeInventoryLister{list: []domain.Project{
+		{ID: "ref", DisplayName: "referentie-installatie", Path: referentieRoot},
+		{ID: "klant", DisplayName: "klant", Path: klantRoot},
+	}}
+	// wp.org kent een hogere versie dan de referentie; de referentie moet
+	// desondanks winnen.
+	resolver := fakeInventoryResolver{plugins: map[string]string{"jetpack-achtig": "5.0.0"}}
+	svc := newTestInventoryMetReferentie(lister, resolver, referentieRoot)
+
+	items, err := svc.Plugins()
+	if err != nil {
+		t.Fatalf("Plugins: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items = %+v", items)
+	}
+	it := items[0]
+	if it.LatestVersion != "3.0.0" {
+		t.Errorf("LatestVersion = %q, wil 3.0.0 (uit de referentie, niet wp.org's 5.0.0)", it.LatestVersion)
+	}
+	if it.Source != "reference" {
+		t.Errorf("Source = %q, wil reference", it.Source)
+	}
+}
+
+// Een plugin die alleen op wp.org staat (niet in de referentie) blijft
+// gewoon via wp.org werken.
+func TestInventoryPluginsZonderReferentieBlijftWporgGebruiken(t *testing.T) {
+	referentieRoot := t.TempDir()
+	writePlugin(t, referentieRoot, "acf-pro", "6.9.0")
+
+	klantRoot := t.TempDir()
+	writePlugin(t, klantRoot, "hello-dolly", "1.7.2")
+
+	lister := fakeInventoryLister{list: []domain.Project{
+		{ID: "ref", DisplayName: "referentie-installatie", Path: referentieRoot},
+		{ID: "klant", DisplayName: "klant", Path: klantRoot},
+	}}
+	resolver := fakeInventoryResolver{plugins: map[string]string{"hello-dolly": "1.7.2"}}
+	svc := newTestInventoryMetReferentie(lister, resolver, referentieRoot)
+
+	items, err := svc.Plugins()
+	if err != nil {
+		t.Fatalf("Plugins: %v", err)
+	}
+	if len(items) != 1 || items[0].Slug != "hello-dolly" {
+		t.Fatalf("items = %+v", items)
+	}
+	if items[0].Source != "wporg" {
+		t.Errorf("Source = %q, wil wporg", items[0].Source)
+	}
+}
+
+// Zonder ingestelde referentie verandert er niets: Source blijft manual/wporg
+// zoals voorheen, en Themes() kent het begrip referentie sowieso niet.
+func TestInventoryThemesGeenReferentieBegrip(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "public", "wp-content", "themes", "mytheme")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	css := "/*\nTheme Name: mytheme\nVersion: 1.0.0\n*/\n"
+	if err := os.WriteFile(filepath.Join(dir, "style.css"), []byte(css), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	lister := fakeInventoryLister{list: []domain.Project{{ID: "klant", DisplayName: "klant", Path: root}}}
+	// De referentie wijst bewust naar een ándere map dan het testproject: anders
+	// zou scannableProjects() het enige project uitsluiten en is de test zinloos.
+	svc := newTestInventoryMetReferentie(lister, fakeInventoryResolver{}, t.TempDir())
+
+	items, err := svc.Themes()
+	if err != nil {
+		t.Fatalf("Themes: %v", err)
+	}
+	if len(items) != 1 || items[0].Source == "reference" {
+		t.Errorf("items = %+v; Themes() kent geen reference-source", items)
 	}
 }

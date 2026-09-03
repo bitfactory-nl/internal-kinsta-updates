@@ -194,6 +194,148 @@ func (c *PullClient) createPull(ctx context.Context, owner, repo string, in crea
 	return &pr, nil
 }
 
+// RepoAccess is wat de tool over een repo moet weten om te kunnen mergen: mag
+// deze token pushen (dat is de rechten-eis voor mergen), en welke merge-methodes
+// staat de repo toe. Beide komen uit één repo-call, zodat er niet voor elk
+// detail apart hoeft te worden gevraagd.
+type RepoAccess struct {
+	CanPush          bool
+	AllowMergeCommit bool
+	AllowSquashMerge bool
+	AllowRebaseMerge bool
+}
+
+// MergeMethod kiest de methode die deze repo toestaat, met een gewone
+// merge-commit als eerste voorkeur. Leeg betekent: geen enkele methode
+// toegestaan (dat komt voor bij repo's die alles hebben uitgezet).
+func (a RepoAccess) MergeMethod() string {
+	switch {
+	case a.AllowMergeCommit:
+		return "merge"
+	case a.AllowSquashMerge:
+		return "squash"
+	case a.AllowRebaseMerge:
+		return "rebase"
+	}
+	return ""
+}
+
+// repoAccessResponse is het stuk van GET /repos/{owner}/{repo} dat we gebruiken.
+// permissions komt alleen mee voor een geauthenticeerd verzoek en beschrijft
+// wat déze token mag.
+type repoAccessResponse struct {
+	Permissions struct {
+		Admin    bool `json:"admin"`
+		Maintain bool `json:"maintain"`
+		Push     bool `json:"push"`
+	} `json:"permissions"`
+	AllowMergeCommit *bool `json:"allow_merge_commit"`
+	AllowSquashMerge *bool `json:"allow_squash_merge"`
+	AllowRebaseMerge *bool `json:"allow_rebase_merge"`
+}
+
+// GetRepoAccess leest de rechten van de huidige token op owner/repo.
+func (c *PullClient) GetRepoAccess(ctx context.Context, owner, repo string) (*RepoAccess, error) {
+	reqURL := fmt.Sprintf("%s/repos/%s/%s", c.baseURL, owner, repo)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("github: request opbouwen: %w", err)
+	}
+	c.setHeaders(req)
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("github: repo %s/%s: %w", owner, repo, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("github: repo %s/%s: response lezen: %w", owner, repo, err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("github: repo %s/%s: status %d: %s", owner, repo, resp.StatusCode, parseGitHubErrorMessage(body))
+	}
+
+	var rr repoAccessResponse
+	if err := json.Unmarshal(body, &rr); err != nil {
+		return nil, fmt.Errorf("github: repo %s/%s: parse: %w", owner, repo, err)
+	}
+
+	// Ontbrekende allow_*-velden (bijv. bij een token dat de repo-instellingen
+	// niet mag zien) vatten we op als "toegestaan": anders zou de tool mergen
+	// weigeren om iets wat ze niet kan uitlezen. Weigert GitHub het alsnog, dan
+	// komt dat als duidelijke melding uit de merge zelf.
+	aan := func(p *bool) bool { return p == nil || *p }
+	return &RepoAccess{
+		CanPush:          rr.Permissions.Push || rr.Permissions.Maintain || rr.Permissions.Admin,
+		AllowMergeCommit: aan(rr.AllowMergeCommit),
+		AllowSquashMerge: aan(rr.AllowSquashMerge),
+		AllowRebaseMerge: aan(rr.AllowRebaseMerge),
+	}, nil
+}
+
+// MergeResult is de uitkomst van een merge-poging.
+type MergeResult struct {
+	Merged  bool   `json:"merged"`
+	SHA     string `json:"sha"`
+	Message string `json:"message"`
+}
+
+// MergePull merget pull request number met de gegeven methode ("merge",
+// "squash" of "rebase"). GitHub weigert een merge met een eigen statuscode als
+// het niet kan — geen rechten (403), niet mergebaar wegens conflicten of
+// branch-protection (405), of de branch is inmiddels verschoven (409). Die
+// gevallen krijgen hier een leesbare melding in plaats van een ruwe status,
+// want dit is tekst die de gebruiker te zien krijgt.
+func (c *PullClient) MergePull(ctx context.Context, owner, repo string, number int, method string) (*MergeResult, error) {
+	if number <= 0 {
+		return nil, fmt.Errorf("github: ongeldig pull request-nummer %d", number)
+	}
+	payload, err := json.Marshal(map[string]string{"merge_method": method})
+	if err != nil {
+		return nil, fmt.Errorf("github: merge payload: %w", err)
+	}
+
+	reqURL := fmt.Sprintf("%s/repos/%s/%s/pulls/%d/merge", c.baseURL, owner, repo, number)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, reqURL, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("github: request opbouwen: %w", err)
+	}
+	c.setHeaders(req)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("github: merge pull %s/%s#%d: %w", owner, repo, number, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("github: merge pull %s/%s#%d: response lezen: %w", owner, repo, number, err)
+	}
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var mr MergeResult
+		if err := json.Unmarshal(body, &mr); err != nil {
+			return nil, fmt.Errorf("github: merge pull %s/%s#%d: parse: %w", owner, repo, number, err)
+		}
+		return &mr, nil
+	case http.StatusForbidden:
+		return nil, fmt.Errorf("geen rechten om te mergen: %s", parseGitHubErrorMessage(body))
+	case http.StatusMethodNotAllowed:
+		return nil, fmt.Errorf("kan niet gemerged worden: %s", parseGitHubErrorMessage(body))
+	case http.StatusConflict:
+		return nil, fmt.Errorf("branch is inmiddels verschoven; ververs en probeer opnieuw: %s", parseGitHubErrorMessage(body))
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("pull request %s/%s#%d niet gevonden (of geen toegang)", owner, repo, number)
+	default:
+		return nil, fmt.Errorf("github: merge pull %s/%s#%d: status %d: %s", owner, repo, number, resp.StatusCode, parseGitHubErrorMessage(body))
+	}
+}
+
 func (c *PullClient) setHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/vnd.github+json")

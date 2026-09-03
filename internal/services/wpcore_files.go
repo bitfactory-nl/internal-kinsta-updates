@@ -56,7 +56,71 @@ func replaceCore(zipData []byte, wpRoot string) error {
 	if err != nil {
 		return err
 	}
+	return schrijfCore(nieuw, wpRoot)
+}
 
+// leesCoreWebroot leest de core-bestanden uit een bestaande WordPress-webroot
+// (de referentie-installatie) in dezelfde vorm die schrijfCore verwacht: paden
+// relatief aan de webroot. Alleen wp-admin/, wp-includes/ en de
+// core-rootbestanden komen mee — wp-content en wp-config.php horen bij het
+// project, niet bij core.
+//
+// Bedoeld om één keer per bulk-run gelezen te worden en daarna voor elk project
+// hergebruikt: de core is enkele duizenden bestanden, die wil je niet per
+// project opnieuw van schijf halen.
+func leesCoreWebroot(wpRoot string) (map[string][]byte, error) {
+	bestanden := map[string][]byte{}
+
+	for _, dir := range coreDirs {
+		basis := filepath.Join(wpRoot, dir)
+		info, err := os.Stat(basis)
+		if err != nil || !info.IsDir() {
+			return nil, fmt.Errorf("%s ontbreekt in %s — geen WordPress-webroot?", dir, wpRoot)
+		}
+		err = filepath.WalkDir(basis, func(pad string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			rel, rerr := filepath.Rel(wpRoot, pad)
+			if rerr != nil {
+				return rerr
+			}
+			inhoud, rerr := os.ReadFile(pad)
+			if rerr != nil {
+				return rerr
+			}
+			bestanden[filepath.ToSlash(rel)] = inhoud
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("%s lezen: %w", basis, err)
+		}
+	}
+
+	items, err := os.ReadDir(wpRoot)
+	if err != nil {
+		return nil, fmt.Errorf("webroot %s lezen: %w", wpRoot, err)
+	}
+	for _, item := range items {
+		if item.IsDir() || !isCoreRootFile(item.Name()) {
+			continue
+		}
+		inhoud, rerr := os.ReadFile(filepath.Join(wpRoot, item.Name()))
+		if rerr != nil {
+			return nil, fmt.Errorf("%s lezen: %w", item.Name(), rerr)
+		}
+		bestanden[item.Name()] = inhoud
+	}
+	return bestanden, nil
+}
+
+// schrijfCore verwijdert de oude core in wpRoot en schrijft de nieuwe. Pas
+// aanroepen als de bronbestanden al volledig en geldig zijn ingelezen: zo kan
+// een mislukte bron nooit een half gesloopte installatie achterlaten.
+func schrijfCore(nieuw map[string][]byte, wpRoot string) error {
 	for _, dir := range coreDirs {
 		if err := os.RemoveAll(filepath.Join(wpRoot, dir)); err != nil {
 			return fmt.Errorf("oude %s verwijderen: %w", dir, err)

@@ -8,14 +8,16 @@ import SettingsPage from './components/SettingsPage'
 import WordfencePage from './components/WordfencePage'
 import InventoryPage from './components/InventoryPage'
 import WordPressPage from './components/WordPressPage'
+import OrgSyncPage from './components/OrgSyncPage'
+import BulkUpdatePage from './components/BulkUpdatePage'
 import ErrorBoundary from './components/ErrorBoundary'
 import {
   RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
-  PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon,
+  PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon, CloudDownloadIcon,
 } from './components/icons'
 import { type ThemeMode, getThemeMode, setThemeMode, subscribeTheme } from './lib/thema'
 
-type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'settings'
+type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'orgsync' | 'bulkupdate' | 'settings'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children, drag = false }: {
@@ -261,6 +263,18 @@ export default function App() {
             onClick={() => setView('plugins')}
           />
           <NavItem
+            icon={<CloudDownloadIcon size={15} />}
+            label="Alles bijwerken"
+            active={view === 'bulkupdate'}
+            onClick={() => setView('bulkupdate')}
+          />
+          <NavItem
+            icon={<CloudDownloadIcon size={15} />}
+            label="Org-sync"
+            active={view === 'orgsync'}
+            onClick={() => setView('orgsync')}
+          />
+          <NavItem
             icon={<PaletteIcon size={15} />}
             label="Thema's"
             active={view === 'themes'}
@@ -445,6 +459,14 @@ export default function App() {
       ) : view === 'wordpress' ? (
         <ErrorBoundary label="WordPress error">
           <WordPressPage />
+        </ErrorBoundary>
+      ) : view === 'bulkupdate' ? (
+        <ErrorBoundary label="Alles bijwerken error">
+          <BulkUpdatePage />
+        </ErrorBoundary>
+      ) : view === 'orgsync' ? (
+        <ErrorBoundary label="Org-sync error">
+          <OrgSyncPage onClose={() => setView('projects')} />
         </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">

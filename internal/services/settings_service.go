@@ -9,18 +9,19 @@ import (
 
 // AppSettings is the flat DTO exposed to the frontend.
 type AppSettings struct {
-	Editor           string `json:"editor"`
-	DBApp            string `json:"dbApp"`
-	KinstaAPIKey     string `json:"kinstaApiKey"`
-	KinstaCompanyID  string `json:"kinstaCompanyId"`
-	GithubToken      string `json:"githubToken"`
-	PluginRepo       string `json:"pluginRepo"`
-	PluginRepoRef    string `json:"pluginRepoRef"`
-	PluginLocalDir   string `json:"pluginLocalDir"`
-	GitDefaultRemote string `json:"gitDefaultRemote"`
-	GitPruneOnFetch  bool   `json:"gitPruneOnFetch"`
-	AnthropicAPIKey  string `json:"anthropicApiKey"`
-	WordfenceAPIKey  string `json:"wordfenceApiKey"`
+	Editor              string `json:"editor"`
+	DBApp               string `json:"dbApp"`
+	KinstaAPIKey        string `json:"kinstaApiKey"`
+	KinstaCompanyID     string `json:"kinstaCompanyId"`
+	GithubToken         string `json:"githubToken"`
+	PluginRepo          string `json:"pluginRepo"`
+	PluginRepoRef       string `json:"pluginRepoRef"`
+	PluginLocalDir      string `json:"pluginLocalDir"`
+	PluginReferencePath string `json:"pluginReferencePath"`
+	GitDefaultRemote    string `json:"gitDefaultRemote"`
+	GitPruneOnFetch     bool   `json:"gitPruneOnFetch"`
+	AnthropicAPIKey     string `json:"anthropicApiKey"`
+	WordfenceAPIKey     string `json:"wordfenceApiKey"`
 }
 
 // defaultDBApp is shown when the user hasn't picked a database app yet. It is
@@ -42,18 +43,19 @@ func (s *SettingsService) Get() AppSettings {
 		dbApp = defaultDBApp
 	}
 	return AppSettings{
-		Editor:           s.cfg.Editor,
-		DBApp:            dbApp,
-		KinstaAPIKey:     s.cfg.Kinsta.APIKey,
-		KinstaCompanyID:  s.cfg.Kinsta.CompanyID,
-		GithubToken:      s.cfg.PluginRepo.GithubToken,
-		PluginRepo:       s.cfg.PluginRepo.Repo,
-		PluginRepoRef:    s.cfg.PluginRepo.Ref,
-		PluginLocalDir:   s.cfg.PluginRepo.LocalDir,
-		GitDefaultRemote: s.cfg.Git.DefaultRemote,
-		GitPruneOnFetch:  s.cfg.Git.PruneOnFetch,
-		AnthropicAPIKey:  s.cfg.AI.APIKey,
-		WordfenceAPIKey:  s.cfg.Wordfence.APIKey,
+		Editor:              s.cfg.Editor,
+		DBApp:               dbApp,
+		KinstaAPIKey:        s.cfg.Kinsta.APIKey,
+		KinstaCompanyID:     s.cfg.Kinsta.CompanyID,
+		GithubToken:         s.cfg.PluginRepo.GithubToken,
+		PluginRepo:          s.cfg.PluginRepo.Repo,
+		PluginRepoRef:       s.cfg.PluginRepo.Ref,
+		PluginLocalDir:      s.cfg.PluginRepo.LocalDir,
+		PluginReferencePath: s.cfg.PluginRepo.ReferenceProjectPath,
+		GitDefaultRemote:    s.cfg.Git.DefaultRemote,
+		GitPruneOnFetch:     s.cfg.Git.PruneOnFetch,
+		AnthropicAPIKey:     s.cfg.AI.APIKey,
+		WordfenceAPIKey:     s.cfg.Wordfence.APIKey,
 	}
 }
 
@@ -72,6 +74,7 @@ func (s *SettingsService) Save(settings AppSettings) error {
 		s.cfg.PluginRepo.Ref = settings.PluginRepoRef
 	}
 	s.cfg.PluginRepo.LocalDir = strings.TrimSpace(settings.PluginLocalDir)
+	s.cfg.PluginRepo.ReferenceProjectPath = strings.TrimSpace(settings.PluginReferencePath)
 	if settings.GitDefaultRemote != "" {
 		s.cfg.Git.DefaultRemote = settings.GitDefaultRemote
 	}

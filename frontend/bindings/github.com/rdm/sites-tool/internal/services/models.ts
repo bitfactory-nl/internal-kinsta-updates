@@ -108,6 +108,7 @@ export class AppSettings {
     "pluginRepo": string;
     "pluginRepoRef": string;
     "pluginLocalDir": string;
+    "pluginReferencePath": string;
     "gitDefaultRemote": string;
     "gitPruneOnFetch": boolean;
     "anthropicApiKey": string;
@@ -138,6 +139,9 @@ export class AppSettings {
         }
         if (!("pluginLocalDir" in $$source)) {
             this["pluginLocalDir"] = "";
+        }
+        if (!("pluginReferencePath" in $$source)) {
+            this["pluginReferencePath"] = "";
         }
         if (!("gitDefaultRemote" in $$source)) {
             this["gitDefaultRemote"] = "";
@@ -202,6 +206,360 @@ export class BatchResult {
 }
 
 /**
+ * BulkApplyProjectResult is de uitkomst voor één project binnen een
+ * bulk-update van precies één plugin naar meerdere projecten.
+ */
+export class BulkApplyProjectResult {
+    "projectId": string;
+    "projectName": string;
+    "from": string;
+    "to": string;
+
+    /**
+     * Status: updated | unchanged | error — zie LocalApplyPlugin.Status.
+     */
+    "status": string;
+    "error"?: string;
+
+    /**
+     * Branch is de branch waarop de commit is beland (leeg bij een error). Bij
+     * een referentie-plugin is dit per project een eigen, nieuwe branch — zie
+     * ensureReferenceBranch — dus dit staat hier bewust per resultaat, niet
+     * eenmalig op BulkApplyResult.
+     */
+    "branch"?: string;
+
+    /**
+     * Stash beschrijft het werk dat in dít project automatisch geparkeerd is,
+     * of is leeg als de werkmap al schoon was. Per project, want elk project
+     * heeft zijn eigen werkmap.
+     */
+    "stash"?: string;
+
+    /**
+     * PullRequestURL, PullRequestError, PullRequestNumber en CanMerge: zie
+     * LocalApplyResult.
+     */
+    "pullRequestUrl"?: string;
+    "pullRequestError"?: string;
+    "pullRequestNumber"?: number;
+    "canMerge": boolean;
+
+    /** Creates a new BulkApplyProjectResult instance. */
+    constructor($$source: Partial<BulkApplyProjectResult> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("canMerge" in $$source)) {
+            this["canMerge"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkApplyProjectResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkApplyProjectResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BulkApplyProjectResult($$parsedSource as Partial<BulkApplyProjectResult>);
+    }
+}
+
+/**
+ * BulkApplyResult is het resultaat van ApplyPluginToProjects.
+ */
+export class BulkApplyResult {
+    "slug": string;
+    "version": string;
+    "results": BulkApplyProjectResult[];
+
+    /** Creates a new BulkApplyResult instance. */
+    constructor($$source: Partial<BulkApplyResult> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("results" in $$source)) {
+            this["results"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkApplyResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkApplyResult {
+        const $$createField2_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("results" in $$parsedSource) {
+            $$parsedSource["results"] = $$createField2_0($$parsedSource["results"]);
+        }
+        return new BulkApplyResult($$parsedSource as Partial<BulkApplyResult>);
+    }
+}
+
+/**
+ * BulkPluginPlan is één plugin die in dit project bijgewerkt zou worden.
+ */
+export class BulkPluginPlan {
+    "slug": string;
+    "from": string;
+    "to": string;
+
+    /** Creates a new BulkPluginPlan instance. */
+    constructor($$source: Partial<BulkPluginPlan> = {}) {
+        if (!("slug" in $$source)) {
+            this["slug"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkPluginPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkPluginPlan {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BulkPluginPlan($$parsedSource as Partial<BulkPluginPlan>);
+    }
+}
+
+/**
+ * BulkUpdatePlan is de voorbeschouwing van een hele run.
+ */
+export class BulkUpdatePlan {
+    /**
+     * ReferenceCore is de WordPress-versie in de referentie-installatie: het
+     * doel waar alle projecten naartoe gaan.
+     */
+    "referenceCore": string;
+    "projects": BulkUpdateProjectPlan[];
+
+    /** Creates a new BulkUpdatePlan instance. */
+    constructor($$source: Partial<BulkUpdatePlan> = {}) {
+        if (!("referenceCore" in $$source)) {
+            this["referenceCore"] = "";
+        }
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkUpdatePlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkUpdatePlan {
+        const $$createField1_0 = $$createType5;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
+        }
+        return new BulkUpdatePlan($$parsedSource as Partial<BulkUpdatePlan>);
+    }
+}
+
+/**
+ * BulkUpdateProjectPlan is wat er in één project te doen valt.
+ */
+export class BulkUpdateProjectPlan {
+    "projectId": string;
+    "projectName": string;
+
+    /**
+     * Branch is de branch waar het project nú op staat: die blijft na de run
+     * ook de branch waar het weer op terugkomt.
+     */
+    "branch": string;
+
+    /**
+     * CoreFrom/CoreTo zijn de WordPress-versies; CoreOutdated zegt of core
+     * daadwerkelijk bijgewerkt wordt.
+     */
+    "coreFrom": string;
+    "coreTo": string;
+    "coreOutdated": boolean;
+
+    /**
+     * Plugins zijn alleen de plugins die achterlopen op de referentie.
+     */
+    "plugins": BulkPluginPlan[];
+
+    /**
+     * Skip is gevuld als er niets te doen is, of als dit project niet mee kan
+     * (geen WordPress, geen webroot). De rij blijft dan zichtbaar met de reden
+     * erbij: stil weglaten leest als "de tool ziet mijn project niet".
+     */
+    "skip"?: string;
+
+    /** Creates a new BulkUpdateProjectPlan instance. */
+    constructor($$source: Partial<BulkUpdateProjectPlan> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("branch" in $$source)) {
+            this["branch"] = "";
+        }
+        if (!("coreFrom" in $$source)) {
+            this["coreFrom"] = "";
+        }
+        if (!("coreTo" in $$source)) {
+            this["coreTo"] = "";
+        }
+        if (!("coreOutdated" in $$source)) {
+            this["coreOutdated"] = false;
+        }
+        if (!("plugins" in $$source)) {
+            this["plugins"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkUpdateProjectPlan instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkUpdateProjectPlan {
+        const $$createField6_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("plugins" in $$parsedSource) {
+            $$parsedSource["plugins"] = $$createField6_0($$parsedSource["plugins"]);
+        }
+        return new BulkUpdateProjectPlan($$parsedSource as Partial<BulkUpdateProjectPlan>);
+    }
+}
+
+/**
+ * BulkUpdateProjectResult is de uitkomst voor één project.
+ */
+export class BulkUpdateProjectResult {
+    "projectId": string;
+    "projectName": string;
+
+    /**
+     * Status: updated | nothing (niets te doen) | error
+     */
+    "status": string;
+    "error"?: string;
+    "stash"?: string;
+    "branch"?: string;
+    "vanafRef"?: string;
+    "coreFrom"?: string;
+    "coreTo"?: string;
+
+    /**
+     * updated | unchanged | error
+     */
+    "coreStatus"?: string;
+    "coreError"?: string;
+    "plugins": LocalApplyPlugin[];
+    "pullRequestUrl"?: string;
+    "pullRequestNumber"?: number;
+    "pullRequestError"?: string;
+    "canMerge": boolean;
+
+    /**
+     * Na de run wordt de checkout teruggezet naar de branch waar hij op stond
+     * en de stash teruggehaald: een bulk-run over tientallen repo's mag ze niet
+     * allemaal op een update-branch achterlaten. Deze velden maken zichtbaar of
+     * dat gelukt is.
+     */
+    "restoredBranch"?: string;
+    "stashRestored": boolean;
+    "restoreError"?: string;
+
+    /** Creates a new BulkUpdateProjectResult instance. */
+    constructor($$source: Partial<BulkUpdateProjectResult> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("projectName" in $$source)) {
+            this["projectName"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("plugins" in $$source)) {
+            this["plugins"] = [];
+        }
+        if (!("canMerge" in $$source)) {
+            this["canMerge"] = false;
+        }
+        if (!("stashRestored" in $$source)) {
+            this["stashRestored"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkUpdateProjectResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkUpdateProjectResult {
+        const $$createField11_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("plugins" in $$parsedSource) {
+            $$parsedSource["plugins"] = $$createField11_0($$parsedSource["plugins"]);
+        }
+        return new BulkUpdateProjectResult($$parsedSource as Partial<BulkUpdateProjectResult>);
+    }
+}
+
+/**
+ * BulkUpdateResult is de uitkomst van de hele run.
+ */
+export class BulkUpdateResult {
+    "projects": BulkUpdateProjectResult[];
+
+    /** Creates a new BulkUpdateResult instance. */
+    constructor($$source: Partial<BulkUpdateResult> = {}) {
+        if (!("projects" in $$source)) {
+            this["projects"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkUpdateResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): BulkUpdateResult {
+        const $$createField0_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("projects" in $$parsedSource) {
+            $$parsedSource["projects"] = $$createField0_0($$parsedSource["projects"]);
+        }
+        return new BulkUpdateResult($$parsedSource as Partial<BulkUpdateResult>);
+    }
+}
+
+/**
  * CelVerzoek beschrijft één celwijziging.
  */
 export class CelVerzoek {
@@ -244,7 +602,7 @@ export class CelVerzoek {
      * Creates a new CelVerzoek instance from a string or object.
      */
     static createFrom($$source: any = {}): CelVerzoek {
-        const $$createField2_0 = $$createType3;
+        const $$createField2_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sleutel" in $$parsedSource) {
             $$parsedSource["sleutel"] = $$createField2_0($$parsedSource["sleutel"]);
@@ -489,7 +847,7 @@ export class InventoryItem {
      * Creates a new InventoryItem instance from a string or object.
      */
     static createFrom($$source: any = {}): InventoryItem {
-        const $$createField4_0 = $$createType5;
+        const $$createField4_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField4_0($$parsedSource["projects"]);
@@ -580,7 +938,7 @@ export class LocalApplyPlugin {
     "to": string;
 
     /**
-     * updated | error
+     * Status: updated (gecommit) | unchanged (byte-identiek, niets te doen) | error
      */
     "status": string;
     "error"?: string;
@@ -619,6 +977,33 @@ export class LocalApplyResult {
     "branch": string;
     "plugins": LocalApplyPlugin[];
 
+    /**
+     * Stash beschrijft het werk dat vooraf automatisch geparkeerd is
+     * (bijv. "stash@{0}: On release/1.0.x: …"), of is leeg als de werkmap al
+     * schoon was. Dit moet zichtbaar zijn: werk dat de tool wegzet en niet
+     * benoemt, is werk dat de gebruiker kwijt denkt te zijn.
+     */
+    "stash"?: string;
+
+    /**
+     * PullRequestURL is de PR die na de commit is geopend (of al open stond).
+     */
+    "pullRequestUrl"?: string;
+
+    /**
+     * PullRequestError vertelt waarom er géén PR kwam terwijl de commit wel
+     * lukte — bijvoorbeeld geen token of geen GitHub-remote. Bewust apart van
+     * de plugin-status: de update zelf is dan gewoon geslaagd.
+     */
+    "pullRequestError"?: string;
+
+    /**
+     * PullRequestNumber en CanMerge voeden de merge-knop: het nummer om te
+     * mergen, en of dit token dat op deze repo mag.
+     */
+    "pullRequestNumber"?: number;
+    "canMerge": boolean;
+
     /** Creates a new LocalApplyResult instance. */
     constructor($$source: Partial<LocalApplyResult> = {}) {
         if (!("branch" in $$source)) {
@@ -626,6 +1011,9 @@ export class LocalApplyResult {
         }
         if (!("plugins" in $$source)) {
             this["plugins"] = [];
+        }
+        if (!("canMerge" in $$source)) {
+            this["canMerge"] = false;
         }
 
         Object.assign(this, $$source);
@@ -635,7 +1023,7 @@ export class LocalApplyResult {
      * Creates a new LocalApplyResult instance from a string or object.
      */
     static createFrom($$source: any = {}): LocalApplyResult {
-        const $$createField1_0 = $$createType7;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField1_0($$parsedSource["plugins"]);
@@ -657,6 +1045,14 @@ export class LocalPaidPlugin {
     "modifiedAt": number;
     "error"?: string;
 
+    /**
+     * Source zegt uit welke van de twee mogelijke bronnen deze plugin komt: de
+     * (tijdelijke) losse map met zips ("map"), of de referentie-installatie
+     * ("referentie"). Zichtbaar in de UI zodat een dubbele slug niet als toeval
+     * oogt.
+     */
+    "source": string;
+
     /** Creates a new LocalPaidPlugin instance. */
     constructor($$source: Partial<LocalPaidPlugin> = {}) {
         if (!("slug" in $$source)) {
@@ -673,6 +1069,9 @@ export class LocalPaidPlugin {
         }
         if (!("modifiedAt" in $$source)) {
             this["modifiedAt"] = 0;
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
         }
 
         Object.assign(this, $$source);
@@ -712,7 +1111,7 @@ export class LocalPluginOverview {
      * Creates a new LocalPluginOverview instance from a string or object.
      */
     static createFrom($$source: any = {}): LocalPluginOverview {
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
@@ -736,6 +1135,11 @@ export class LocalPluginRow {
     "newer": boolean;
 
     /**
+     * Source: "map" of "referentie" — zie LocalPaidPlugin.Source.
+     */
+    "source": string;
+
+    /**
      * Error maakt een onbruikbare bron zichtbaar in het paneel zelf; een regel die
      * stil wegvalt leest als "de tool ziet mijn map niet".
      */
@@ -757,6 +1161,9 @@ export class LocalPluginRow {
         }
         if (!("newer" in $$source)) {
             this["newer"] = false;
+        }
+        if (!("source" in $$source)) {
+            this["source"] = "";
         }
 
         Object.assign(this, $$source);
@@ -922,7 +1329,7 @@ export class MediaCrawlResult {
      */
     static createFrom($$source: any = {}): MediaCrawlResult {
         const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType10;
+        const $$createField8_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField7_0($$parsedSource["errors"]);
@@ -971,6 +1378,32 @@ export class MediaProbe {
     static createFrom($$source: any = {}): MediaProbe {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new MediaProbe($$parsedSource as Partial<MediaProbe>);
+    }
+}
+
+/**
+ * MergePRResult is de uitkomst van een merge-poging via de UI.
+ */
+export class MergePRResult {
+    "merged": boolean;
+    "sha"?: string;
+    "message"?: string;
+
+    /** Creates a new MergePRResult instance. */
+    constructor($$source: Partial<MergePRResult> = {}) {
+        if (!("merged" in $$source)) {
+            this["merged"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MergePRResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MergePRResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MergePRResult($$parsedSource as Partial<MergePRResult>);
     }
 }
 
@@ -1112,7 +1545,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType12;
+        const $$createField5_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -1157,7 +1590,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType14;
+        const $$createField3_0 = $$createType22;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -1326,9 +1759,9 @@ export class QuarantineResult {
      * Creates a new QuarantineResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QuarantineResult {
-        const $$createField1_0 = $$createType16;
-        const $$createField2_0 = $$createType18;
-        const $$createField5_0 = $$createType20;
+        const $$createField1_0 = $$createType24;
+        const $$createField2_0 = $$createType26;
+        const $$createField5_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("moved" in $$parsedSource) {
             $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
@@ -1416,7 +1849,7 @@ export class QueryUitkomst {
      */
     static createFrom($$source: any = {}): QueryUitkomst {
         const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType22;
+        const $$createField1_0 = $$createType30;
         const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("beoordeling" in $$parsedSource) {
@@ -1463,8 +1896,8 @@ export class RijVerzoek {
      * Creates a new RijVerzoek instance from a string or object.
      */
     static createFrom($$source: any = {}): RijVerzoek {
-        const $$createField2_0 = $$createType3;
-        const $$createField3_0 = $$createType24;
+        const $$createField2_0 = $$createType13;
+        const $$createField3_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sleutel" in $$parsedSource) {
             $$parsedSource["sleutel"] = $$createField2_0($$parsedSource["sleutel"]);
@@ -1801,7 +2234,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType26;
+        const $$createField4_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -1889,9 +2322,9 @@ export class TabelWeergave {
      * Creates a new TabelWeergave instance from a string or object.
      */
     static createFrom($$source: any = {}): TabelWeergave {
-        const $$createField0_0 = $$createType27;
-        const $$createField1_0 = $$createType29;
-        const $$createField2_0 = $$createType21;
+        const $$createField0_0 = $$createType35;
+        const $$createField1_0 = $$createType37;
+        const $$createField2_0 = $$createType29;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tabel" in $$parsedSource) {
             $$parsedSource["tabel"] = $$createField0_0($$parsedSource["tabel"]);
@@ -1998,11 +2431,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType31;
-        const $$createField3_0 = $$createType33;
-        const $$createField4_0 = $$createType33;
-        const $$createField5_0 = $$createType33;
-        const $$createField6_0 = $$createType33;
+        const $$createField2_0 = $$createType39;
+        const $$createField3_0 = $$createType41;
+        const $$createField4_0 = $$createType41;
+        const $$createField5_0 = $$createType41;
+        const $$createField6_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -2123,7 +2556,7 @@ export class WPCoreReport {
      * Creates a new WPCoreReport instance from a string or object.
      */
     static createFrom($$source: any = {}): WPCoreReport {
-        const $$createField1_0 = $$createType5;
+        const $$createField1_0 = $$createType15;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
@@ -2228,35 +2661,43 @@ export class WordfenceVulnFinding {
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = SQLBeoordeling.createFrom;
-const $$createType2 = mysqldb$0.SleutelWaarde.createFrom;
+const $$createType2 = BulkApplyProjectResult.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = InventoryProjectRef.createFrom;
+const $$createType4 = BulkUpdateProjectPlan.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = LocalApplyPlugin.createFrom;
+const $$createType6 = BulkPluginPlan.createFrom;
 const $$createType7 = $Create.Array($$createType6);
-const $$createType8 = LocalPluginRow.createFrom;
+const $$createType8 = LocalApplyPlugin.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $Create.Map($Create.Any, $$createType0);
-const $$createType11 = PluginUpdateResult.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = WordfenceVulnFinding.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = QuarantineEntry.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = QuarantineSkip.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = QuarantineBatch.createFrom;
+const $$createType10 = BulkUpdateProjectResult.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = mysqldb$0.SleutelWaarde.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = InventoryProjectRef.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = LocalPluginRow.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = $Create.Map($Create.Any, $$createType0);
+const $$createType19 = PluginUpdateResult.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = mysqldb$0.Resultaat.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = mysqldb$0.NieuweWaarde.createFrom;
+const $$createType21 = WordfenceVulnFinding.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = QuarantineEntry.createFrom;
 const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = SecurityFinding.createFrom;
+const $$createType25 = QuarantineSkip.createFrom;
 const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = mysqldb$0.Tabel.createFrom;
-const $$createType28 = mysqldb$0.Kolom.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = WPCoreUpdate.createFrom;
-const $$createType31 = $Create.Array($$createType30);
-const $$createType32 = PackageUpdate.createFrom;
-const $$createType33 = $Create.Array($$createType32);
+const $$createType27 = QuarantineBatch.createFrom;
+const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = mysqldb$0.Resultaat.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);
+const $$createType31 = mysqldb$0.NieuweWaarde.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = SecurityFinding.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = mysqldb$0.Tabel.createFrom;
+const $$createType36 = mysqldb$0.Kolom.createFrom;
+const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = WPCoreUpdate.createFrom;
+const $$createType39 = $Create.Array($$createType38);
+const $$createType40 = PackageUpdate.createFrom;
+const $$createType41 = $Create.Array($$createType40);

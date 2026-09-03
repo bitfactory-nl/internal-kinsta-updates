@@ -2467,6 +2467,310 @@ export class MonitorRow {
     }
 }
 
+/**
+ * OrgCloneOutcome is de uitkomst van één poging om een org-repo lokaal te
+ * clonen. Message is leeg bij OrgCloneCloned en bevat bij skipped/failed de
+ * reden (bestaande map, git-stderr, ...).
+ */
+export class OrgCloneOutcome {
+    "repo": string;
+    "path": string;
+    "status": string;
+    "message": string;
+
+    /** Creates a new OrgCloneOutcome instance. */
+    constructor($$source: Partial<OrgCloneOutcome> = {}) {
+        if (!("repo" in $$source)) {
+            this["repo"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrgCloneOutcome instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrgCloneOutcome {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrgCloneOutcome($$parsedSource as Partial<OrgCloneOutcome>);
+    }
+}
+
+/**
+ * OrgCloneResult vat een clone-run samen. Eén mislukte repo laat de rest van de
+ * run doorgaan, dus Failed > 0 betekent niet dat er niets is gelukt.
+ */
+export class OrgCloneResult {
+    "root": string;
+    "outcomes": OrgCloneOutcome[];
+    "cloned": number;
+    "skipped": number;
+    "failed": number;
+
+    /** Creates a new OrgCloneResult instance. */
+    constructor($$source: Partial<OrgCloneResult> = {}) {
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
+        if (!("outcomes" in $$source)) {
+            this["outcomes"] = [];
+        }
+        if (!("cloned" in $$source)) {
+            this["cloned"] = 0;
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+        if (!("failed" in $$source)) {
+            this["failed"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrgCloneResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrgCloneResult {
+        const $$createField1_0 = $$createType40;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("outcomes" in $$parsedSource) {
+            $$parsedSource["outcomes"] = $$createField1_0($$parsedSource["outcomes"]);
+        }
+        return new OrgCloneResult($$parsedSource as Partial<OrgCloneResult>);
+    }
+}
+
+/**
+ * OrgSyncLocalOnly is een lokale checkout waarvan de remote naar de org wijst,
+ * maar waarvan de repo niet (meer) in de org-repolijst voorkomt (bijv.
+ * hernoemd, verwijderd, of buiten de org verplaatst).
+ */
+export class OrgSyncLocalOnly {
+    "projectId": string;
+    "displayName": string;
+    "path": string;
+    "remote": string;
+
+    /** Creates a new OrgSyncLocalOnly instance. */
+    constructor($$source: Partial<OrgSyncLocalOnly> = {}) {
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("displayName" in $$source)) {
+            this["displayName"] = "";
+        }
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("remote" in $$source)) {
+            this["remote"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrgSyncLocalOnly instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrgSyncLocalOnly {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrgSyncLocalOnly($$parsedSource as Partial<OrgSyncLocalOnly>);
+    }
+}
+
+/**
+ * OrgSyncRepo is één repository uit de GitHub-organisatie, verrijkt met de
+ * classificatie uit deploy_conf.json en (indien aanwezig) de match met een
+ * lokale checkout.
+ */
+export class OrgSyncRepo {
+    "name": string;
+    "fullName": string;
+    "htmlUrl": string;
+    "deployType": string;
+    "isWordPress": boolean;
+    "archived": boolean;
+    "fork": boolean;
+    "hasDeployConf": boolean;
+    "pushedAt": string;
+
+    /**
+     * LocalProjectID/LocalPath zijn leeg wanneer de repo niet lokaal is uitgecheckt.
+     */
+    "localProjectId": string;
+    "localPath": string;
+
+    /** Creates a new OrgSyncRepo instance. */
+    constructor($$source: Partial<OrgSyncRepo> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("fullName" in $$source)) {
+            this["fullName"] = "";
+        }
+        if (!("htmlUrl" in $$source)) {
+            this["htmlUrl"] = "";
+        }
+        if (!("deployType" in $$source)) {
+            this["deployType"] = "";
+        }
+        if (!("isWordPress" in $$source)) {
+            this["isWordPress"] = false;
+        }
+        if (!("archived" in $$source)) {
+            this["archived"] = false;
+        }
+        if (!("fork" in $$source)) {
+            this["fork"] = false;
+        }
+        if (!("hasDeployConf" in $$source)) {
+            this["hasDeployConf"] = false;
+        }
+        if (!("pushedAt" in $$source)) {
+            this["pushedAt"] = "";
+        }
+        if (!("localProjectId" in $$source)) {
+            this["localProjectId"] = "";
+        }
+        if (!("localPath" in $$source)) {
+            this["localPath"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrgSyncRepo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrgSyncRepo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrgSyncRepo($$parsedSource as Partial<OrgSyncRepo>);
+    }
+}
+
+/**
+ * OrgSyncResult is het resultaat van één organisatie-sync.
+ */
+export class OrgSyncResult {
+    "org": string;
+    "fetchedAt": time$0.Time;
+    "repos": OrgSyncRepo[];
+    "localOnly": OrgSyncLocalOnly[];
+    "totals": OrgSyncTotals;
+
+    /**
+     * Scanned is het aantal repos waarvoor deploy_conf.json daadwerkelijk is
+     * opgehaald tijdens deze sync; FromCache is het aantal dat ongewijzigd bleef.
+     */
+    "scanned": number;
+    "fromCache": number;
+    "warnings": string[];
+
+    /** Creates a new OrgSyncResult instance. */
+    constructor($$source: Partial<OrgSyncResult> = {}) {
+        if (!("org" in $$source)) {
+            this["org"] = "";
+        }
+        if (!("fetchedAt" in $$source)) {
+            this["fetchedAt"] = null;
+        }
+        if (!("repos" in $$source)) {
+            this["repos"] = [];
+        }
+        if (!("localOnly" in $$source)) {
+            this["localOnly"] = [];
+        }
+        if (!("totals" in $$source)) {
+            this["totals"] = (new OrgSyncTotals());
+        }
+        if (!("scanned" in $$source)) {
+            this["scanned"] = 0;
+        }
+        if (!("fromCache" in $$source)) {
+            this["fromCache"] = 0;
+        }
+        if (!("warnings" in $$source)) {
+            this["warnings"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrgSyncResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrgSyncResult {
+        const $$createField2_0 = $$createType42;
+        const $$createField3_0 = $$createType44;
+        const $$createField4_0 = $$createType45;
+        const $$createField7_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("repos" in $$parsedSource) {
+            $$parsedSource["repos"] = $$createField2_0($$parsedSource["repos"]);
+        }
+        if ("localOnly" in $$parsedSource) {
+            $$parsedSource["localOnly"] = $$createField3_0($$parsedSource["localOnly"]);
+        }
+        if ("totals" in $$parsedSource) {
+            $$parsedSource["totals"] = $$createField4_0($$parsedSource["totals"]);
+        }
+        if ("warnings" in $$parsedSource) {
+            $$parsedSource["warnings"] = $$createField7_0($$parsedSource["warnings"]);
+        }
+        return new OrgSyncResult($$parsedSource as Partial<OrgSyncResult>);
+    }
+}
+
+/**
+ * OrgSyncTotals vat OrgSyncResult samen voor de UI.
+ */
+export class OrgSyncTotals {
+    "repos": number;
+    "wordpress": number;
+    "wordpressLocal": number;
+    "wordpressMissing": number;
+    "archived": number;
+
+    /** Creates a new OrgSyncTotals instance. */
+    constructor($$source: Partial<OrgSyncTotals> = {}) {
+        if (!("repos" in $$source)) {
+            this["repos"] = 0;
+        }
+        if (!("wordpress" in $$source)) {
+            this["wordpress"] = 0;
+        }
+        if (!("wordpressLocal" in $$source)) {
+            this["wordpressLocal"] = 0;
+        }
+        if (!("wordpressMissing" in $$source)) {
+            this["wordpressMissing"] = 0;
+        }
+        if (!("archived" in $$source)) {
+            this["archived"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OrgSyncTotals instance from a string or object.
+     */
+    static createFrom($$source: any = {}): OrgSyncTotals {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OrgSyncTotals($$parsedSource as Partial<OrgSyncTotals>);
+    }
+}
+
 export class PaidPlugin {
     "slug": string;
     "displayName": string;
@@ -2629,9 +2933,9 @@ export class Project {
      * Creates a new Project instance from a string or object.
      */
     static createFrom($$source: any = {}): Project {
-        const $$createField4_0 = $$createType39;
-        const $$createField5_0 = $$createType40;
-        const $$createField6_0 = $$createType41;
+        const $$createField4_0 = $$createType46;
+        const $$createField5_0 = $$createType47;
+        const $$createField6_0 = $$createType48;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -2676,12 +2980,12 @@ export class ProjectConfig {
      * Creates a new ProjectConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectConfig {
-        const $$createField3_0 = $$createType43;
-        const $$createField4_0 = $$createType45;
-        const $$createField5_0 = $$createType47;
-        const $$createField6_0 = $$createType49;
-        const $$createField7_0 = $$createType51;
-        const $$createField8_0 = $$createType53;
+        const $$createField3_0 = $$createType50;
+        const $$createField4_0 = $$createType52;
+        const $$createField5_0 = $$createType54;
+        const $$createField6_0 = $$createType56;
+        const $$createField7_0 = $$createType58;
+        const $$createField8_0 = $$createType60;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("kinsta" in $$parsedSource) {
             $$parsedSource["kinsta"] = $$createField3_0($$parsedSource["kinsta"]);
@@ -2885,12 +3189,12 @@ export class Report {
      * Creates a new Report instance from a string or object.
      */
     static createFrom($$source: any = {}): Report {
-        const $$createField4_0 = $$createType55;
-        const $$createField5_0 = $$createType57;
-        const $$createField6_0 = $$createType59;
-        const $$createField7_0 = $$createType61;
-        const $$createField8_0 = $$createType61;
-        const $$createField9_0 = $$createType63;
+        const $$createField4_0 = $$createType62;
+        const $$createField5_0 = $$createType64;
+        const $$createField6_0 = $$createType66;
+        const $$createField7_0 = $$createType68;
+        const $$createField8_0 = $$createType68;
+        const $$createField9_0 = $$createType70;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("acties" in $$parsedSource) {
             $$parsedSource["acties"] = $$createField4_0($$parsedSource["acties"]);
@@ -2981,7 +3285,7 @@ export class SensitiveDataReport {
      * Creates a new SensitiveDataReport instance from a string or object.
      */
     static createFrom($$source: any = {}): SensitiveDataReport {
-        const $$createField1_0 = $$createType65;
+        const $$createField1_0 = $$createType72;
         const $$createField2_0 = $$createType0;
         const $$createField4_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
@@ -3210,8 +3514,8 @@ export class StepResult {
      * Creates a new StepResult instance from a string or object.
      */
     static createFrom($$source: any = {}): StepResult {
-        const $$createField4_0 = $$createType67;
-        const $$createField5_0 = $$createType69;
+        const $$createField4_0 = $$createType74;
+        const $$createField5_0 = $$createType76;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -3351,7 +3655,7 @@ export class TestRun {
      */
     static createFrom($$source: any = {}): TestRun {
         const $$createField5_0 = $$createType0;
-        const $$createField7_0 = $$createType71;
+        const $$createField7_0 = $$createType78;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("models" in $$parsedSource) {
             $$parsedSource["models"] = $$createField5_0($$parsedSource["models"]);
@@ -3383,8 +3687,8 @@ export class TestingCfg {
      */
     static createFrom($$source: any = {}): TestingCfg {
         const $$createField0_0 = $$createType5;
-        const $$createField1_0 = $$createType73;
-        const $$createField2_0 = $$createType75;
+        const $$createField1_0 = $$createType80;
+        const $$createField2_0 = $$createType82;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("environments" in $$parsedSource) {
             $$parsedSource["environments"] = $$createField0_0($$parsedSource["environments"]);
@@ -3490,7 +3794,7 @@ export class VPSProjectCfg {
      * Creates a new VPSProjectCfg instance from a string or object.
      */
     static createFrom($$source: any = {}): VPSProjectCfg {
-        const $$createField1_0 = $$createType48;
+        const $$createField1_0 = $$createType55;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ssh" in $$parsedSource) {
             $$parsedSource["ssh"] = $$createField1_0($$parsedSource["ssh"]);
@@ -3559,7 +3863,7 @@ export class Vulnerability {
      */
     static createFrom($$source: any = {}): Vulnerability {
         const $$createField7_0 = $$createType0;
-        const $$createField10_0 = $$createType77;
+        const $$createField10_0 = $$createType84;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("researchers" in $$parsedSource) {
             $$parsedSource["researchers"] = $$createField7_0($$parsedSource["researchers"]);
@@ -3611,42 +3915,49 @@ const $$createType35 = DomainPair.createFrom;
 const $$createType36 = $Create.Array($$createType35);
 const $$createType37 = AnonymiseCfg.createFrom;
 const $$createType38 = $Create.Nullable($$createType37);
-const $$createType39 = ProjectConfig.createFrom;
-const $$createType40 = DeployConf.createFrom;
-const $$createType41 = GitStatus.createFrom;
-const $$createType42 = KinstaProjectCfg.createFrom;
-const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = AWSProjectCfg.createFrom;
-const $$createType45 = $Create.Nullable($$createType44);
-const $$createType46 = VPSProjectCfg.createFrom;
-const $$createType47 = $Create.Nullable($$createType46);
-const $$createType48 = SSHTarget.createFrom;
-const $$createType49 = $Create.Nullable($$createType48);
-const $$createType50 = TestingCfg.createFrom;
-const $$createType51 = $Create.Nullable($$createType50);
-const $$createType52 = MigrationCfg.createFrom;
-const $$createType53 = $Create.Nullable($$createType52);
-const $$createType54 = ActieRow.createFrom;
-const $$createType55 = $Create.Array($$createType54);
-const $$createType56 = MonitorRow.createFrom;
-const $$createType57 = $Create.Array($$createType56);
-const $$createType58 = SoftwareRow.createFrom;
-const $$createType59 = $Create.Array($$createType58);
-const $$createType60 = UpdateRow.createFrom;
-const $$createType61 = $Create.Array($$createType60);
-const $$createType62 = AVGRow.createFrom;
-const $$createType63 = $Create.Array($$createType62);
-const $$createType64 = SensitiveTable.createFrom;
-const $$createType65 = $Create.Array($$createType64);
-const $$createType66 = Finding.createFrom;
-const $$createType67 = $Create.Array($$createType66);
-const $$createType68 = Regression.createFrom;
-const $$createType69 = $Create.Array($$createType68);
-const $$createType70 = StepResult.createFrom;
-const $$createType71 = $Create.Array($$createType70);
-const $$createType72 = BasicAuth.createFrom;
-const $$createType73 = $Create.Map($Create.Any, $$createType72);
-const $$createType74 = TestAccount.createFrom;
-const $$createType75 = $Create.Nullable($$createType74);
-const $$createType76 = AffectedSoftware.createFrom;
-const $$createType77 = $Create.Array($$createType76);
+const $$createType39 = OrgCloneOutcome.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = OrgSyncRepo.createFrom;
+const $$createType42 = $Create.Array($$createType41);
+const $$createType43 = OrgSyncLocalOnly.createFrom;
+const $$createType44 = $Create.Array($$createType43);
+const $$createType45 = OrgSyncTotals.createFrom;
+const $$createType46 = ProjectConfig.createFrom;
+const $$createType47 = DeployConf.createFrom;
+const $$createType48 = GitStatus.createFrom;
+const $$createType49 = KinstaProjectCfg.createFrom;
+const $$createType50 = $Create.Nullable($$createType49);
+const $$createType51 = AWSProjectCfg.createFrom;
+const $$createType52 = $Create.Nullable($$createType51);
+const $$createType53 = VPSProjectCfg.createFrom;
+const $$createType54 = $Create.Nullable($$createType53);
+const $$createType55 = SSHTarget.createFrom;
+const $$createType56 = $Create.Nullable($$createType55);
+const $$createType57 = TestingCfg.createFrom;
+const $$createType58 = $Create.Nullable($$createType57);
+const $$createType59 = MigrationCfg.createFrom;
+const $$createType60 = $Create.Nullable($$createType59);
+const $$createType61 = ActieRow.createFrom;
+const $$createType62 = $Create.Array($$createType61);
+const $$createType63 = MonitorRow.createFrom;
+const $$createType64 = $Create.Array($$createType63);
+const $$createType65 = SoftwareRow.createFrom;
+const $$createType66 = $Create.Array($$createType65);
+const $$createType67 = UpdateRow.createFrom;
+const $$createType68 = $Create.Array($$createType67);
+const $$createType69 = AVGRow.createFrom;
+const $$createType70 = $Create.Array($$createType69);
+const $$createType71 = SensitiveTable.createFrom;
+const $$createType72 = $Create.Array($$createType71);
+const $$createType73 = Finding.createFrom;
+const $$createType74 = $Create.Array($$createType73);
+const $$createType75 = Regression.createFrom;
+const $$createType76 = $Create.Array($$createType75);
+const $$createType77 = StepResult.createFrom;
+const $$createType78 = $Create.Array($$createType77);
+const $$createType79 = BasicAuth.createFrom;
+const $$createType80 = $Create.Map($Create.Any, $$createType79);
+const $$createType81 = TestAccount.createFrom;
+const $$createType82 = $Create.Nullable($$createType81);
+const $$createType83 = AffectedSoftware.createFrom;
+const $$createType84 = $Create.Array($$createType83);

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -32,8 +33,20 @@ func newGitCmd(ctx context.Context, dir string, args ...string) *exec.Cmd {
 // Run executes a git command in dir and returns trimmed stdout, or an error
 // that includes stderr for diagnostics.
 func Run(ctx context.Context, dir string, args ...string) (string, error) {
+	return RunEnv(ctx, dir, nil, args...)
+}
+
+// RunEnv is Run met extra omgevingsvariabelen bovenop de geërfde omgeving.
+// Nodig voor commando's die met een remote praten zonder tty: git valt daar
+// zonder hulp terug op interactieve prompts (wachtwoord, host-key), en in een
+// GUI-app zonder terminal blijft zo'n prompt oneindig hangen in plaats van te
+// falen. Met een lege extraEnv is dit exact Run.
+func RunEnv(ctx context.Context, dir string, extraEnv []string, args ...string) (string, error) {
 	var stdout, stderr bytes.Buffer
 	cmd := newGitCmd(ctx, dir, args...)
+	if len(extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), extraEnv...)
+	}
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 

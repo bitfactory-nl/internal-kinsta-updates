@@ -21,13 +21,32 @@ import * as $models from "./models.js";
 
 /**
  * ApplyLocalPlugins extracts the chosen zips into the project's plugin folder and
- * commits each plugin on the branch the project is on right now — no new branch,
- * per the workflow: the checkout is where the update belongs. Pushing stays a
- * deliberate, separate action.
+ * commits each plugin. A plugin uit de losse map commit op de branch waar het
+ * project nu al op staat — geen branchwissel, de checkout is waar de update
+ * hoort. Een plugin uit de referentie-installatie krijgt altijd zijn eigen
+ * branch (zie ensureBranchFor): die installatie voedt élk project, dus een
+ * rechtstreekse commit op de huidige checkout zou zomaar een productie-branch
+ * kunnen zijn. Pushing blijft in beide gevallen een bewuste, aparte actie.
  */
 export function ApplyLocalPlugins(projectID: string, slugs: string[]): $CancellablePromise<$models.LocalApplyResult> {
     return $Call.ByID(1793763367, projectID, slugs).then(($result: any) => {
         return $$createType0($result);
+    });
+}
+
+/**
+ * ApplyPluginToProjects plaatst en committeert één plugin (uit de losse map of
+ * de referentie-installatie, referentie wint bij een dubbele slug — zie
+ * ListLocalPaidPlugins) in meerdere projecten tegelijk. Dit is de omgekeerde
+ * richting van ApplyLocalPlugins (daar: veel plugins, één project; hier: één
+ * plugin, veel projecten) — vandaar de gedeelde kern in applyOnePlugin.
+ * 
+ * Elk project is onafhankelijk: een mislukking in het ene project (bijvoorbeeld
+ * al iets staged, of een schrijffout) stopt de andere projecten niet.
+ */
+export function ApplyPluginToProjects(slug: string, projectIDs: string[]): $CancellablePromise<$models.BulkApplyResult> {
+    return $Call.ByID(1853859926, slug, projectIDs).then(($result: any) => {
+        return $$createType1($result);
     });
 }
 
@@ -37,7 +56,7 @@ export function ApplyLocalPlugins(projectID: string, slugs: string[]): $Cancella
  */
 export function Diff(envID: string): $CancellablePromise<domain$0.PluginDiff[]> {
     return $Call.ByID(525779441, envID).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType3($result);
     });
 }
 
@@ -49,12 +68,19 @@ export function IsConfigured(): $CancellablePromise<boolean> {
 }
 
 /**
- * ListLocalPaidPlugins scans the configured folder for plugin zips. No folder
- * configured yields (nil, nil): that is the normal state, not an error.
+ * ListLocalPaidPlugins scans beide mogelijke bronnen voor plugin-zips/-mappen:
+ * de (tijdelijke) losse map en de referentie-installatie. Geen van beide
+ * ingesteld levert (nil, nil): dat is de normale staat, geen fout.
+ * 
+ * Bij een slug die in beide bronnen voorkomt wint de referentie-installatie —
+ * die wordt continu bijgehouden, de losse map is per definitie tijdelijk
+ * ("net van de leverancier gehaald"). De rij van de losse map valt dan weg,
+ * niet stil: ze staat niet meer apart in de lijst, maar er gaat ook niets
+ * verloren, want de referentie-versie is de versie die je wil.
  */
 export function ListLocalPaidPlugins(): $CancellablePromise<$models.LocalPaidPlugin[]> {
     return $Call.ByID(3196361941).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
@@ -63,12 +89,13 @@ export function ListLocalPaidPlugins(): $CancellablePromise<$models.LocalPaidPlu
  */
 export function ListPaidPlugins(): $CancellablePromise<domain$0.PaidPlugin[]> {
     return $Call.ByID(508849748).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType7($result);
     });
 }
 
 /**
- * LocalDirConfigured reports whether the local folder option is set.
+ * LocalDirConfigured reports whether either bron is ingesteld: de losse map of
+ * de referentie-installatie.
  */
 export function LocalDirConfigured(): $CancellablePromise<boolean> {
     return $Call.ByID(2247065168);
@@ -80,7 +107,19 @@ export function LocalDirConfigured(): $CancellablePromise<boolean> {
  */
 export function LocalPluginDiff(projectID: string): $CancellablePromise<$models.LocalPluginOverview> {
     return $Call.ByID(992548869, projectID).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType8($result);
+    });
+}
+
+/**
+ * MergePluginPullRequest merget de pull request van een plugin-update in het
+ * project waar hij bij hoort. Bewust een aparte, expliciete actie: de knop in
+ * de UI is de bevestiging, en pas hier gaat er iets naar de default branch.
+ * De merge-methode volgt wat de repo toestaat.
+ */
+export function MergePluginPullRequest(projectID: string, $number: number): $CancellablePromise<$models.MergePRResult> {
+    return $Call.ByID(1939080523, projectID, $number).then(($result: any) => {
+        return $$createType9($result);
     });
 }
 
@@ -102,10 +141,12 @@ export function UpdateViaSSH(target: domain$0.SSHTarget, slug: string): $Cancell
 
 // Private type creation functions
 const $$createType0 = $models.LocalApplyResult.createFrom;
-const $$createType1 = domain$0.PluginDiff.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = $models.LocalPaidPlugin.createFrom;
-const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = domain$0.PaidPlugin.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = $models.LocalPluginOverview.createFrom;
+const $$createType1 = $models.BulkApplyResult.createFrom;
+const $$createType2 = domain$0.PluginDiff.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $models.LocalPaidPlugin.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = domain$0.PaidPlugin.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $models.LocalPluginOverview.createFrom;
+const $$createType9 = $models.MergePRResult.createFrom;
