@@ -36,7 +36,8 @@ Controlemomenten:
 | Token | Hergebruik `plugin_repo.github_token`, met optionele override |
 | Popup-herhaling | Eén popup per versie; daarna alleen de sidebar-badge |
 | Repo-locatie | Constante in de source, geen instelling |
-| Bundle-ID | Nu rechtgetrokken naar `nl.micromanage.rdm-sites-tool` |
+| Bundle-ID | Nu omgezet naar `nl.nobears.kinsta-updater` |
+| Keychain-service | Zelfde naam, met eenmalige migratie van de bestaande keys |
 | Playwright-install | Alleen wanneer de verwachte chromium ontbreekt |
 
 ## Onderdelen
@@ -233,22 +234,43 @@ de `.bak` staan, dan is er handmatig een werkende versie terug te zetten.
 - `APP_VERSION=${{ github.ref_name }}` meegeven aan `task package`.
 - De versie stampen in `Info.plist` zodat Finder en het "Over"-venster kloppen.
 
-### Bundle-ID en versienummers rechttrekken
+### Identiteit van de app: weg van het privédomein
 
-`build/darwin/Info.plist` staat op de placeholder
-`CFBundleIdentifier = com.example.rdmsitestool`, terwijl `build/config.yml` al
-`nl.micromanage.rdm-sites-tool` zegt. Niets in de code hangt van de identifier
-af: de keychain gebruikt een eigen service-naam (`internal/config/keychain.go`)
-en notificaties lopen via `osascript`. Wat wél opnieuw gevraagd wordt zijn de
-macOS-permissies die aan de app hangen, zoals toegang tot de projectenmap.
+`micromanage.nl` is het privédomein van de auteur en hoort niet op de laptops van
+collega's te staan. De app-identiteit wordt daarom `nl.nobears.kinsta-updater`,
+passend bij de partij die de tool uitgeeft en bij de productnaam die de app al
+voert ("Kinsta Updater"). Te wijzigen:
 
-Daarom nu rechttrekken, in dezelfde release als deze functie: de placeholder zit
-straks ook notarisatie met een Developer ID in de weg, en dit is de laatste
-release die iedereen handmatig installeert en waarvan de notes gelezen worden.
-Doe je het later, dan resetten de permissies tijdens een automatische update
-zonder dat iemand begrijpt waarom. Het staat in de release-notes en in het "wat
-is er nieuw"-venster. Tegelijk gaan `build/config.yml` en `Info.plist` naar het
-echte versienummer.
+- `build/config.yml` — `productIdentifier`, `companyName: "No Bears"`,
+  `copyright: "(c) 2026, No Bears"`.
+- `build/darwin/Info.plist` — wordt hieruit gegenereerd
+  (`wails3 task common:update:build-assets`); staat nu nog op de placeholder
+  `com.example.rdmsitestool` en `© 2026, My Company`.
+- `internal/config/keychain.go` — de service-naam.
+- `SPEC.md:862` — de documentatie die de oude service-naam noemt.
+
+**Keychain-migratie.** De keys (`rdm.kinsta.apiKey`, `rdm.github.token`,
+`rdm.anthropic.apiKey`, `rdm.wordfence.apiKey`) staan onder de oude
+service-naam. Zonder migratie vindt de app ze niet meer en moet iedereen alles
+opnieuw invullen. Daarom in `internal/config/keychain.go` een
+`MigrateKeychainService()`, één keer aangeroepen bij het opstarten vanuit
+`app.LoadConfig()`: per bekende account, als de key onder de nieuwe service
+ontbreekt maar onder de oude bestaat, wordt hij overgezet. Idempotent, en stil
+als er niets te migreren is.
+
+De oude items blijven staan in plaats van verwijderd te worden: een
+`security delete-generic-password` kan een keychain-prompt opleveren, en dat is
+een slechte verrassing tijdens het opstarten. De release-notes vermelden dat ze
+in Keychain Access in één keer op de oude service-naam te selecteren zijn.
+
+**Waarom nu.** Niets in de code hangt van de bundle-ID af — de keychain gebruikt
+een eigen service-naam en notificaties lopen via `osascript` — maar de
+macOS-permissies die aan de app hangen (zoals toegang tot de projectenmap)
+resetten wél, bij iedereen, één keer. Dit is de laatste release die iedereen
+handmatig installeert en waarvan de notes gelezen worden; doe je het later, dan
+resetten die permissies midden in een automatische update zonder dat iemand
+begrijpt waarom. Het staat in de release-notes en in het "wat is er nieuw"-venster.
+Tegelijk gaan `build/config.yml` en `Info.plist` naar het echte versienummer.
 
 ## Foutafhandeling
 
@@ -281,10 +303,14 @@ echte versienummer.
   van een archief zonder `.app`, met twee `.app`s, en met een niet-uitvoerbaar
   binair bestand; scriptrendering vergeleken met de verwachte paden en
   gecontroleerd met `bash -n`. Het script wordt in de tests niet uitgevoerd.
+- `internal/config/keychain_test.go` — de migratie met een injecteerbare
+  get/set in plaats van de echte `security`-CLI: key alleen onder de oude naam
+  (wordt overgezet), key onder beide namen (nieuwe blijft ongemoeid), key onder
+  geen van beide (geen fout), en tweemaal achter elkaar draaien (idempotent).
 - Handmatig, door Jeffrey: een testtag (bijvoorbeeld `v0.2.10`) pushen en de
   volledige flow op een echte installatie draaien. Dit is de enige manier om de
-  swap, de permissie-herprompt na de bundle-ID-wijziging en de herstart te
-  verifiëren.
+  swap, de keychain-migratie, de permissie-herprompt na de bundle-ID-wijziging en
+  de herstart te verifiëren.
 
 ## Buiten scope
 
