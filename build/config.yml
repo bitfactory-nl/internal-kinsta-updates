@@ -5,11 +5,11 @@ version: '3'
 
 # This information is used to generate the build assets.
 info:
-  companyName: "Micromanage" # The name of the company
+  companyName: "No Bears" # The name of the company
   productName: "Kinsta Updater" # The name of the application
-  productIdentifier: "nl.micromanage.rdm-sites-tool" # The unique product identifier
+  productIdentifier: "nl.nobears.kinsta-updater" # The unique product identifier
   description: "Git & deployment dashboard" # The application description
-  copyright: "(c) 2026, Micromanage" # Copyright text
+  copyright: "(c) 2026, No Bears" # Copyright text
   comments: "Some Product Comments" # Comments
   version: "0.0.1" # The application version
   # cfBundleIconName: "appicon" # The macOS icon name in Assets.car icon bundles (optional)

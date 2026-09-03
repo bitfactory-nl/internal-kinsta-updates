@@ -1,6 +1,8 @@
 package app
 
 import (
+	"log"
+
 	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/adapters/endoflife"
 	"github.com/rdm/sites-tool/internal/config"
@@ -13,6 +15,12 @@ type Config struct {
 }
 
 func LoadConfig() (Config, error) {
+	// Eenmalig: secrets die nog onder de oude service-naam staan overzetten.
+	// Best effort — bij een lege lijst is er simpelweg niets te migreren.
+	if migrated := config.MigrateKeychainService(); len(migrated) > 0 {
+		log.Printf("keychain: %d secret(s) overgezet naar de nieuwe service-naam: %v", len(migrated), migrated)
+	}
+
 	g, err := config.LoadGlobal()
 	if err != nil {
 		return Config{}, err

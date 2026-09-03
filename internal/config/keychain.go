@@ -6,12 +6,36 @@ import (
 	"strings"
 )
 
-const keychainService = "nl.micromanage.rdm-sites-tool"
+// keychainService is de service-naam waaronder de tool zijn secrets bewaart.
+const keychainService = "nl.nobears.kinsta-updater"
 
-func keychainGet(account string) (string, error) {
+// legacyKeychainService is de service-naam die de tool tot en met v0.2.9
+// gebruikte, gebaseerd op een privédomein. MigrateKeychainService haalt
+// bestaande keys daar eenmalig weg zodat niemand zijn API-keys opnieuw hoeft in
+// te vullen.
+const legacyKeychainService = "nl.micromanage.rdm-sites-tool"
+
+// migratedAccounts zijn alle keychain-accounts die de tool zelf schrijft. Komt
+// er een nieuwe key bij, dan hoort die hier ook in — anders raakt hij bij een
+// volgende naamswijziging verloren.
+var migratedAccounts = []string{
+	"rdm.kinsta.apiKey",
+	"rdm.github.token",
+	"rdm.anthropic.apiKey",
+	"rdm.wordfence.apiKey",
+}
+
+// Hooks op de security-CLI, zodat de migratie te testen is zonder de echte
+// keychain aan te raken.
+var (
+	getFromService = keychainGetFrom
+	setInService   = keychainSetIn
+)
+
+func keychainGetFrom(service, account string) (string, error) {
 	out, err := exec.Command(
 		"security", "find-generic-password",
-		"-s", keychainService,
+		"-s", service,
 		"-a", account,
 		"-w",
 	).Output()
@@ -21,29 +45,63 @@ func keychainGet(account string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func KeychainSet(account, password string) error {
-	// Try to update first, then add
-	err := exec.Command(
+func keychainSetIn(service, account, password string) error {
+	// -U werkt bij als het item al bestaat, en voegt het anders toe.
+	if err := exec.Command(
 		"security", "add-generic-password",
-		"-s", keychainService,
+		"-s", service,
 		"-a", account,
 		"-w", password,
 		"-U",
-	).Run()
-	if err != nil {
+	).Run(); err != nil {
 		return fmt.Errorf("keychain set %q: %w", account, err)
 	}
 	return nil
 }
 
+func keychainGet(account string) (string, error) {
+	return getFromService(keychainService, account)
+}
+
+func KeychainSet(account, password string) error {
+	return setInService(keychainService, account, password)
+}
+
 func KeychainDelete(account string) error {
-	err := exec.Command(
+	if err := exec.Command(
 		"security", "delete-generic-password",
 		"-s", keychainService,
 		"-a", account,
-	).Run()
-	if err != nil {
+	).Run(); err != nil {
 		return fmt.Errorf("keychain delete %q: %w", account, err)
 	}
 	return nil
+}
+
+// MigrateKeychainService zet secrets die nog onder de oude service-naam staan
+// over naar de nieuwe, en geeft terug welke accounts zijn overgezet. Best
+// effort en idempotent: een account dat onder de nieuwe naam al een waarde
+// heeft blijft ongemoeid, en fouten worden stil overgeslagen — een mislukte
+// migratie mag het opstarten nooit blokkeren.
+//
+// De oude items worden bewust niet verwijderd: een delete op de keychain kan om
+// toestemming vragen, en zo'n prompt tijdens het opstarten is een slechtere
+// ervaring dan een achtergebleven item dat de gebruiker desgewenst zelf in
+// Keychain Access opruimt.
+func MigrateKeychainService() []string {
+	var migrated []string
+	for _, account := range migratedAccounts {
+		if v, err := getFromService(keychainService, account); err == nil && v != "" {
+			continue
+		}
+		v, err := getFromService(legacyKeychainService, account)
+		if err != nil || v == "" {
+			continue
+		}
+		if err := setInService(keychainService, account, v); err != nil {
+			continue
+		}
+		migrated = append(migrated, account)
+	}
+	return migrated
 }
