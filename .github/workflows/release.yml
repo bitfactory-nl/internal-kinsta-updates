@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.1.6
+        with:
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -36,10 +38,26 @@ jobs:
       - name: Install Task
         run: go install github.com/go-task/task/v3/cmd/task@latest
 
+      - name: Genereer de changelog
+        id: changelog
+        run: |
+          chmod +x .github/scripts/changelog.sh
+          .github/scripts/changelog.sh "${{ github.ref_name }}" > /tmp/changelog.md
+          echo "--- changelog ---"
+          cat /tmp/changelog.md
+
+      - name: Stempel de versie in Info.plist
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" build/darwin/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION}" build/darwin/Info.plist
+          plutil -p build/darwin/Info.plist | grep -i version
+
       - name: Build and package app
         run: task package
         env:
           CGO_ENABLED: 1
+          APP_VERSION: ${{ github.ref_name }}
 
       - name: Zip app
         run: |
@@ -58,7 +76,18 @@ jobs:
             const zipName = `RDM-Sites-Tool-${tag}-macOS.zip`;
             const zipPath = path.join('bin', zipName);
 
-            const body = `## Installatie
+            // De app leest deze sectie uit de release-body en toont hem in de
+            // update-popup en het "wat is er nieuw"-venster. Ontbreekt hij
+            // (geen commits, of het script faalde), dan valt de app terug op
+            // "geen details beschikbaar".
+            let changelog = '';
+            try {
+              changelog = fs.readFileSync('/tmp/changelog.md', 'utf8').trim();
+            } catch (e) {
+              core.warning(`geen changelog gevonden: ${e.message}`);
+            }
+
+            const installatie = `## Installatie
 
             1. Download \`${zipName}\`
             2. Pak uit en sleep naar je Applications map
@@ -77,7 +106,24 @@ jobs:
 
             Stel in via het ⚙ icoon in de app:
             - **Projects folder(s)** — map met al je lokale projecten
-            - **Kinsta API key + Company ID** — voor de Kinsta tab`;
+            - **Kinsta API key + Company ID** — voor de Kinsta tab
+
+            ## Eenmalig bij deze versie
+
+            De app-identiteit is gewijzigd van \`com.example.rdmsitestool\` naar
+            \`nl.nobears.kinsta-updater\`. Daardoor vraagt macOS één keer opnieuw
+            toegang tot je projectenmap. Je API-keys worden bij de eerste start
+            automatisch overgezet; je hoeft niets opnieuw in te vullen.
+
+            De oude keychain-items blijven staan onder de service
+            \`nl.micromanage.rdm-sites-tool\`. Wil je die opruimen: open Keychain
+            Access, zoek op die naam en verwijder de gevonden items.
+
+            Vanaf deze versie controleert de app zelf op updates: bij het
+            opstarten en daarna elke 6 uur. Je kunt dat uitzetten bij
+            Instellingen → App-updates.`;
+
+            const body = changelog ? `${changelog}\n\n${installatie}` : installatie;
 
             // Reuse the release when it already exists (e.g. created via the
             // GitHub UI together with the tag, or a re-run of this workflow).
