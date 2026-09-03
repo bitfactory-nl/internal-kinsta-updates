@@ -13,6 +13,14 @@ BUNDLE="{{.BundlePath}}"
 STAGED="{{.StagedApp}}"
 BAK="${BUNDLE}.bak"
 
+# De app start vanuit Finder met een minimale PATH; zonder deze aanvulling vindt
+# het script Homebrew- of nvm-node niet en zou het chromium nooit installeren.
+export PATH="{{.PATH}}"
+NODE="{{.NodePath}}"
+if [ -z "$NODE" ] || [ ! -x "$NODE" ]; then
+  NODE="$(command -v node 2>/dev/null || true)"
+fi
+
 echo "=== update gestart $(date -Iseconds) ==="
 echo "pid={{.PID}}"
 echo "bundle=$BUNDLE"
@@ -36,12 +44,16 @@ fi
 rm -rf "$BAK"
 if ! mv "$BUNDLE" "$BAK"; then
   echo "FOUT: kon de bestaande app niet wegzetten; er is niets gewijzigd"
+  # De oude versie weer openen zodat de gebruiker niet met niets achterblijft.
+  open "$BUNDLE" 2>/dev/null || true
   exit 1
 fi
 if ! ditto "$STAGED" "$BUNDLE"; then
   echo "FOUT: kopiëren van de nieuwe app mislukte; oude versie wordt teruggezet"
   rm -rf "$BUNDLE"
   mv "$BAK" "$BUNDLE"
+  # De oude versie weer openen zodat de gebruiker niet met niets achterblijft.
+  open "$BUNDLE" 2>/dev/null || true
   exit 1
 fi
 echo "nieuwe app geplaatst"
@@ -55,13 +67,14 @@ xattr -dr com.apple.quarantine "$BUNDLE" 2>/dev/null || true
 #    dus automatisch op "ontbreekt" uit.
 SIDECAR="$BUNDLE/Contents/Resources/sidecar"
 if [ -d "$SIDECAR" ]; then
-  if command -v node >/dev/null 2>&1; then
-    CHROMIUM=$(cd "$SIDECAR" && node -e "process.stdout.write(require('playwright').chromium.executablePath())" 2>/dev/null || true)
+  if [ -n "$NODE" ] && [ -x "$NODE" ]; then
+    echo "node: $NODE"
+    CHROMIUM=$(cd "$SIDECAR" && "$NODE" -e "process.stdout.write(require('playwright').chromium.executablePath())" 2>/dev/null || true)
     if [ -n "$CHROMIUM" ] && [ -x "$CHROMIUM" ]; then
       echo "chromium staat al goed: $CHROMIUM"
     else
       echo "chromium ontbreekt of hoort bij een andere versie, wordt opgehaald"
-      if ! (cd "$SIDECAR" && node node_modules/playwright/cli.js install chromium); then
+      if ! (cd "$SIDECAR" && "$NODE" node_modules/playwright/cli.js install chromium); then
         echo "LET OP: installeren van chromium mislukte; PDF-export, tests en mediascan werken nog niet"
       fi
     fi

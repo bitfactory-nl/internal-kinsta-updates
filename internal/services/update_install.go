@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/domain"
 )
 
@@ -28,6 +29,23 @@ type scriptData struct {
 	BundlePath string
 	StagedApp  string
 	LogPath    string
+	NodePath   string
+	PATH       string
+}
+
+// zoekNodeBin is een test seam: zo kan een test doen alsof NodeBin() iets
+// anders teruggeeft.
+var zoekNodeBin = browser.NodeBin
+
+// bekendNodePad geeft het absolute pad naar node zoals de app dat zelf vindt,
+// of "" als NodeBin() alleen het kale "node" teruggeeft (niet gevonden). Het
+// script krijgt dit mee omdat het anders op de minimale Finder-PATH zou zoeken.
+func bekendNodePad() string {
+	p := zoekNodeBin()
+	if !strings.Contains(p, "/") {
+		return ""
+	}
+	return p
 }
 
 // Install haalt de beschikbare update binnen, zet hem klaar in een tempmap, en
@@ -109,6 +127,8 @@ func (s *UpdateService) Install() error {
 		BundlePath: s.bundlePath,
 		StagedApp:  nieuweApp,
 		LogPath:    logPad,
+		NodePath:   bekendNodePad(),
+		PATH:       GereedschapPATH(),
 	}); err != nil {
 		return err
 	}
@@ -209,6 +229,7 @@ func renderUpdateScript(pad string, d scriptData) error {
 func startLosgekoppeld(scriptPad string) error {
 	cmd := exec.Command("/bin/bash", scriptPad)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Env = MetPATH(os.Environ(), GereedschapPATH())
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("update-script starten: %w", err)
 	}

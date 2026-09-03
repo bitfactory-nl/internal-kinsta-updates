@@ -96,6 +96,8 @@ func TestRenderUpdateScriptIsGeldigBashEnBevatDePaden(t *testing.T) {
 		BundlePath: "/Applications/Kinsta Updater.app",
 		StagedApp:  filepath.Join(dir, "staged", "Kinsta Updater.app"),
 		LogPath:    filepath.Join(dir, "update.log"),
+		NodePath:   "/opt/homebrew/bin/node",
+		PATH:       "/opt/homebrew/bin:/usr/bin:/bin",
 	}
 
 	if err := renderUpdateScript(script, d); err != nil {
@@ -108,6 +110,14 @@ func TestRenderUpdateScriptIsGeldigBashEnBevatDePaden(t *testing.T) {
 		t.Fatalf("bash -n: %v\n%s", err, out)
 	}
 
+	// Extra syntax- en stijlcontrole met shellcheck, als die op deze machine
+	// beschikbaar is; zonder shellcheck blijft bash -n de enige controle.
+	if _, err := exec.LookPath("shellcheck"); err == nil {
+		if out, err := exec.Command("shellcheck", script).CombinedOutput(); err != nil {
+			t.Errorf("shellcheck: %v\n%s", err, out)
+		}
+	}
+
 	data, err := os.ReadFile(script)
 	if err != nil {
 		t.Fatal(err)
@@ -118,14 +128,20 @@ func TestRenderUpdateScriptIsGeldigBashEnBevatDePaden(t *testing.T) {
 		d.BundlePath,
 		d.StagedApp,
 		d.LogPath,
+		d.NodePath,
+		d.PATH,
 		"ditto",
 		"com.apple.quarantine",
 		"playwright",
 		"open",
+		`"$NODE"`,
 	} {
 		if !strings.Contains(inhoud, wil) {
 			t.Errorf("script bevat %q niet", wil)
 		}
+	}
+	if strings.Contains(inhoud, "command -v node >/dev/null") {
+		t.Errorf("script gebruikt nog command -v node >/dev/null in plaats van $NODE")
 	}
 
 	info, err := os.Stat(script)
@@ -145,6 +161,7 @@ func TestRenderUpdateScriptQuotPadenMetSpaties(t *testing.T) {
 		BundlePath: "/Applications/Kinsta Updater.app",
 		StagedApp:  "/tmp/rdm update/Kinsta Updater.app",
 		LogPath:    "/tmp/rdm logs/update.log",
+		NodePath:   "/Users/x y/.nvm/versions/node/v24.2.0/bin/node",
 	}
 
 	if err := renderUpdateScript(script, d); err != nil {
@@ -154,10 +171,25 @@ func TestRenderUpdateScriptQuotPadenMetSpaties(t *testing.T) {
 	data, _ := os.ReadFile(script)
 	// Elk pad moet tussen dubbele quotes staan, anders breekt het script op de
 	// spatie in "Kinsta Updater.app".
-	for _, pad := range []string{d.BundlePath, d.StagedApp, d.LogPath} {
+	for _, pad := range []string{d.BundlePath, d.StagedApp, d.LogPath, d.NodePath} {
 		if !strings.Contains(string(data), `"`+pad+`"`) {
 			t.Errorf("pad %q staat niet gequote in het script", pad)
 		}
+	}
+}
+
+func TestBekendNodePadNegeertKaalNode(t *testing.T) {
+	origineel := zoekNodeBin
+	defer func() { zoekNodeBin = origineel }()
+
+	zoekNodeBin = func() string { return "node" }
+	if got := bekendNodePad(); got != "" {
+		t.Errorf("bekendNodePad() = %q, wil \"\" voor een kaal \"node\"", got)
+	}
+
+	zoekNodeBin = func() string { return "/opt/homebrew/bin/node" }
+	if got := bekendNodePad(); got != "/opt/homebrew/bin/node" {
+		t.Errorf("bekendNodePad() = %q, wil /opt/homebrew/bin/node", got)
 	}
 }
 
