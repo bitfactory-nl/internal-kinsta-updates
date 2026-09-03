@@ -20,10 +20,13 @@ import * as application$0 from "../../../../wailsapp/wails/v3/pkg/application/mo
 
 /**
  * Check haalt de laatste release op en vergelijkt die met de draaiende versie.
- * Is er een nieuwere die niet is overgeslagen, dan gaat er een
- * "updates:available"-event naar de frontend. Een mislukte check levert een
- * fout op en zet LastError, maar stuurt geen event: een popup over een
- * netwerkfout onderbreekt het werk zonder dat er iets te kiezen valt.
+ * Is er een nieuwere versie, dan gaat er altijd een "updates:available"-event
+ * naar de frontend, met Skipped erin: de badge in de rail moet ook na een
+ * herstart terugkomen voor een weggeklikte versie, terwijl de popup alleen
+ * voor een niet-weggeklikte versie hoort te verschijnen — die keuze ligt bij
+ * de frontend. Een mislukte check levert een fout op en zet LastError, maar
+ * stuurt geen event: een popup over een netwerkfout onderbreekt het werk
+ * zonder dat er iets te kiezen valt.
  */
 export function Check(): $CancellablePromise<domain$0.UpdateStatus> {
     return $Call.ByID(1291372492).then(($result: any) => {
