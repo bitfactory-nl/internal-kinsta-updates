@@ -22,6 +22,8 @@ type AppSettings struct {
 	GitPruneOnFetch     bool   `json:"gitPruneOnFetch"`
 	AnthropicAPIKey     string `json:"anthropicApiKey"`
 	WordfenceAPIKey     string `json:"wordfenceApiKey"`
+	UpdatesAutoCheck    bool   `json:"updatesAutoCheck"`
+	UpdatesGithubToken  string `json:"updatesGithubToken"`
 }
 
 // defaultDBApp is shown when the user hasn't picked a database app yet. It is
@@ -56,6 +58,8 @@ func (s *SettingsService) Get() AppSettings {
 		GitPruneOnFetch:     s.cfg.Git.PruneOnFetch,
 		AnthropicAPIKey:     s.cfg.AI.APIKey,
 		WordfenceAPIKey:     s.cfg.Wordfence.APIKey,
+		UpdatesAutoCheck:    s.cfg.Updates.AutoCheckEnabled(),
+		UpdatesGithubToken:  s.cfg.Updates.GithubToken,
 	}
 }
 
@@ -81,5 +85,10 @@ func (s *SettingsService) Save(settings AppSettings) error {
 	s.cfg.Git.PruneOnFetch = settings.GitPruneOnFetch
 	s.cfg.AI.APIKey = settings.AnthropicAPIKey
 	s.cfg.Wordfence.APIKey = settings.WordfenceAPIKey
+	// AutoCheck is een pointer: expliciet zetten, zodat een uitgezette toggle
+	// niet als "niet ingevuld" wordt weggeschreven en dus weer aan zou staan.
+	autoCheck := settings.UpdatesAutoCheck
+	s.cfg.Updates.AutoCheck = &autoCheck
+	s.cfg.Updates.GithubToken = strings.TrimSpace(settings.UpdatesGithubToken)
 	return config.SaveGlobal(*s.cfg)
 }

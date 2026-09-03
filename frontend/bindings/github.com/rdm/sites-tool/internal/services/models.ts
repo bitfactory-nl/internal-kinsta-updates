@@ -113,6 +113,8 @@ export class AppSettings {
     "gitPruneOnFetch": boolean;
     "anthropicApiKey": string;
     "wordfenceApiKey": string;
+    "updatesAutoCheck": boolean;
+    "updatesGithubToken": string;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -154,6 +156,12 @@ export class AppSettings {
         }
         if (!("wordfenceApiKey" in $$source)) {
             this["wordfenceApiKey"] = "";
+        }
+        if (!("updatesAutoCheck" in $$source)) {
+            this["updatesAutoCheck"] = false;
+        }
+        if (!("updatesGithubToken" in $$source)) {
+            this["updatesGithubToken"] = "";
         }
 
         Object.assign(this, $$source);

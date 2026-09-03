@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { AppSettings } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import type { UpdateStatus } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
 interface Props {
   onClose: () => void
@@ -15,10 +16,27 @@ export default function SettingsPage({ onClose }: Props) {
   const [showGithubToken, setShowGithubToken] = useState(false)
   const [showAnthropicKey, setShowAnthropicKey] = useState(false)
   const [showWordfenceKey, setShowWordfenceKey] = useState(false)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null)
+  const [controleren, setControleren] = useState(false)
+  const [updateLog, setUpdateLog] = useState<string | null>(null)
+  const [showUpdatesToken, setShowUpdatesToken] = useState(false)
 
   useEffect(() => {
     Services.SettingsService.Get().then(s => setSettings(s)).catch(() => {})
+    Services.UpdateService.Status().then(s => setUpdateStatus(s)).catch(() => {})
   }, [])
+
+  const controleerNu = async () => {
+    setControleren(true)
+    try {
+      setUpdateStatus(await Services.UpdateService.Check())
+    } catch {
+      // De foutmelding komt via Status().lastError terug.
+      try { setUpdateStatus(await Services.UpdateService.Status()) } catch { /* stil */ }
+    } finally {
+      setControleren(false)
+    }
+  }
 
   const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => prev ? { ...prev, [key]: value } : prev)
@@ -336,6 +354,118 @@ export default function SettingsPage({ onClose }: Props) {
               <span className="text-[12.5px] text-fg-muted">
                 Verwijder remote-tracking branches die niet meer bestaan
               </span>
+            </div>
+          </div>
+        </section>
+
+        {/* App-updates */}
+        <section>
+          <h3 className="text-[11px] font-semibold tracking-[.08em] text-fg-faint uppercase mb-2.5">
+            App-updates
+          </h3>
+          <div className="bg-panel border border-border rounded-[11px] divide-y divide-border">
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Huidige versie</label>
+              <span className="text-[12.5px] text-fg font-mono flex-1">
+                {updateStatus?.currentVersion || '—'}
+              </span>
+              <button
+                onClick={controleerNu}
+                disabled={controleren || !updateStatus?.enabled}
+                className="bg-panel-2 border border-border text-fg-muted text-[12px] font-semibold px-3 py-1.5
+                           rounded-[8px] hover:bg-hover disabled:opacity-50 transition-colors flex items-center gap-1.5"
+              >
+                {controleren && <span className="animate-spin inline-block text-[10px]">↻</span>}
+                Nu controleren
+              </button>
+            </div>
+
+            {!updateStatus?.enabled && (
+              <div className="px-4 py-3">
+                <p className="text-[11.5px] text-fg-faint">
+                  Zelf-update staat uit in deze build: hij is lokaal gebouwd of
+                  draait niet vanuit een <code className="font-mono">.app</code>.
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Laatste check</label>
+              <span className="text-[12.5px] text-fg-muted flex-1">
+                {updateStatus?.lastCheck && !updateStatus.lastCheck.startsWith('0001-01-01')
+                  ? new Date(updateStatus.lastCheck).toLocaleString('nl-NL')
+                  : 'nog niet gecontroleerd'}
+              </span>
+            </div>
+
+            {updateStatus?.available && (
+              <div className="px-4 py-3">
+                <p className="text-[12.5px] text-fg">
+                  Versie <span className="font-mono">{updateStatus.available.version}</span> is beschikbaar
+                  {updateStatus.available.skipped ? ' (overgeslagen)' : ''}.
+                </p>
+              </div>
+            )}
+
+            {updateStatus?.lastError && (
+              <div className="px-4 py-3">
+                <p className="text-[12.5px] text-red">{updateStatus.lastError}</p>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Automatisch</label>
+              <button
+                onClick={() => update('updatesAutoCheck', !settings.updatesAutoCheck)}
+                className={`relative w-9 h-5 rounded-full transition-colors ${
+                  settings.updatesAutoCheck ? 'bg-accent' : 'bg-panel-2 border border-border'
+                }`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  settings.updatesAutoCheck ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </button>
+              <span className="text-[12.5px] text-fg-muted">
+                Controleer bij het opstarten en daarna elke 6 uur
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Token</label>
+              <input
+                type={showUpdatesToken ? 'text' : 'password'}
+                value={settings.updatesGithubToken}
+                onChange={e => update('updatesGithubToken', e.target.value)}
+                placeholder="leeg = token van de plugin-repo"
+                className={inputClass}
+              />
+              <button
+                onClick={() => setShowUpdatesToken(v => !v)}
+                className="text-[11.5px] text-fg-muted hover:text-fg shrink-0"
+              >
+                {showUpdatesToken ? 'verberg' : 'toon'}
+              </button>
+            </div>
+
+            <div className="px-4 py-3">
+              <button
+                onClick={async () => {
+                  try {
+                    setUpdateLog(await Services.UpdateService.InstallLog() || 'Nog geen update-log.')
+                  } catch (e) {
+                    setUpdateLog(String(e))
+                  }
+                }}
+                className="text-[11.5px] text-accent hover:underline"
+              >
+                Toon update-log
+              </button>
+              {updateLog !== null && (
+                <pre className="mt-2 max-h-48 overflow-auto text-[11px] font-mono text-fg-muted
+                                bg-bg border border-border rounded-[8px] p-2 whitespace-pre-wrap">
+                  {updateLog}
+                </pre>
+              )}
             </div>
           </div>
         </section>
