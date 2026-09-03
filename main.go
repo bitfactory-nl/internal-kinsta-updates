@@ -50,9 +50,14 @@ func main() {
 	services.LogFix.SetApp(a)
 	services.OrgSync.SetApp(a)
 	services.BulkUpdate.SetApp(a)
+	services.Update.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()
+
+	// Controleer op een nieuwere versie van de tool zelf: kort na het opstarten
+	// en daarna elke 6 uur. No-op in dev-builds.
+	services.Update.Start()
 
 	a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Kinsta Updater",

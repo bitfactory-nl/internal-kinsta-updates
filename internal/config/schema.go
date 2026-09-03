@@ -11,6 +11,26 @@ type Global struct {
 	Git           GitGlobal       `yaml:"git"`
 	AI            AIGlobal        `yaml:"ai"`
 	Wordfence     WordfenceGlobal `yaml:"wordfence"`
+	Updates       UpdatesGlobal   `yaml:"updates"`
+}
+
+// UpdatesGlobal regelt de zelf-update van de tool.
+type UpdatesGlobal struct {
+	// AutoCheck is een pointer zodat een config.yml zonder updates-sectie —
+	// wat elke bestaande installatie is — niet als "uitgezet" wordt gelezen.
+	// applyDefaults vult nil aan met true.
+	AutoCheck *bool `yaml:"auto_check"`
+
+	// GithubToken is optioneel: leeg betekent dat het token van de plugin-repo
+	// wordt gebruikt. Formaat als elders: keychain:rdm.github.token of een
+	// literal (alleen voor dev).
+	GithubToken string `yaml:"github_token,omitempty"`
+}
+
+// AutoCheckEnabled meldt of automatisch controleren aan staat; niet ingevuld
+// betekent aan.
+func (u UpdatesGlobal) AutoCheckEnabled() bool {
+	return u.AutoCheck == nil || *u.AutoCheck
 }
 
 type KinstaGlobal struct {

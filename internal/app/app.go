@@ -57,6 +57,7 @@ type Services struct {
 	DBEditor        *services.DBEditorService
 	OrgSync         *services.OrgSyncService
 	BulkUpdate      *services.BulkUpdateService
+	Update          *services.UpdateService
 }
 
 func NewServices(cfg Config) *Services {
@@ -109,6 +110,7 @@ func NewServices(cfg Config) *Services {
 		DBEditor:        services.NewDBEditorService(project, dbClone, &cfg.Global),
 		OrgSync:         services.NewOrgSyncService(project, &cfg.Global),
 		BulkUpdate:      services.NewBulkUpdateService(&cfg.Global, project, git, plugin),
+		Update:          services.NewUpdateService(&cfg.Global),
 	}
 }
 
@@ -141,5 +143,6 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.DBEditor),
 		application.NewService(s.OrgSync),
 		application.NewService(s.BulkUpdate),
+		application.NewService(s.Update),
 	}
 }
