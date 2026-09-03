@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,7 +19,7 @@ import (
 // nepFetcher vervangt de GitHub-client. aanroep wordt achter een mutex gelezen
 // en geschreven: TestStartControleertNaDeInitieleVertraging leest hem vanuit de
 // testgoroutine terwijl de achtergrondloop van UpdateService hem tegelijk
-// verhoogt (undefined: race gedetecteerd door go test -race zonder deze lock).
+// verhoogt (go test -race wees deze race aan zonder deze lock).
 type nepFetcher struct {
 	rel    github.Release
 	relErr error
@@ -354,12 +356,17 @@ func TestStartDraaitNietAlsAutoCheckUitStaat(t *testing.T) {
 	s, _ := testService(t, "v0.2.9", f)
 	uit := false
 	s.cfg.Updates.AutoCheck = &uit
+	s.initialDelay = 10 * time.Millisecond
+	s.interval = time.Hour
 
 	s.Start()
 	t.Cleanup(s.Stop)
 
-	time.Sleep(50 * time.Millisecond)
-	if f.aanroep != 0 {
+	// De loop draait nu ook met de toggle uit (zodat aanzetten in Instellingen
+	// geen herstart vergt), maar slaat elke ronde over. Wacht tot ruim na de
+	// initiële vertraging om aan te tonen dat die ronde niets heeft gedaan.
+	time.Sleep(100 * time.Millisecond)
+	if f.aanroepen() != 0 {
 		t.Error("de loop heeft gecontroleerd terwijl automatisch controleren uit staat")
 	}
 }
@@ -408,5 +415,32 @@ func TestCheckGeeftLegeLijstEnGeenNilZonderChangelog(t *testing.T) {
 	}
 	if len(status.Available.Changes) != 0 {
 		t.Errorf("Changes = %+v, wil leeg", status.Available.Changes)
+	}
+}
+
+func TestCheckHoudtSaveFoutZichtbaar(t *testing.T) {
+	f := &nepFetcher{rel: nieuweRelease("v0.2.10", "")}
+	s, _ := testService(t, "v0.2.9", f)
+
+	// s.statePath onder een gewoon bestand zetten laat MkdirAll (in
+	// saveUpdateState) falen: er is geen map te maken waar al een bestand ligt.
+	bestand := filepath.Join(t.TempDir(), "geen-map")
+	if err := os.WriteFile(bestand, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s.statePath = filepath.Join(bestand, "update-state.json")
+
+	status, err := s.Check()
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if status.Available == nil {
+		t.Fatal("Available = nil, wil v0.2.10 ondanks de save-fout")
+	}
+	if s.Status().LastError == "" {
+		t.Error("LastError is leeg, wil de save-fout zichtbaar in Instellingen")
+	}
+	if !strings.Contains(s.Status().LastError, "update-state") {
+		t.Errorf("LastError = %q, wil een verwijzing naar update-state", s.Status().LastError)
 	}
 }

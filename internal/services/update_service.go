@@ -184,15 +184,18 @@ func (s *UpdateService) Check() (domain.UpdateStatus, error) {
 
 	st, _ := loadUpdateState(s.statePath)
 	st.LastCheck = time.Now()
-	if err := saveUpdateState(s.statePath, st); err != nil {
-		// Niet fataal: de check zelf is gelukt, alleen het onthouden faalde.
-		s.setError(err)
+	saveErr := saveUpdateState(s.statePath, st)
+	if saveErr != nil {
+		// Niet fataal voor de check zelf, maar wel zichtbaar in Instellingen.
+		s.setError(fmt.Errorf("update-state opslaan: %w", saveErr))
 	}
 
 	if !version.IsNewer(rel.TagName, s.current) {
 		s.mu.Lock()
 		s.available = nil
-		s.lastError = ""
+		if saveErr == nil {
+			s.lastError = ""
+		}
 		s.mu.Unlock()
 		return s.Status(), nil
 	}
@@ -212,7 +215,9 @@ func (s *UpdateService) Check() (domain.UpdateStatus, error) {
 	s.mu.Lock()
 	s.available = upd
 	s.asset = rel.Asset
-	s.lastError = ""
+	if saveErr == nil {
+		s.lastError = ""
+	}
 	emitter := s.emitter
 	s.mu.Unlock()
 

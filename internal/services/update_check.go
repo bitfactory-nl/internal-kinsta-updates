@@ -17,12 +17,13 @@ const (
 )
 
 // Start begint de achtergrondloop en ruimt een achtergebleven back-upbundle op.
-// No-op wanneer de loop al draait, in een dev-build, of als automatisch
-// controleren uit staat.
+// No-op wanneer de loop al draait of in een dev-build. Staat automatisch
+// controleren uit, dan draait de loop wel maar slaat elke ronde over — zo
+// werkt de toggle in Instellingen direct, zonder herstart.
 func (s *UpdateService) Start() {
 	s.cleanupBackupBundle()
 
-	if !s.enabled() || !s.cfg.Updates.AutoCheckEnabled() {
+	if !s.enabled() {
 		return
 	}
 
