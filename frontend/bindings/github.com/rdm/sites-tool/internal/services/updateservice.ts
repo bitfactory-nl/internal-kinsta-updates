@@ -32,6 +32,19 @@ export function Check(): $CancellablePromise<domain$0.UpdateStatus> {
 }
 
 /**
+ * Install haalt de beschikbare update binnen, zet hem klaar in een tempmap, en
+ * draagt het vervangen over aan een los script. Bij succes keert deze functie
+ * niet terug op een zinvolle manier: de app sluit zichzelf af.
+ * 
+ * De volgorde is bewust: alles wat kan mislukken gebeurt vóórdat er iets aan de
+ * bestaande installatie verandert. Faalt de download, het uitpakken of de
+ * controle, dan staat er nog steeds een werkende app.
+ */
+export function Install(): $CancellablePromise<void> {
+    return $Call.ByID(597277855);
+}
+
+/**
  * InstallLog geeft de inhoud van het laatste update-logbestand, voor de link in
  * Instellingen en het "wat is er nieuw"-venster.
  */
