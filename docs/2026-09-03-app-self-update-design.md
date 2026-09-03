@@ -258,6 +258,15 @@ opnieuw invullen. Daarom in `internal/config/keychain.go` een
 ontbreekt maar onder de oude bestaat, wordt hij overgezet. Idempotent, en stil
 als er niets te migreren is.
 
+Die lijst dekt niet alles: de mediascan schrijft per project een dynamisch
+account `ssh:<projectnaam>` (`internal/services/media_service.go`), en ook
+`basic_auth`/`test_account`-referenties in projectconfiguraties wijzen naar de
+keychain. Daarom valt `keychainGet` bij een misser onder de nieuwe service-naam
+terug op de oude, kopieert het item lui naar de nieuwe naam en geeft de waarde
+alsnog terug. Zo raakt géén account verloren, ook niet een dat later wordt
+bedacht; de eager migratie van de vier bekende accounts blijft bestaan zodat die
+al bij het opstarten goed staan.
+
 De oude items blijven staan in plaats van verwijderd te worden: een
 `security delete-generic-password` kan een keychain-prompt opleveren, en dat is
 een slechte verrassing tijdens het opstarten. De release-notes vermelden dat ze
