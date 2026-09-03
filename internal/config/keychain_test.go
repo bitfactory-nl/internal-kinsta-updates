@@ -137,3 +137,73 @@ func TestKeychainServiceNamen(t *testing.T) {
 	}
 	_ = fmt.Sprint(keychainService) // houdt de import in gebruik bij aanpassingen
 }
+
+func TestKeychainGetValtTerugOpOudeServiceEnKopieert(t *testing.T) {
+	n := newNepKeychain()
+	_ = n.set(legacyKeychainService, "ssh:Klant A", "geheim-a")
+	n.sets = 0
+	installeerNep(t, n)
+
+	v, err := keychainGet("ssh:Klant A")
+	if err != nil {
+		t.Fatalf("keychainGet gaf fout: %v", err)
+	}
+	if v != "geheim-a" {
+		t.Errorf("waarde = %q, wil %q", v, "geheim-a")
+	}
+	if got := n.items[keychainService]["ssh:Klant A"]; got != "geheim-a" {
+		t.Errorf("na fallback onder nieuwe service = %q, wil %q", got, "geheim-a")
+	}
+	// Het oude item blijft staan.
+	if got := n.items[legacyKeychainService]["ssh:Klant A"]; got != "geheim-a" {
+		t.Errorf("oude item = %q, wil ongemoeid", got)
+	}
+}
+
+func TestKeychainGetGeeftNieuweWaardeVoorrang(t *testing.T) {
+	n := newNepKeychain()
+	_ = n.set(legacyKeychainService, "ssh:Klant B", "oud")
+	_ = n.set(keychainService, "ssh:Klant B", "nieuw")
+	n.sets = 0
+	installeerNep(t, n)
+
+	v, err := keychainGet("ssh:Klant B")
+	if err != nil {
+		t.Fatalf("keychainGet gaf fout: %v", err)
+	}
+	if v != "nieuw" {
+		t.Errorf("waarde = %q, wil %q", v, "nieuw")
+	}
+	if n.sets != 0 {
+		t.Errorf("aantal writes = %d, wil 0", n.sets)
+	}
+}
+
+func TestKeychainGetOnbekendAccount(t *testing.T) {
+	n := newNepKeychain()
+	installeerNep(t, n)
+
+	if _, err := keychainGet("ssh:Onbekend"); err == nil {
+		t.Fatal("keychainGet had een fout moeten geven")
+	}
+	if n.sets != 0 {
+		t.Errorf("aantal writes = %d, wil 0", n.sets)
+	}
+}
+
+func TestKeychainGetKopieertMaarEenKeer(t *testing.T) {
+	n := newNepKeychain()
+	_ = n.set(legacyKeychainService, "ssh:Klant C", "geheim-c")
+	n.sets = 0
+	installeerNep(t, n)
+
+	if _, err := keychainGet("ssh:Klant C"); err != nil {
+		t.Fatalf("eerste keychainGet gaf fout: %v", err)
+	}
+	if _, err := keychainGet("ssh:Klant C"); err != nil {
+		t.Fatalf("tweede keychainGet gaf fout: %v", err)
+	}
+	if n.sets != 1 {
+		t.Errorf("aantal writes = %d, wil 1", n.sets)
+	}
+}

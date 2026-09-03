@@ -15,9 +15,10 @@ const keychainService = "nl.nobears.kinsta-updater"
 // te vullen.
 const legacyKeychainService = "nl.micromanage.rdm-sites-tool"
 
-// migratedAccounts zijn alle keychain-accounts die de tool zelf schrijft. Komt
-// er een nieuwe key bij, dan hoort die hier ook in — anders raakt hij bij een
-// volgende naamswijziging verloren.
+// migratedAccounts zijn de vaste keychain-accounts die MigrateKeychainService
+// eager overzet bij het opstarten. Dynamisch aangemaakte accounts (zoals
+// "ssh:<projectnaam>" van de mediascan) staan hier bewust niet in — die worden
+// lui overgezet door keychainGet, de eerste keer dat ze worden opgevraagd.
 var migratedAccounts = []string{
 	"rdm.kinsta.apiKey",
 	"rdm.github.token",
@@ -59,8 +60,29 @@ func keychainSetIn(service, account, password string) error {
 	return nil
 }
 
+// keychainGet leest een secret onder de huidige service-naam. Ontbreekt het
+// daar maar staat het nog onder de oude naam — bijvoorbeeld een per project
+// aangemaakt "ssh:<naam>"-account dat niet in migratedAccounts staat — dan wordt
+// het lui overgezet en alsnog teruggegeven. Zo raakt geen enkel account
+// verloren door de naamswijziging, ook niet accounts die later zijn bedacht.
 func keychainGet(account string) (string, error) {
-	return getFromService(keychainService, account)
+	v, err := getFromService(keychainService, account)
+	if err == nil && v != "" {
+		return v, nil
+	}
+	legacy, legacyErr := getFromService(legacyKeychainService, account)
+	if legacyErr != nil || legacy == "" {
+		// De oorspronkelijke fout teruggeven: die beschrijft het account dat de
+		// aanroeper vroeg, niet de fallback.
+		if err == nil {
+			err = fmt.Errorf("keychain get %q: leeg", account)
+		}
+		return "", err
+	}
+	// Best effort: mislukt het kopiëren, dan werkt de waarde nog steeds en
+	// probeert de volgende aanroep het opnieuw.
+	_ = setInService(keychainService, account, legacy)
+	return legacy, nil
 }
 
 func KeychainSet(account, password string) error {

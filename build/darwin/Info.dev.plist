@@ -8,11 +8,11 @@
         <key>CFBundleExecutable</key>
             <string>rdm-sites-tool</string>
         <key>CFBundleIdentifier</key>
-            <string>com.example.rdmsitestool</string>
+            <string>nl.nobears.kinsta-updater</string>
         <key>CFBundleVersion</key>
             <string>0.1.0</string>
         <key>CFBundleGetInfoString</key>
-            <string>This is a comment</string>
+            <string>Git &amp; deployment dashboard</string>
         <key>CFBundleShortVersionString</key>
             <string>0.1.0</string>
         <key>CFBundleIconFile</key>
@@ -22,7 +22,7 @@
         <key>NSHighResolutionCapable</key>
             <string>true</string>
         <key>NSHumanReadableCopyright</key>
-            <string>© 2026, My Company</string>
+            <string>© 2026, No Bears</string>
         <key>NSAppTransportSecurity</key>
         <dict>
             <key>NSAllowsLocalNetworking</key>
