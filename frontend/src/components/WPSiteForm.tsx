@@ -74,21 +74,27 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
   const verwijderen = async () => {
     if (!onDelete) return
     if (!window.confirm(`Site "${site.name}" en het opgeslagen Application Password verwijderen?`)) return
+    setBezig(true); setFout(null)
     try {
       await Services.WPSiteService.Delete(site.id)
       onDelete()
     } catch (e) {
       setFout(foutTekst(e))
+    } finally {
+      setBezig(false)
     }
   }
 
   const ontkoppelen = async () => {
     if (!onUnlink) return
+    setBezig(true); setFout(null)
     try {
       await Services.WPSiteService.Unlink(site.id)
       onUnlink()
     } catch (e) {
       setFout(foutTekst(e))
+    } finally {
+      setBezig(false)
     }
   }
 
@@ -132,8 +138,8 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
           {bezig ? <span className="animate-spin inline-block">↻</span> : 'Opslaan'}
         </button>
         {!nieuw && <button onClick={testen} disabled={bezig} className={knopStil}>Test verbinding</button>}
-        {!nieuw && onUnlink && <button onClick={ontkoppelen} className={knopStil}>Ontkoppelen</button>}
-        {!nieuw && onDelete && <button onClick={verwijderen} className={`${knopStil} text-red`}>Verwijderen</button>}
+        {!nieuw && onUnlink && <button onClick={ontkoppelen} disabled={bezig} className={knopStil}>Ontkoppelen</button>}
+        {!nieuw && onDelete && <button onClick={verwijderen} disabled={bezig} className={`${knopStil} text-red`}>Verwijderen</button>}
         {verbinding && (
           <span className={`text-[11.5px] ${verbindingKleur[verbinding.status] ?? 'text-fg-muted'}`}>
             {verbinding.message}

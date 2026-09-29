@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { Project } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import Foutvak from './Foutvak'
@@ -30,6 +30,7 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
   const [wpKoppeling, setWpKoppeling] = useState<WPSiteView | null>(null)
   const [wpVoorstel, setWpVoorstel] = useState<WPSite | null>(null)
   const [wpBridge, setWpBridge] = useState(false)
+  const [wpLos, setWpLos] = useState<WPSiteView | null>(null)
 
   useEffect(() => {
     setFout(null); setOpgeslagen(false)
@@ -49,14 +50,36 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
     setSshWachtwoord('')
   }, [project.id, project.deploy?.link?.local])
 
-  const laadWp = () => {
-    Services.WPSiteService.ForProject(project.id)
-      .then(v => setWpKoppeling(v ?? null))
-      .catch(e => setFout(foutTekst(e)))
-    Services.WPSiteService.SuggestForProject(project.id).then(setWpVoorstel).catch(() => {})
-    Services.WPSiteService.DetectBridge(project.id).then(setWpBridge).catch(() => setWpBridge(false))
+  // Elke laadronde krijgt een nummer; antwoorden van een oudere ronde (ander
+  // project of eerdere herlaadactie) worden genegeerd.
+  const wpRonde = useRef(0)
+  const laadWp = async () => {
+    const ronde = ++wpRonde.current
+    const actueel = () => wpRonde.current === ronde
+    setWpKoppeling(null); setWpVoorstel(null); setWpLos(null); setWpBridge(false)
+    try {
+      const [koppeling, voorstel, bridge] = await Promise.all([
+        Services.WPSiteService.ForProject(project.id),
+        Services.WPSiteService.SuggestForProject(project.id).catch(() => null),
+        Services.WPSiteService.DetectBridge(project.id).catch(() => false),
+      ])
+      if (!actueel()) return
+      let los: WPSiteView | null = null
+      if (!koppeling && voorstel) {
+        // een eerder ontkoppelde site bestaat nog los: opnieuw koppelen i.p.v. aanmaken
+        const alle = await Services.WPSiteService.List().catch(() => [] as WPSiteView[])
+        if (!actueel()) return
+        los = alle.find(v => !v.site.projectPath && v.site.id === voorstel.id) ?? null
+      }
+      setWpKoppeling(koppeling ?? null); setWpVoorstel(voorstel); setWpLos(los); setWpBridge(bridge)
+    } catch (e) {
+      if (actueel()) setFout(foutTekst(e))
+    }
   }
-  useEffect(laadWp, [project.id])
+  useEffect(() => {
+    laadWp()
+    return () => { wpRonde.current++ }
+  }, [project.id])
 
   const localURLOpslaan = async () => {
     setOpslaanBezig(true); setFout(null); setOpgeslagen(false)
@@ -139,12 +162,14 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
           <p className="text-[10.5px] text-fg-faint mb-3">
             {wpKoppeling
               ? 'Gekoppeld aan wp-fleet. Gegevens staan in ~/.config/rdm/wp-sites.yml, het wachtwoord in de Keychain — niet in deze repo.'
-              : 'nb-mcp-bridge gevonden in deze checkout. Vul de gegevens in om deze site aan wp-fleet toe te voegen.'}
+              : wpLos
+                ? 'Er bestaat al een losse site met dit id — Opslaan koppelt die opnieuw aan dit project.'
+                : 'nb-mcp-bridge gevonden in deze checkout. Vul de gegevens in om deze site aan wp-fleet toe te voegen.'}
           </p>
           <WPSiteForm
-            initial={wpKoppeling ? wpKoppeling.site : wpVoorstel!}
-            isNew={!wpKoppeling}
-            hasPassword={wpKoppeling?.hasPassword ?? false}
+            initial={wpKoppeling ? wpKoppeling.site : wpLos ? { ...wpLos.site, projectPath: wpVoorstel?.projectPath } as WPSite : wpVoorstel!}
+            isNew={!wpKoppeling && !wpLos}
+            hasPassword={(wpKoppeling ?? wpLos)?.hasPassword ?? false}
             projectMissing={wpKoppeling?.projectMissing}
             onSaved={v => setWpKoppeling(v)}
             onUnlink={laadWp}
