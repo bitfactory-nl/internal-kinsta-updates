@@ -2,9 +2,12 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -39,10 +42,48 @@ type WPFleetService struct {
 	sites      *WPSiteService
 	run        ClaudeRunner
 	executable func() (string, error)
+	// claudeConfigPath wijst naar ~/.claude.json, waar Claude Code de
+	// user-scope MCP-servers bewaart.
+	claudeConfigPath func() string
 }
 
 func NewWPFleetService(cfg *config.Global, sites *WPSiteService, run ClaudeRunner, executable func() (string, error)) *WPFleetService {
-	return &WPFleetService{cfg: cfg, sites: sites, run: run, executable: executable}
+	return &WPFleetService{cfg: cfg, sites: sites, run: run, executable: executable,
+		claudeConfigPath: defaultClaudeConfigPath}
+}
+
+func defaultClaudeConfigPath() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".claude.json")
+}
+
+// readWPFleetRegistration leest alleen command en args van de wp-fleet-server
+// uit ~/.claude.json. Het bestand bevat ook tokens van andere servers, dus de
+// struct decodeert bewust niets anders. Ontbreekt het bestand, dan is er geen
+// registratie; onleesbare JSON is een fout.
+func readWPFleetRegistration(path string) (command string, args []string, found bool, err error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return "", nil, false, nil
+	}
+	if err != nil {
+		return "", nil, false, fmt.Errorf("lees Claude Code-configuratie: %w", err)
+	}
+	var cfg struct {
+		MCPServers map[string]struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		// Niet %w: de fout van encoding/json kan een stukje van de inhoud bevatten.
+		return "", nil, false, errors.New("Claude Code-configuratie (~/.claude.json) is geen geldige JSON")
+	}
+	srv, ok := cfg.MCPServers[wpFleetServerName]
+	if !ok {
+		return "", nil, false, nil
+	}
+	return srv.Command, srv.Args, true, nil
 }
 
 func (s *WPFleetService) Status() (FleetStatus, error) {
@@ -62,12 +103,14 @@ func (s *WPFleetService) Status() (FleetStatus, error) {
 		Sites:                total,
 		SitesWithoutPassword: zonder,
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if out, err := s.run(ctx, "mcp", "get", wpFleetServerName); err == nil {
-		st.Registered = true
-		st.PointsToThisApp = strings.Contains(out, exe) && strings.Contains(out, "mcp-launch")
+	// Niet via `claude mcp get`: dat health-checkt de server en start zo
+	// mcp-launch (Keychain + docker) bij elke statusvraag.
+	command, args, found, err := readWPFleetRegistration(s.claudeConfigPath())
+	if err != nil {
+		return FleetStatus{}, err
 	}
+	st.Registered = found
+	st.PointsToThisApp = found && command == exe && len(args) == 1 && args[0] == "mcp-launch"
 	return st, nil
 }
 
