@@ -61,8 +61,10 @@ func TestLoadWPSitesOngeldig(t *testing.T) {
 		os.WriteFile(p, []byte(inhoud), 0o600)
 		if _, err := LoadWPSites(p); err == nil {
 			t.Errorf("%s: verwacht fout", naam)
-		} else if !strings.Contains(err.Error(), "wp-sites") && naam != "yaml-syntax" {
+		} else if !strings.Contains(err.Error(), p) {
 			t.Errorf("%s: foutmelding noemt bestand niet: %v", naam, err)
+		} else if strings.Count(err.Error(), "wp-sites") != 0 {
+			t.Errorf("%s: dubbel voorvoegsel naast het pad: %v", naam, err)
 		}
 	}
 }
@@ -80,5 +82,20 @@ func TestSaveWPSitesWeigertOngeldigEnLaatBestandStaan(t *testing.T) {
 	got, _ := LoadWPSites(path)
 	if len(got) != 1 || got[0].ID != "aa" {
 		t.Fatalf("bestand is aangetast: %+v", got)
+	}
+}
+
+func TestSaveWPSitesFoutEenVoorvoegsel(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wp-sites.yml")
+	sites := []domain.WPSite{
+		{ID: "aa", Name: "a", URL: "https://a.nl", Username: "u", ProjectPath: "/p"},
+		{ID: "bb", Name: "b", URL: "https://b.nl", Username: "u", ProjectPath: "/p"},
+	}
+	err := SaveWPSites(path, sites)
+	if err == nil {
+		t.Fatal("verwacht fout bij dubbel project")
+	}
+	if n := strings.Count(err.Error(), "wp-sites"); n != 1 {
+		t.Fatalf("\"wp-sites\" komt %d keer voor: %v", n, err)
 	}
 }

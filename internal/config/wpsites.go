@@ -90,20 +90,22 @@ func SaveWPSites(path string, sites []domain.WPSite) error {
 	return os.Rename(tmp.Name(), path)
 }
 
+// validateWPSites geeft fouten zonder voorvoegsel; de aanroeper zet er het
+// pad (Load) of "wp-sites" (Save) voor.
 func validateWPSites(sites []domain.WPSite) error {
 	ids := map[string]bool{}
 	paden := map[string]string{}
 	for i, s := range sites {
 		if err := s.Validate(); err != nil {
-			return fmt.Errorf("wp-sites site %d (%s): %w", i+1, s.ID, err)
+			return fmt.Errorf("site %d (%s): %w", i+1, s.ID, err)
 		}
 		if ids[s.ID] {
-			return fmt.Errorf("wp-sites: id %q komt dubbel voor", s.ID)
+			return fmt.Errorf("id %q komt dubbel voor", s.ID)
 		}
 		ids[s.ID] = true
 		if s.ProjectPath != "" {
 			if ander, ok := paden[s.ProjectPath]; ok {
-				return fmt.Errorf("wp-sites: project %s is al gekoppeld aan %q", s.ProjectPath, ander)
+				return fmt.Errorf("project %s is al gekoppeld aan %q", s.ProjectPath, ander)
 			}
 			paden[s.ProjectPath] = s.ID
 		}
