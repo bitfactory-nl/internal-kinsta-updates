@@ -1,0 +1,28 @@
+{
+  "sites": [
+    {
+      "id": "klant-a",
+      "name": "Klant A",
+      "url": "https://www.klant-a.nl",
+      "username": "mcp-bot",
+      "passwordEnv": "WP_KLANT_A_APP_PASSWORD",
+      "tags": [
+        "kinsta"
+      ],
+      "readOnly": false,
+      "allowHttp": false,
+      "bridge": true
+    },
+    {
+      "id": "lokaal",
+      "name": "Lokaal",
+      "url": "http://lokaal.test",
+      "username": "admin",
+      "passwordEnv": "WP_LOKAAL_APP_PASSWORD",
+      "tags": [],
+      "readOnly": true,
+      "allowHttp": true,
+      "bridge": false
+    }
+  ]
+}
