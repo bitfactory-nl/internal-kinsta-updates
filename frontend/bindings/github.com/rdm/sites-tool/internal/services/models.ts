@@ -10,6 +10,9 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as mysqldb$0 from "../adapters/mysqldb/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as domain$0 from "../domain/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as time$0 from "../../../../../time/models.js";
 
 /**
@@ -619,6 +622,31 @@ export class CelVerzoek {
     }
 }
 
+export class ConnectionResult {
+    "status": string;
+    "message": string;
+
+    /** Creates a new ConnectionResult instance. */
+    constructor($$source: Partial<ConnectionResult> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("message" in $$source)) {
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConnectionResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ConnectionResult {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ConnectionResult($$parsedSource as Partial<ConnectionResult>);
+    }
+}
+
 /**
  * CoreUpdateResult is de uitkomst van één core-update.
  */
@@ -813,6 +841,55 @@ export class FetchAllResult {
             $$parsedSource["errors"] = $$createField1_0($$parsedSource["errors"]);
         }
         return new FetchAllResult($$parsedSource as Partial<FetchAllResult>);
+    }
+}
+
+export class FleetStatus {
+    "registered": boolean;
+    "pointsToThisApp": boolean;
+    "stableLocation": boolean;
+    "executable": string;
+    "image": string;
+    "readOnly": boolean;
+    "sites": number;
+    "sitesWithoutPassword": number;
+
+    /** Creates a new FleetStatus instance. */
+    constructor($$source: Partial<FleetStatus> = {}) {
+        if (!("registered" in $$source)) {
+            this["registered"] = false;
+        }
+        if (!("pointsToThisApp" in $$source)) {
+            this["pointsToThisApp"] = false;
+        }
+        if (!("stableLocation" in $$source)) {
+            this["stableLocation"] = false;
+        }
+        if (!("executable" in $$source)) {
+            this["executable"] = "";
+        }
+        if (!("image" in $$source)) {
+            this["image"] = "";
+        }
+        if (!("readOnly" in $$source)) {
+            this["readOnly"] = false;
+        }
+        if (!("sites" in $$source)) {
+            this["sites"] = 0;
+        }
+        if (!("sitesWithoutPassword" in $$source)) {
+            this["sitesWithoutPassword"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FleetStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FleetStatus {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new FleetStatus($$parsedSource as Partial<FleetStatus>);
     }
 }
 
@@ -2608,6 +2685,42 @@ export class WPCoreUpdate {
 }
 
 /**
+ * WPSiteView is wat de frontend van een site ziet: nooit het wachtwoord zelf.
+ */
+export class WPSiteView {
+    "site": domain$0.WPSite;
+    "hasPassword": boolean;
+    "projectMissing": boolean;
+
+    /** Creates a new WPSiteView instance. */
+    constructor($$source: Partial<WPSiteView> = {}) {
+        if (!("site" in $$source)) {
+            this["site"] = (new domain$0.WPSite());
+        }
+        if (!("hasPassword" in $$source)) {
+            this["hasPassword"] = false;
+        }
+        if (!("projectMissing" in $$source)) {
+            this["projectMissing"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WPSiteView instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WPSiteView {
+        const $$createField0_0 = $$createType42;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("site" in $$parsedSource) {
+            $$parsedSource["site"] = $$createField0_0($$parsedSource["site"]);
+        }
+        return new WPSiteView($$parsedSource as Partial<WPSiteView>);
+    }
+}
+
+/**
  * WordfenceVulnFinding is a single vulnerability match against an installed
  * plugin, produced by WordfenceService.MatchProjects. Named distinctly from
  * VulnFinding (vuln_scan_service.go, Kinsta-environment scan results) to
@@ -2709,3 +2822,4 @@ const $$createType38 = WPCoreUpdate.createFrom;
 const $$createType39 = $Create.Array($$createType38);
 const $$createType40 = PackageUpdate.createFrom;
 const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = domain$0.WPSite.createFrom;

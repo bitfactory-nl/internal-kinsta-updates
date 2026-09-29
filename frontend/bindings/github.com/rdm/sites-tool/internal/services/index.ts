@@ -27,6 +27,8 @@ import * as TestService from "./testservice.js";
 import * as UpdateService from "./updateservice.js";
 import * as VulnScanService from "./vulnscanservice.js";
 import * as WPCoreUpdateService from "./wpcoreupdateservice.js";
+import * as WPFleetService from "./wpfleetservice.js";
+import * as WPSiteService from "./wpsiteservice.js";
 import * as WordfenceService from "./wordfenceservice.js";
 import * as WordfenceUpdateService from "./wordfenceupdateservice.js";
 export {
@@ -56,6 +58,8 @@ export {
     UpdateService,
     VulnScanService,
     WPCoreUpdateService,
+    WPFleetService,
+    WPSiteService,
     WordfenceService,
     WordfenceUpdateService
 };
@@ -72,11 +76,13 @@ export {
     BulkUpdateProjectResult,
     BulkUpdateResult,
     CelVerzoek,
+    ConnectionResult,
     CoreUpdateResult,
     DBEditorInfo,
     EnvSSHEndpoint,
     FeedMeta,
     FetchAllResult,
+    FleetStatus,
     InventoryItem,
     InventoryProjectRef,
     LocalApplyPlugin,
@@ -117,5 +123,6 @@ export {
     VulnFinding,
     WPCoreReport,
     WPCoreUpdate,
+    WPSiteView,
     WordfenceVulnFinding
 } from "./models.js";

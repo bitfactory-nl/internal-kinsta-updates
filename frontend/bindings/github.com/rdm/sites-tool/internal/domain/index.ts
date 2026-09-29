@@ -92,5 +92,6 @@ export {
     UpdateStatus,
     UploadFolder,
     VPSProjectCfg,
-    Vulnerability
+    Vulnerability,
+    WPSite
 } from "./models.js";

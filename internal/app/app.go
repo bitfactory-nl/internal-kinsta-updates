@@ -2,6 +2,7 @@ package app
 
 import (
 	"log"
+	"os"
 
 	"github.com/rdm/sites-tool/internal/adapters/browser"
 	"github.com/rdm/sites-tool/internal/adapters/endoflife"
@@ -58,6 +59,8 @@ type Services struct {
 	OrgSync         *services.OrgSyncService
 	BulkUpdate      *services.BulkUpdateService
 	Update          *services.UpdateService
+	WPSite          *services.WPSiteService
+	WPFleet         *services.WPFleetService
 }
 
 func NewServices(cfg Config) *Services {
@@ -80,6 +83,8 @@ func NewServices(cfg Config) *Services {
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
 	plugin := services.NewPluginService(&cfg.Global, kinsta, project, git)
+	wpSite := services.NewWPSiteService(config.WPSitesPath(), project, services.KeychainSecrets{})
+	wpFleet := services.NewWPFleetService(&cfg.Global, wpSite, services.DefaultClaudeRunner, os.Executable)
 
 	return &Services{
 		Project:  project,
@@ -111,6 +116,8 @@ func NewServices(cfg Config) *Services {
 		OrgSync:         services.NewOrgSyncService(project, &cfg.Global),
 		BulkUpdate:      services.NewBulkUpdateService(&cfg.Global, project, git, plugin),
 		Update:          services.NewUpdateService(&cfg.Global),
+		WPSite:          wpSite,
+		WPFleet:         wpFleet,
 	}
 }
 
@@ -144,5 +151,7 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.OrgSync),
 		application.NewService(s.BulkUpdate),
 		application.NewService(s.Update),
+		application.NewService(s.WPSite),
+		application.NewService(s.WPFleet),
 	}
 }

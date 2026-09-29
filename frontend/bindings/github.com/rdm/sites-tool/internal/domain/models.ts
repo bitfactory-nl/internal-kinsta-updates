@@ -3992,6 +3992,58 @@ export class Vulnerability {
     }
 }
 
+/**
+ * WPSite is een WordPress-site waarmee wp-fleet mag praten: gekoppeld aan een
+ * projectmap (ProjectPath gevuld) of los. Het Application Password staat
+ * nooit hier maar in de Keychain onder "wp:<ID>".
+ */
+export class WPSite {
+    "id": string;
+    "name": string;
+    "url": string;
+    "username": string;
+    "projectPath"?: string;
+    "tags"?: string[];
+    "readOnly": boolean;
+    "bridge": boolean;
+
+    /** Creates a new WPSite instance. */
+    constructor($$source: Partial<WPSite> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("username" in $$source)) {
+            this["username"] = "";
+        }
+        if (!("readOnly" in $$source)) {
+            this["readOnly"] = false;
+        }
+        if (!("bridge" in $$source)) {
+            this["bridge"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WPSite instance from a string or object.
+     */
+    static createFrom($$source: any = {}): WPSite {
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("tags" in $$parsedSource) {
+            $$parsedSource["tags"] = $$createField5_0($$parsedSource["tags"]);
+        }
+        return new WPSite($$parsedSource as Partial<WPSite>);
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = ChangeEntry.createFrom;
