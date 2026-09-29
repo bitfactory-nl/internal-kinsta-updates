@@ -163,12 +163,30 @@ func (s *WPSiteService) Update(site domain.WPSite, password string) (WPSiteView,
 
 // Unlink maakt van een gekoppelde site een losse site; er gaat niets verloren.
 func (s *WPSiteService) Unlink(id string) error {
-	site, err := s.find(id)
+	_, err := s.mutate(id, func(site *domain.WPSite) { site.ProjectPath = "" })
+	return err
+}
+
+// mutate laadt, wijzigt en bewaart één site onder één lock, zodat een
+// gelijktijdige Update niet overschreven wordt.
+func (s *WPSiteService) mutate(id string, fn func(*domain.WPSite)) (domain.WPSite, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sites, err := config.LoadWPSites(s.path)
 	if err != nil {
-		return err
+		return domain.WPSite{}, err
 	}
-	site.ProjectPath = ""
-	return s.saveSite(site)
+	next := append([]domain.WPSite{}, sites...)
+	for i := range next {
+		if next[i].ID == id {
+			fn(&next[i])
+			if err := config.SaveWPSites(s.path, next); err != nil {
+				return domain.WPSite{}, err
+			}
+			return next[i], nil
+		}
+	}
+	return domain.WPSite{}, fmt.Errorf("site %q niet gevonden", id)
 }
 
 func (s *WPSiteService) Delete(id string) error {

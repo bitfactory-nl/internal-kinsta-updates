@@ -28,7 +28,9 @@ func nieuweWPSiteService(t *testing.T) (*WPSiteService, *wpNepSecrets, string) {
 	t.Helper()
 	dir := t.TempDir()
 	projDir := filepath.Join(dir, "web-ekcoatingsnl")
-	os.MkdirAll(filepath.Join(projDir, "public", "wp-content", "mu-plugins"), 0o755)
+	if err := os.MkdirAll(filepath.Join(projDir, "public", "wp-content", "mu-plugins"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	p := domain.Project{ID: "p1", Path: projDir, DisplayName: "web-ekcoatingsnl"}
 	p.Deploy.Link.Prod = "https://www.ekcoating.nl"
 	sec := &wpNepSecrets{m: map[string]string{}}
@@ -169,5 +171,54 @@ func TestWPSiteStats(t *testing.T) {
 	total, zonder, err := svc.Stats()
 	if err != nil || total != 2 || zonder != 1 {
 		t.Fatalf("Stats = %d, %d, %v", total, zonder, err)
+	}
+}
+
+func TestWPSiteCreateWeigertTweedeSiteOpZelfdeProject(t *testing.T) {
+	svc, sec, projDir := nieuweWPSiteService(t)
+	if _, err := svc.Create(testWPSite("een", projDir), "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(testWPSite("twee", projDir), "pw"); err == nil {
+		t.Fatal("verwacht fout bij tweede site op zelfde project")
+	}
+	if _, ok := sec.m["wp:twee"]; ok {
+		t.Fatal("secret van geweigerde site achtergebleven")
+	}
+}
+
+func TestWPSiteUpdateOngeldigeURLHoudtOudeSite(t *testing.T) {
+	svc, _, _ := nieuweWPSiteService(t)
+	if _, err := svc.Create(testWPSite("depot", ""), "pw"); err != nil {
+		t.Fatal(err)
+	}
+	s := testWPSite("depot", "")
+	s.URL = "http://extern.nl"
+	if _, err := svc.Update(s, ""); err == nil {
+		t.Fatal("verwacht validatiefout")
+	}
+	list, _ := svc.List()
+	if len(list) != 1 || list[0].Site.URL != "https://depot.nl" {
+		t.Fatalf("oude site niet behouden: %+v", list)
+	}
+}
+
+func TestWPSiteUpdateWeigertProjectBotsing(t *testing.T) {
+	svc, _, projDir := nieuweWPSiteService(t)
+	if _, err := svc.Create(testWPSite("een", projDir), "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(testWPSite("twee", ""), "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Update(testWPSite("twee", projDir), ""); err == nil {
+		t.Fatal("verwacht fout bij botsend project")
+	}
+}
+
+func TestWPSiteUnlinkOnbekendeID(t *testing.T) {
+	svc, _, _ := nieuweWPSiteService(t)
+	if err := svc.Unlink("bestaat-niet"); err == nil {
+		t.Fatal("verwacht fout voor onbekende id")
 	}
 }
