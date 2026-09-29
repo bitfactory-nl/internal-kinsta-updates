@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { Project } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import Foutvak from './Foutvak'
+import WPSiteForm from './WPSiteForm'
+import type { WPSite } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { WPSiteView } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 
 interface Props {
   project: Project
@@ -24,6 +27,9 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
   const [sshOpslaanBezig, setSshOpslaanBezig] = useState(false)
 
   const [fout, setFout] = useState<string | null>(null)
+  const [wpKoppeling, setWpKoppeling] = useState<WPSiteView | null>(null)
+  const [wpVoorstel, setWpVoorstel] = useState<WPSite | null>(null)
+  const [wpBridge, setWpBridge] = useState(false)
 
   useEffect(() => {
     setFout(null); setOpgeslagen(false)
@@ -42,6 +48,15 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
       .catch(() => {})
     setSshWachtwoord('')
   }, [project.id, project.deploy?.link?.local])
+
+  const laadWp = () => {
+    Services.WPSiteService.ForProject(project.id)
+      .then(v => setWpKoppeling(v ?? null))
+      .catch(e => setFout(foutTekst(e)))
+    Services.WPSiteService.SuggestForProject(project.id).then(setWpVoorstel).catch(() => {})
+    Services.WPSiteService.DetectBridge(project.id).then(setWpBridge).catch(() => setWpBridge(false))
+  }
+  useEffect(laadWp, [project.id])
 
   const localURLOpslaan = async () => {
     setOpslaanBezig(true); setFout(null); setOpgeslagen(false)
@@ -100,7 +115,7 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
         <p className="text-[10.5px] text-fg-faint mt-2">komen uit deploy_conf.json in git — hier niet aan te passen</p>
       </div>
 
-      <div className="bg-panel border border-border rounded-xl p-4">
+      <div className="bg-panel border border-border rounded-xl p-4 mb-4">
         <div className="text-[12px] font-semibold text-fg mb-3">SSH-toegang</div>
         <label className="block text-[11px] text-fg-muted mb-1">Gebruiker</label>
         <input value={sshUser} onChange={e => setSshUser(e.target.value)} placeholder="SSH-gebruiker"
@@ -118,6 +133,24 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved }: Props) 
           {sshOpslaanBezig ? <span className="animate-spin inline-block">↻</span> : 'Opslaan'}
         </button>
       </div>
+      {(wpBridge || wpKoppeling) && (wpKoppeling || wpVoorstel) && (
+        <div className="bg-panel border border-border rounded-xl p-4">
+          <div className="text-[12px] font-semibold text-fg mb-1">WordPress MCP</div>
+          <p className="text-[10.5px] text-fg-faint mb-3">
+            {wpKoppeling
+              ? 'Gekoppeld aan wp-fleet. Gegevens staan in ~/.config/rdm/wp-sites.yml, het wachtwoord in de Keychain — niet in deze repo.'
+              : 'nb-mcp-bridge gevonden in deze checkout. Vul de gegevens in om deze site aan wp-fleet toe te voegen.'}
+          </p>
+          <WPSiteForm
+            initial={wpKoppeling ? wpKoppeling.site : wpVoorstel!}
+            isNew={!wpKoppeling}
+            hasPassword={wpKoppeling?.hasPassword ?? false}
+            projectMissing={wpKoppeling?.projectMissing}
+            onSaved={v => setWpKoppeling(v)}
+            onUnlink={laadWp}
+          />
+        </div>
+      )}
     </div>
   )
 }
