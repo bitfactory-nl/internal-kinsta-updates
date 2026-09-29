@@ -18,6 +18,15 @@ type wpSitesFile struct {
 // WPSitesPath is het per-gebruiker bestand met WordPress-sites voor wp-fleet.
 // Het staat bewust buiten elke projectmap: het hoort bij de gebruiker, niet bij
 // de klantrepo.
+// WPSecretAccountPrefix is het Keychain-account-voorvoegsel voor het
+// Application Password van een WordPress-site.
+const WPSecretAccountPrefix = "wp:"
+
+func WPSecretAccount(id string) string { return WPSecretAccountPrefix + id }
+
+// WPSitesPath is het per-gebruiker bestand met WordPress-sites voor wp-fleet.
+// Het staat bewust buiten elke projectmap: het hoort bij de gebruiker, niet bij
+// de klantrepo.
 func WPSitesPath() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "rdm", "wp-sites.yml")

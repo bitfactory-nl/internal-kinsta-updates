@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"log"
@@ -20,6 +21,12 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
 		fmt.Println(version.Version)
 		return
+	}
+
+	// Claude Code start de app zo als MCP-server voor wp-fleet: zonder venster,
+	// met stdin/stdout als MCP-kanaal.
+	if len(os.Args) > 1 && os.Args[1] == "mcp-launch" {
+		os.Exit(app.RunMCPLaunch(context.Background(), os.Stdin, os.Stdout, os.Stderr))
 	}
 
 	cfg, err := app.LoadConfig()
