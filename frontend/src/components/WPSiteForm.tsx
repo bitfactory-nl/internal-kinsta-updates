@@ -3,6 +3,7 @@ import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/ser
 import type { WPSite } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import type { WPSiteView, ConnectionResult } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import Foutvak from './Foutvak'
+import { bevestig } from '../lib/bevestig'
 
 interface Props {
   initial: WPSite
@@ -73,7 +74,7 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
 
   const verwijderen = async () => {
     if (!onDelete) return
-    if (!window.confirm(`Site "${site.name}" en het opgeslagen Application Password verwijderen?`)) return
+    if (!(await bevestig('Site verwijderen?', `Site "${site.name}" en het opgeslagen Application Password verwijderen?`))) return
     setBezig(true); setFout(null)
     try {
       await Services.WPSiteService.Delete(site.id)

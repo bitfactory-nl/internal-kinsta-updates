@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { FleetStatus } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import Foutvak from './Foutvak'
+import { bevestig } from '../lib/bevestig'
 
 function foutTekst(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
@@ -32,9 +33,10 @@ export default function WPFleetSettings() {
   }
 
   const registreren = async () => {
-    if (status && !status.stableLocation && !window.confirm(
+    if (status && !status.stableLocation && !(await bevestig(
+      'Registreren vanuit dev-build?',
       `Deze app draait niet vanuit /Applications (${status.executable}). ` +
-      'Claude Code verwijst dan naar een pad dat kan verdwijnen. Toch registreren?')) return
+      'Claude Code verwijst dan naar een pad dat kan verdwijnen. Toch registreren?'))) return
     setBezig(true); setFout(null)
     try { setStatus(await Services.WPFleetService.Register()) }
     catch (e) { setFout(foutTekst(e)) } finally { setBezig(false) }
@@ -91,6 +93,11 @@ export default function WPFleetSettings() {
             </button>
           )}
         </div>
+        {status && !status.stableLocation && (
+          <p className="text-[11px] text-amber px-4 pb-3">
+            Let op: deze app draait niet vanuit /Applications — registreer bij voorkeur vanuit de geïnstalleerde versie.
+          </p>
+        )}
       </div>
     </section>
   )
