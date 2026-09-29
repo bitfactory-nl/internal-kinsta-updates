@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -75,7 +76,7 @@ func TestFleetRegisterClaudeOntbreekt(t *testing.T) {
 	svc, nc, _ := nieuweFleet(t, appExe)
 	nc.addErr = errors.New("executable file not found")
 	_, err := svc.Register()
-	if err == nil || !strings.Contains(err.Error(), "claude mcp add wp-fleet -s user -- "+appExe+" mcp-launch") {
+	if err == nil || !strings.Contains(err.Error(), "claude mcp add wp-fleet -s user -- "+strconv.Quote(appExe)+" mcp-launch") {
 		t.Fatalf("fout moet het handmatige commando noemen: %v", err)
 	}
 }
@@ -145,5 +146,34 @@ func TestFleetSaveSettings(t *testing.T) {
 	}
 	if err := svc.SaveSettings("  ", false); err == nil {
 		t.Fatal("lege image moet geweigerd worden")
+	}
+}
+
+func TestFleetRegisterQuotetPadMetSpaties(t *testing.T) {
+	exe := "/Users/x/Mijn Apps/rdm.app/Contents/MacOS/rdm-sites-tool"
+	svc, nc, _ := nieuweFleet(t, exe)
+	nc.addErr = errors.New("executable file not found")
+	_, err := svc.Register()
+	if err == nil || !strings.Contains(err.Error(), `-- "`+exe+`" mcp-launch`) {
+		t.Fatalf("pad niet gequote in handmatig commando: %v", err)
+	}
+}
+
+func TestFleetStableLocationHomeApplications(t *testing.T) {
+	svc, _, _ := nieuweFleet(t, appExe)
+	home, _ := os.UserHomeDir()
+	svc.executable = func() (string, error) {
+		return filepath.Join(home, "Applications", "rdm-sites-tool.app", "Contents", "MacOS", "rdm-sites-tool"), nil
+	}
+	st, err := svc.Status()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.StableLocation {
+		t.Fatalf("~/Applications hoort stabiel te zijn: %+v", st)
+	}
+	svc.executable = func() (string, error) { return filepath.Join(home, "Downloads", "rdm"), nil }
+	if st, _ := svc.Status(); st.StableLocation {
+		t.Fatalf("~/Downloads is niet stabiel: %+v", st)
 	}
 }

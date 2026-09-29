@@ -55,8 +55,20 @@ const defaultWPUser = "mcp-bot"
 func NewWPSiteService(path string, projects WPProjectLookup, secrets WPSecretStore) *WPSiteService {
 	return &WPSiteService{
 		path: path, projects: projects, secrets: secrets,
-		http: &http.Client{Timeout: 15 * time.Second},
+		http: &http.Client{Timeout: 15 * time.Second, CheckRedirect: weigerDowngrade},
 	}
+}
+
+// weigerDowngrade stopt een redirect van https naar http: de Basic Auth met
+// het Application Password zou dan onversleuteld meegaan.
+func weigerDowngrade(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return errors.New("te veel redirects")
+	}
+	if via[len(via)-1].URL.Scheme == "https" && req.URL.Scheme != "https" {
+		return errors.New("redirect van https naar http geweigerd")
+	}
+	return nil
 }
 
 func (s *WPSiteService) List() ([]WPSiteView, error) {

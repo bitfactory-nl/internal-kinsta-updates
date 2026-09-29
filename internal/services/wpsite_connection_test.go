@@ -33,7 +33,7 @@ func wpServer(t *testing.T, usersMe, bridge int) *httptest.Server {
 func testVerbinding(t *testing.T, srv *httptest.Server, pw string) (ConnectionResult, domain.WPSite) {
 	t.Helper()
 	svc, _, _ := nieuweWPSiteService(t)
-	svc.http = srv.Client()
+	svc.http.Transport = srv.Client().Transport
 	s := domain.WPSite{ID: "klant", Name: "Klant", URL: srv.URL, Username: "mcp-bot"}
 	if _, err := svc.Create(s, pw); err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestTestConnectionOnbereikbaar(t *testing.T) {
 	srv := wpServer(t, 200, 200)
 	url := srv.URL
 	svc, _, _ := nieuweWPSiteService(t)
-	svc.http = srv.Client()
+	svc.http.Transport = srv.Client().Transport
 	svc.Create(domain.WPSite{ID: "klant", Name: "K", URL: url, Username: "mcp-bot"}, "goed")
 	srv.Close()
 	res, err := svc.TestConnection("klant")
@@ -87,7 +87,7 @@ func TestTestConnectionOnbereikbaar(t *testing.T) {
 func testVerbindingNaTrue(t *testing.T, srv *httptest.Server) (ConnectionResult, domain.WPSite) {
 	t.Helper()
 	svc, _, _ := nieuweWPSiteService(t)
-	svc.http = srv.Client()
+	svc.http.Transport = srv.Client().Transport
 	s := domain.WPSite{ID: "klant", Name: "Klant", URL: srv.URL, Username: "mcp-bot"}
 	if _, err := svc.Create(s, "goed"); err != nil {
 		t.Fatal(err)
@@ -127,5 +127,34 @@ func TestTestConnectionBridge403LaatVlagStaan(t *testing.T) {
 	}
 	if res.Message != "nb-mcp-bridge weigert de gebruiker (rechten)" {
 		t.Fatalf("melding %q", res.Message)
+	}
+}
+
+func TestTestConnectionWeigertRedirectNaarHTTP(t *testing.T) {
+	hits := 0
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits++
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(plain.Close)
+	tlsSrv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, plain.URL+r.URL.Path, http.StatusFound)
+	}))
+	t.Cleanup(tlsSrv.Close)
+
+	svc, _, _ := nieuweWPSiteService(t)
+	svc.http.Transport = tlsSrv.Client().Transport
+	if _, err := svc.Create(domain.WPSite{ID: "klant", Name: "K", URL: tlsSrv.URL, Username: "mcp-bot"}, "goed"); err != nil {
+		t.Fatal(err)
+	}
+	res, err := svc.TestConnection("klant")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status == ConnOK {
+		t.Fatalf("redirect naar http mag geen ok opleveren: %+v", res)
+	}
+	if hits != 0 {
+		t.Fatalf("http-server kreeg %d verzoek(en) met inloggegevens", hits)
 	}
 }

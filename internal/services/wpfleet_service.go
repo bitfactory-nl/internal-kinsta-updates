@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,7 +98,7 @@ func (s *WPFleetService) Status() (FleetStatus, error) {
 	}
 	st := FleetStatus{
 		Executable:           exe,
-		StableLocation:       strings.HasPrefix(exe, "/Applications/"),
+		StableLocation:       stableLocation(exe),
 		Image:                s.cfg.WPFleet.Image,
 		ReadOnly:             s.cfg.WPFleet.ReadOnly,
 		Sites:                total,
@@ -114,6 +115,16 @@ func (s *WPFleetService) Status() (FleetStatus, error) {
 	return st, nil
 }
 
+// stableLocation is waar: de app staat in /Applications of ~/Applications, en
+// verhuist dus niet bij een nieuwe build of een opgeruimde Downloads-map.
+func stableLocation(exe string) bool {
+	if strings.HasPrefix(exe, "/Applications/") {
+		return true
+	}
+	home, err := os.UserHomeDir()
+	return err == nil && home != "" && strings.HasPrefix(exe, filepath.Join(home, "Applications")+"/")
+}
+
 // Register vervangt een bestaande wp-fleet-registratie (bijv. de oude
 // docker run met --env-file) door deze app als launcher.
 func (s *WPFleetService) Register() (FleetStatus, error) {
@@ -127,8 +138,9 @@ func (s *WPFleetService) Register() (FleetStatus, error) {
 	_, _ = s.run(ctx, "mcp", "remove", wpFleetServerName, "-s", "user")
 	args := []string{"mcp", "add", wpFleetServerName, "-s", "user", "--", exe, "mcp-launch"}
 	if out, err := s.run(ctx, args...); err != nil {
-		return FleetStatus{}, fmt.Errorf("registreren mislukt (%v %s) — voer zelf uit: claude %s",
-			err, strings.TrimSpace(out), strings.Join(args, " "))
+		handmatig := "claude mcp add " + wpFleetServerName + " -s user -- " + strconv.Quote(exe) + " mcp-launch"
+		return FleetStatus{}, fmt.Errorf("registreren mislukt (%v %s) — voer zelf uit: %s",
+			err, strings.TrimSpace(out), handmatig)
 	}
 	return s.Status()
 }

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -38,5 +39,26 @@ func TestKeychainSetInGeeftSecretViaStdin(t *testing.T) {
 	}
 	if !strings.Contains(input, `-w "geheim-123"`) {
 		t.Fatalf("secret niet in stdin-invoer: %q", input)
+	}
+}
+
+func TestSecurityResult(t *testing.T) {
+	if err := securityResult([]byte(" \n"), nil); err != nil {
+		t.Fatalf("lege uitvoer met exit 0 hoort geen fout te zijn: %v", err)
+	}
+	err := securityResult([]byte("security: fout een\nregel twee\n"), nil)
+	if err == nil || err.Error() != "security: fout een" {
+		t.Fatalf("exit 0 met uitvoer: %v", err)
+	}
+	exit := errors.New("exit status 1")
+	err = securityResult([]byte("\nSecKeychainItemCreate: bestaat al\nmeer\n"), exit)
+	if !errors.Is(err, exit) {
+		t.Fatalf("oorspronkelijke fout niet gewrapt: %v", err)
+	}
+	if err.Error() != "exit status 1: SecKeychainItemCreate: bestaat al" {
+		t.Fatalf("melding %q", err.Error())
+	}
+	if err := securityResult(nil, exit); err != exit {
+		t.Fatalf("zonder uitvoer hoort de fout zelf terug te komen: %v", err)
 	}
 }
