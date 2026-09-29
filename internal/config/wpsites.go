@@ -15,9 +15,6 @@ type wpSitesFile struct {
 	Sites []domain.WPSite `yaml:"sites"`
 }
 
-// WPSitesPath is het per-gebruiker bestand met WordPress-sites voor wp-fleet.
-// Het staat bewust buiten elke projectmap: het hoort bij de gebruiker, niet bij
-// de klantrepo.
 // WPSecretAccountPrefix is het Keychain-account-voorvoegsel voor het
 // Application Password van een WordPress-site.
 const WPSecretAccountPrefix = "wp:"
