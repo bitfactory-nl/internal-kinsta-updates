@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -46,15 +47,48 @@ func keychainGetFrom(service, account string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func keychainSetIn(service, account, password string) error {
+// securityStdin draait de security-CLI in interactieve modus en geeft het
+// commando via stdin door. Zo staat het secret nooit in de procesargumenten,
+// die andere lokale processen via ps kunnen lezen. security -i geeft ook bij
+// een mislukt commando exit 0, dus elke uitvoer geldt als fout.
+var securityStdin = func(input string) error {
+	cmd := exec.Command("security", "-i")
+	cmd.Stdin = strings.NewReader(input)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return err
+	}
+	if msg := strings.TrimSpace(string(out)); msg != "" {
+		return errors.New(msg)
+	}
+	return nil
+}
+
+// quoteSecurity zet een waarde tussen dubbele quotes zoals security -i die
+// parset: backslash en dubbele quote krijgen een backslash ervoor.
+func quoteSecurity(s string) string {
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+}
+
+// addPasswordCommand bouwt één regel voor security -i. Een regeleinde zou de
+// regel afbreken en de rest als nieuw commando laten lezen, dus dat weigeren we.
+func addPasswordCommand(service, account, password string) (string, error) {
+	for _, v := range []string{service, account, password} {
+		if strings.ContainsAny(v, "\r\n") {
+			return "", errors.New("keychain: waarde mag geen regeleinde bevatten")
+		}
+	}
 	// -U werkt bij als het item al bestaat, en voegt het anders toe.
-	if err := exec.Command(
-		"security", "add-generic-password",
-		"-s", service,
-		"-a", account,
-		"-w", password,
-		"-U",
-	).Run(); err != nil {
+	return fmt.Sprintf("add-generic-password -s %s -a %s -w %s -U\n",
+		quoteSecurity(service), quoteSecurity(account), quoteSecurity(password)), nil
+}
+
+func keychainSetIn(service, account, password string) error {
+	line, err := addPasswordCommand(service, account, password)
+	if err != nil {
+		return err
+	}
+	if err := securityStdin(line); err != nil {
 		return fmt.Errorf("keychain set %q: %w", account, err)
 	}
 	return nil
