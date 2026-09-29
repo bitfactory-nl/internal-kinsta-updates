@@ -90,13 +90,19 @@ func (s *WPSiteService) ForProject(projectID string) (*WPSiteView, error) {
 	return nil, nil
 }
 
-// SuggestForProject vult een nieuw formulier voor een project voor.
+// SuggestForProject vult een nieuw formulier voor een project voor. De
+// bridge-vlag volgt de mu-plugin in de checkout; een leesfout telt als geen bridge.
 func (s *WPSiteService) SuggestForProject(projectID string) (domain.WPSite, error) {
 	p, ok := s.projects.Get(projectID)
 	if !ok {
 		return domain.WPSite{}, fmt.Errorf("project %s niet gevonden", projectID)
 	}
+	bridge, err := s.DetectBridge(projectID)
+	if err != nil {
+		bridge = false
+	}
 	return domain.WPSite{
+		Bridge:      bridge,
 		ID:          domain.SuggestWPSiteID(filepath.Base(p.Path)),
 		Name:        p.DisplayName,
 		URL:         p.Deploy.Link.Prod,
@@ -149,8 +155,16 @@ func (s *WPSiteService) Create(site domain.WPSite, password string) (WPSiteView,
 }
 
 // Update wijzigt een bestaande site; een leeg wachtwoord laat het bestaande staan.
+// De bridge-vlag komt niet uit het formulier: die houdt de opgeslagen waarde,
+// want alleen TestConnection mag hem bijwerken. wp-fleet-mcp weigert elke
+// bridge-call als de vlag op false staat.
 func (s *WPSiteService) Update(site domain.WPSite, password string) (WPSiteView, error) {
-	if err := s.saveSite(site); err != nil {
+	saved, err := s.mutate(site.ID, func(w *domain.WPSite) {
+		bridge := w.Bridge
+		*w = site
+		w.Bridge = bridge
+	})
+	if err != nil {
 		return WPSiteView{}, err
 	}
 	if password != "" {
@@ -158,7 +172,7 @@ func (s *WPSiteService) Update(site domain.WPSite, password string) (WPSiteView,
 			return WPSiteView{}, err
 		}
 	}
-	return s.view(site), nil
+	return s.view(saved), nil
 }
 
 // Unlink maakt van een gekoppelde site een losse site; er gaat niets verloren.
@@ -244,24 +258,6 @@ func (s *WPSiteService) find(id string) (domain.WPSite, error) {
 		}
 	}
 	return domain.WPSite{}, fmt.Errorf("site %q niet gevonden", id)
-}
-
-// saveSite vervangt de site met dezelfde id.
-func (s *WPSiteService) saveSite(site domain.WPSite) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	sites, err := config.LoadWPSites(s.path)
-	if err != nil {
-		return err
-	}
-	for i := range sites {
-		if sites[i].ID == site.ID {
-			next := append([]domain.WPSite{}, sites...)
-			next[i] = site
-			return config.SaveWPSites(s.path, next)
-		}
-	}
-	return fmt.Errorf("site %q niet gevonden", site.ID)
 }
 
 func (s *WPSiteService) secret(id string) (string, error) {

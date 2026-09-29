@@ -82,3 +82,50 @@ func TestTestConnectionOnbereikbaar(t *testing.T) {
 		t.Fatalf("res %+v, err %v", res, err)
 	}
 }
+
+// testVerbindingNaTrue zet de bridge-vlag eerst op true en draait dan de check.
+func testVerbindingNaTrue(t *testing.T, srv *httptest.Server) (ConnectionResult, domain.WPSite) {
+	t.Helper()
+	svc, _, _ := nieuweWPSiteService(t)
+	svc.http = srv.Client()
+	s := domain.WPSite{ID: "klant", Name: "Klant", URL: srv.URL, Username: "mcp-bot"}
+	if _, err := svc.Create(s, "goed"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.mutate("klant", func(w *domain.WPSite) { w.Bridge = true }); err != nil {
+		t.Fatal(err)
+	}
+	res, err := svc.TestConnection("klant")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := svc.find("klant")
+	return res, got
+}
+
+func TestTestConnectionBridge404ZetFalse(t *testing.T) {
+	res, site := testVerbindingNaTrue(t, wpServer(t, 200, 404))
+	if res.Status != ConnNoBridge || site.Bridge {
+		t.Fatalf("res %+v, bridge %v", res, site.Bridge)
+	}
+}
+
+func TestTestConnectionBridge500LaatVlagStaan(t *testing.T) {
+	res, site := testVerbindingNaTrue(t, wpServer(t, 200, 500))
+	if res.Status != ConnUnreachable || !site.Bridge {
+		t.Fatalf("res %+v, bridge %v", res, site.Bridge)
+	}
+	if !strings.Contains(res.Message, "500") {
+		t.Fatalf("melding noemt HTTP-code niet: %q", res.Message)
+	}
+}
+
+func TestTestConnectionBridge403LaatVlagStaan(t *testing.T) {
+	res, site := testVerbindingNaTrue(t, wpServer(t, 200, 403))
+	if res.Status != ConnAuthFailed || !site.Bridge {
+		t.Fatalf("res %+v, bridge %v", res, site.Bridge)
+	}
+	if res.Message != "nb-mcp-bridge weigert de gebruiker (rechten)" {
+		t.Fatalf("melding %q", res.Message)
+	}
+}

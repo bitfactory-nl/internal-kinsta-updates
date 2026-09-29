@@ -8,7 +8,7 @@ interface Props {
   onDeleted: () => void
 }
 
-const leeg = { id: '', name: '', url: 'https://', username: 'mcp-bot', tags: [], readOnly: false, bridge: false } as unknown as WPSite
+const leeg = { id: '', name: '', url: 'https://', username: 'mcp-bot', tags: [], readOnly: false, bridge: true } as unknown as WPSite
 
 export default function WPSitePage({ view, onSaved, onDeleted }: Props) {
   return (

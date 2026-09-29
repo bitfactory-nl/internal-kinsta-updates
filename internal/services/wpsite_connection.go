@@ -21,7 +21,8 @@ type ConnectionResult struct {
 }
 
 // TestConnection controleert auth (users/me vereist een ingelogde gebruiker)
-// en de bridge, en zet de bridge-vlag van de site op de uitkomst.
+// en de bridge, en zet de bridge-vlag van de site op de uitkomst zodra die
+// eenduidig is.
 func (s *WPSiteService) TestConnection(id string) (ConnectionResult, error) {
 	site, err := s.find(id)
 	if err != nil {
@@ -48,13 +49,21 @@ func (s *WPSiteService) TestConnection(id string) (ConnectionResult, error) {
 	if err != nil {
 		return ConnectionResult{Status: ConnUnreachable, Message: "bridge-check niet bereikbaar"}, nil
 	}
-	res := ConnectionResult{Status: ConnOK, Message: "verbinding en bridge in orde"}
-	bridgeExists := code == http.StatusOK
-	if !bridgeExists {
-		res = ConnectionResult{Status: ConnNoBridge, Message: "verbinding ok, nb-mcp-bridge ontbreekt"}
+	// Alleen een eenduidig antwoord (200 of 404) wijzigt de bridge-vlag; bij
+	// een rechten- of serverfout weten we niets en blijft de vlag staan.
+	var res ConnectionResult
+	var bridge bool
+	switch code {
+	case http.StatusOK:
+		res, bridge = ConnectionResult{Status: ConnOK, Message: "verbinding en bridge in orde"}, true
+	case http.StatusNotFound:
+		res, bridge = ConnectionResult{Status: ConnNoBridge, Message: "verbinding ok, nb-mcp-bridge ontbreekt"}, false
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return ConnectionResult{Status: ConnAuthFailed, Message: "nb-mcp-bridge weigert de gebruiker (rechten)"}, nil
+	default:
+		return ConnectionResult{Status: ConnUnreachable, Message: fmt.Sprintf("bridge-check antwoordde HTTP %d", code)}, nil
 	}
-	_, err = s.mutate(id, func(w *domain.WPSite) { w.Bridge = bridgeExists })
-	if err != nil {
+	if _, err := s.mutate(id, func(w *domain.WPSite) { w.Bridge = bridge }); err != nil {
 		return ConnectionResult{}, err
 	}
 	return res, nil

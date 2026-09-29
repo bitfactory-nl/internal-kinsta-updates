@@ -222,3 +222,41 @@ func TestWPSiteUnlinkOnbekendeID(t *testing.T) {
 		t.Fatal("verwacht fout voor onbekende id")
 	}
 }
+
+func TestWPSiteUpdateBehoudtBridge(t *testing.T) {
+	svc, _, _ := nieuweWPSiteService(t)
+	if _, err := svc.Create(testWPSite("depot", ""), "pw"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.mutate("depot", func(w *domain.WPSite) { w.Bridge = true }); err != nil {
+		t.Fatal(err)
+	}
+	s := testWPSite("depot", "")
+	s.Name = "Depot nieuw"
+	s.Bridge = false
+	v, err := svc.Update(s, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := svc.find("depot")
+	if !got.Bridge || !v.Site.Bridge {
+		t.Fatalf("bridge-vlag verloren: opgeslagen %+v, view %+v", got, v.Site)
+	}
+	if got.Name != "Depot nieuw" {
+		t.Fatalf("naam niet gewijzigd: %+v", got)
+	}
+}
+
+func TestWPSiteSuggestForProjectBridge(t *testing.T) {
+	svc, _, projDir := nieuweWPSiteService(t)
+	if s, _ := svc.SuggestForProject("p1"); s.Bridge {
+		t.Fatal("zonder bridge-bestand hoort Bridge false te zijn")
+	}
+	mu := filepath.Join(projDir, "public", "wp-content", "mu-plugins")
+	if err := os.WriteFile(filepath.Join(mu, "nb-mcp-bridge.php"), []byte("<?php"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := svc.SuggestForProject("p1"); !s.Bridge {
+		t.Fatal("met bridge-bestand hoort Bridge true te zijn")
+	}
+}
