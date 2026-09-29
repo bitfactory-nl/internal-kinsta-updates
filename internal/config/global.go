@@ -74,6 +74,7 @@ func defaultGlobal() Global {
 		},
 		PluginRepo: PluginRepo{Ref: "main"},
 		Updates:    UpdatesGlobal{AutoCheck: boolPtr(true)},
+		WPFleet:    WPFleetGlobal{Image: DefaultWPFleetImage},
 	}
 }
 
@@ -92,6 +93,9 @@ func applyDefaults(g *Global) {
 	}
 	if g.Updates.AutoCheck == nil {
 		g.Updates.AutoCheck = boolPtr(true)
+	}
+	if g.WPFleet.Image == "" {
+		g.WPFleet.Image = DefaultWPFleetImage
 	}
 }
 

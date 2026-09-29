@@ -12,6 +12,7 @@ type Global struct {
 	AI            AIGlobal        `yaml:"ai"`
 	Wordfence     WordfenceGlobal `yaml:"wordfence"`
 	Updates       UpdatesGlobal   `yaml:"updates"`
+	WPFleet       WPFleetGlobal   `yaml:"wpfleet"`
 }
 
 // UpdatesGlobal regelt de zelf-update van de tool.
@@ -71,4 +72,14 @@ type AIGlobal struct {
 
 type WordfenceGlobal struct {
 	APIKey string `yaml:"api_key"` // keychain:rdm.wordfence.apiKey or literal (dev)
+}
+
+// DefaultWPFleetImage is het lokaal gebouwde wp-fleet-mcp-image. Een vaste
+// versie uit een registry volgt later; tot dan is de referentie instelbaar.
+const DefaultWPFleetImage = "wp-fleet-mcp:latest"
+
+// WPFleetGlobal regelt hoe de tool de wp-fleet-mcp-container start.
+type WPFleetGlobal struct {
+	Image    string `yaml:"image"`
+	ReadOnly bool   `yaml:"read_only"` // → MCP_READ_ONLY=true
 }

@@ -14,17 +14,17 @@ func TestWPSiteValidateGeldig(t *testing.T) {
 
 func TestWPSiteValidateFouten(t *testing.T) {
 	cases := map[string]func(*WPSite){
-		"id leeg":             func(s *WPSite) { s.ID = "" },
-		"id hoofdletter":      func(s *WPSite) { s.ID = "Klant" },
-		"id één teken":        func(s *WPSite) { s.ID = "a" },
-		"id begint met -":     func(s *WPSite) { s.ID = "-klant" },
-		"id te lang":          func(s *WPSite) { s.ID = "a123456789012345678901234567890123456789012345678x" },
-		"naam leeg":           func(s *WPSite) { s.Name = " " },
-		"user leeg":           func(s *WPSite) { s.Username = "" },
-		"url leeg":            func(s *WPSite) { s.URL = "" },
-		"url http extern":     func(s *WPSite) { s.URL = "http://www.klant-a.nl" },
-		"url ftp":             func(s *WPSite) { s.URL = "ftp://klant-a.nl" },
-		"url zonder host":     func(s *WPSite) { s.URL = "https://" },
+		"id leeg":         func(s *WPSite) { s.ID = "" },
+		"id hoofdletter":  func(s *WPSite) { s.ID = "Klant" },
+		"id één teken":    func(s *WPSite) { s.ID = "a" },
+		"id begint met -": func(s *WPSite) { s.ID = "-klant" },
+		"id te lang":      func(s *WPSite) { s.ID = "a123456789012345678901234567890123456789012345678x" },
+		"naam leeg":       func(s *WPSite) { s.Name = " " },
+		"user leeg":       func(s *WPSite) { s.Username = "" },
+		"url leeg":        func(s *WPSite) { s.URL = "" },
+		"url http extern": func(s *WPSite) { s.URL = "http://www.klant-a.nl" },
+		"url ftp":         func(s *WPSite) { s.URL = "ftp://klant-a.nl" },
+		"url zonder host": func(s *WPSite) { s.URL = "https://" },
 	}
 	for naam, mut := range cases {
 		s := geldigeSite()
@@ -37,11 +37,11 @@ func TestWPSiteValidateFouten(t *testing.T) {
 
 func TestWPSiteAllowHTTP(t *testing.T) {
 	for url, want := range map[string]bool{
-		"http://localhost:8080":   true,
-		"http://klant-a.test":     true,
-		"https://klant-a.test":    false,
-		"http://www.klant-a.nl":   false,
-		"https://www.klant-a.nl":  false,
+		"http://localhost:8080":  true,
+		"http://klant-a.test":    true,
+		"https://klant-a.test":   false,
+		"http://www.klant-a.nl":  false,
+		"https://www.klant-a.nl": false,
 	} {
 		s := geldigeSite()
 		s.URL = url
@@ -58,10 +58,10 @@ func TestWPSiteAllowHTTP(t *testing.T) {
 
 func TestSuggestWPSiteID(t *testing.T) {
 	for in, want := range map[string]string{
-		"web-ekcoatingsnl":  "web-ekcoatingsnl",
-		"EK Coating B.V.":   "ek-coating-b-v",
-		"__Kennisbank__":    "kennisbank",
-		"Café Één":          "caf-n",
+		"web-ekcoatingsnl": "web-ekcoatingsnl",
+		"EK Coating B.V.":  "ek-coating-b-v",
+		"__Kennisbank__":   "kennisbank",
+		"Café Één":         "caf-n",
 	} {
 		if got := SuggestWPSiteID(in); got != want {
 			t.Errorf("SuggestWPSiteID(%q) = %q, want %q", in, got, want)
