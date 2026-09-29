@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { AppSettings } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import WPFleetSettings from './WPFleetSettings'
 import type { UpdateStatus } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 
 interface Props {
@@ -357,6 +358,8 @@ export default function SettingsPage({ onClose }: Props) {
             </div>
           </div>
         </section>
+
+        <WPFleetSettings />
 
         {/* App-updates */}
         <section>
