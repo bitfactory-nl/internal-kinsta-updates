@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useSyncExternalStore } from 'react'
 import { Events } from '@wailsio/runtime'
 import * as ProjectService from '../bindings/github.com/rdm/sites-tool/internal/services'
+import type { WPSiteView } from '../bindings/github.com/rdm/sites-tool/internal/services/models'
 import type { ProjectStatusSummary, Project, AvailableUpdate } from '../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import ProjectDetail from './components/ProjectDetail'
 import BatchTab from './components/BatchTab'
@@ -13,6 +14,7 @@ import OrgSyncPage from './components/OrgSyncPage'
 import BulkUpdatePage from './components/BulkUpdatePage'
 import AppUpdateDialog from './components/AppUpdateDialog'
 import ErrorBoundary from './components/ErrorBoundary'
+import WPSitePage from './components/WPSitePage'
 import {
   RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
   PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon, CloudDownloadIcon,
@@ -155,6 +157,17 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [roots, setRoots] = useState<string[]>([])
   const [view, setView] = useState<View>('projects')
+  const [wpSites, setWpSites] = useState<WPSiteView[]>([])
+  // undefined = geen site geselecteerd, null = formulier voor een nieuwe site
+  const [wpSelected, setWpSelected] = useState<WPSiteView | null | undefined>(undefined)
+
+  const laadWpSites = useCallback(() => {
+    ProjectService.WPSiteService.List()
+      .then(list => setWpSites(list.filter(v => !v.site.projectPath)))
+      .catch(() => setWpSites([]))
+  }, [])
+  // Ook herladen bij wisselen van project: ontkoppelen/koppelen in de projectinstellingen verandert de lijst.
+  useEffect(laadWpSites, [laadWpSites, selected?.id])
 
   // Zelf-update: de badge in de rail volgt `appUpdate`, de popup `updateOpen`.
   const [appUpdate, setAppUpdate] = useState<AvailableUpdate | null>(null)
@@ -196,6 +209,7 @@ export default function App() {
   }, [doScan])
 
   const selectProject = useCallback(async (id: string) => {
+    setWpSelected(undefined)
     const p = await ProjectService.ProjectService.RefreshOne(id)
     setSelected(p)
   }, [])
@@ -463,6 +477,29 @@ export default function App() {
             )}
           </div>
 
+          {/* losse WordPress-sites (zonder projectmap) */}
+          <div className="border-t border-border px-2 pt-2 pb-1 shrink-0 max-h-[30%] overflow-y-auto">
+            <div className="flex items-center px-1.5 mb-1">
+              <span className="text-[10.5px] font-semibold tracking-[.08em] text-fg-faint uppercase flex-1">
+                WordPress-sites
+              </span>
+              <button onClick={() => { setSelected(null); setWpSelected(null) }} title="Losse site toevoegen"
+                className="text-fg-muted hover:text-fg p-0.5 rounded">
+                <PlusIcon size={12} />
+              </button>
+            </div>
+            {wpSites.length === 0 ? (
+              <p className="text-[11px] text-fg-faint px-1.5 py-1">Nog geen losse sites</p>
+            ) : wpSites.map(v => (
+              <button key={v.site.id} onClick={() => { setSelected(null); setWpSelected(v) }}
+                className={`w-full text-left px-2 py-1 rounded-md text-[12.5px] truncate
+                  ${wpSelected && wpSelected.site.id === v.site.id ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-hover'}`}>
+                {v.site.name}
+                {!v.hasPassword && <span className="ml-1.5 text-[10.5px] text-fg-faint">geen wachtwoord</span>}
+              </button>
+            ))}
+          </div>
+
           {/* footer */}
           <div className="h-[38px] px-3.5 border-t border-border shrink-0 flex items-center">
             <p className="text-[11px] text-fg-faint flex-1">
@@ -519,6 +556,14 @@ export default function App() {
       ) : view === 'orgsync' ? (
         <ErrorBoundary label="Org-sync error">
           <OrgSyncPage onClose={() => setView('projects')} />
+        </ErrorBoundary>
+      ) : view === 'projects' && wpSelected !== undefined ? (
+        <ErrorBoundary key={wpSelected?.site.id ?? 'nieuw'} label="WordPress-site error">
+          <WPSitePage
+            view={wpSelected}
+            onSaved={v => { setWpSelected(v); laadWpSites() }}
+            onDeleted={() => { setWpSelected(undefined); laadWpSites() }}
+          />
         </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">

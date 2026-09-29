@@ -1,0 +1,37 @@
+import WPSiteForm from './WPSiteForm'
+import type { WPSite } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { WPSiteView } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
+
+interface Props {
+  view: WPSiteView | null
+  onSaved: (v: WPSiteView) => void
+  onDeleted: () => void
+}
+
+const leeg = { id: '', name: '', url: 'https://', username: 'mcp-bot', tags: [], readOnly: false, bridge: false } as unknown as WPSite
+
+export default function WPSitePage({ view, onSaved, onDeleted }: Props) {
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="h-[56px] px-[22px] border-b border-border bg-panel shrink-0 flex items-center gap-2">
+        <h2 className="text-[15px] font-bold tracking-[-.01em] text-fg flex-1">
+          {view ? view.site.name : 'Nieuwe WordPress-site'}
+        </h2>
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+        <div className="bg-panel border border-border rounded-xl p-4 max-w-[560px]">
+          <p className="text-[10.5px] text-fg-faint mb-3">
+            Losse site zonder projectmap. Gegevens staan in ~/.config/rdm/wp-sites.yml, het wachtwoord in de Keychain.
+          </p>
+          <WPSiteForm
+            initial={view ? view.site : leeg}
+            isNew={!view}
+            hasPassword={view?.hasPassword ?? false}
+            onSaved={onSaved}
+            onDelete={onDeleted}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
