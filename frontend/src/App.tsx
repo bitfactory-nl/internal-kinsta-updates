@@ -161,13 +161,18 @@ export default function App() {
   // undefined = geen site geselecteerd, null = formulier voor een nieuwe site
   const [wpSelected, setWpSelected] = useState<WPSiteView | null | undefined>(undefined)
 
-  const laadWpSites = useCallback(() => {
+  // De zijbalk toont losse sites én sites waarvan de gekoppelde map verdwenen
+  // is; die laatste zijn anders nergens meer te bereiken.
+  const laadWpSites = useCallback((): Promise<WPSiteView[]> =>
     ProjectService.WPSiteService.List()
-      .then(list => setWpSites(list.filter(v => !v.site.projectPath)))
-      .catch(() => setWpSites([]))
-  }, [])
+      .then(list => {
+        const zichtbaar = list.filter(v => !v.site.projectPath || v.projectMissing)
+        setWpSites(zichtbaar)
+        return zichtbaar
+      })
+      .catch(() => { setWpSites([]); return [] }), [])
   // Ook herladen bij wisselen van project: ontkoppelen/koppelen in de projectinstellingen verandert de lijst.
-  useEffect(laadWpSites, [laadWpSites, selected?.id])
+  useEffect(() => { laadWpSites() }, [laadWpSites, selected?.id])
 
   // Zelf-update: de badge in de rail volgt `appUpdate`, de popup `updateOpen`.
   const [appUpdate, setAppUpdate] = useState<AvailableUpdate | null>(null)
@@ -496,6 +501,7 @@ export default function App() {
                   ${wpSelected && wpSelected.site.id === v.site.id ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-hover'}`}>
                 {v.site.name}
                 {!v.hasPassword && <span className="ml-1.5 text-[10.5px] text-fg-faint">geen wachtwoord</span>}
+                {v.projectMissing && <span className="ml-1.5 text-[10.5px] text-fg-faint">map niet gevonden</span>}
               </button>
             ))}
           </div>
@@ -563,6 +569,10 @@ export default function App() {
             view={wpSelected}
             onSaved={v => { setWpSelected(v); laadWpSites() }}
             onDeleted={() => { setWpSelected(undefined); laadWpSites() }}
+            onUnlinked={() => {
+              const id = wpSelected?.site.id
+              laadWpSites().then(list => setWpSelected(list.find(v => v.site.id === id)))
+            }}
           />
         </ErrorBoundary>
       ) : selected ? (
