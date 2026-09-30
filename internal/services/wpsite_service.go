@@ -121,7 +121,7 @@ func (s *WPSiteService) ForProject(projectID string) (*WPSiteView, error) {
 			continue
 		}
 		// Zonder SiteID koppelt alleen een lokale map aan een site.
-		if p.Local && p.Path != "" && v.Site.ProjectPath == p.Path {
+		if p.Local && p.Path != "" && v.Site.ProjectPath != "" && filepath.Clean(v.Site.ProjectPath) == filepath.Clean(p.Path) {
 			return &v, nil
 		}
 	}
@@ -146,6 +146,9 @@ func (s *WPSiteService) SuggestForProject(projectID string) (domain.WPSite, erro
 	p, ok := s.projects.Get(projectID)
 	if !ok {
 		return domain.WPSite{}, fmt.Errorf("project %s niet gevonden", projectID)
+	}
+	if p.SiteID != "" {
+		return domain.WPSite{}, errors.New("dit project is al een WordPress-site")
 	}
 	if _, err := requireLocal(p); err != nil {
 		return domain.WPSite{}, err

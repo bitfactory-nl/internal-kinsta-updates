@@ -65,7 +65,10 @@ func (s *RegisterService) AddLocalProject() (*domain.Project, error) {
 
 // AddLocalProjectPath registreert een bestaande map als lokaal project.
 func (s *RegisterService) AddLocalProjectPath(path, name string) (domain.Project, error) {
-	path = filepath.Clean(config.ExpandHome(strings.TrimSpace(path)))
+	path, err := normaliseerPad(path)
+	if err != nil {
+		return domain.Project{}, err
+	}
 	if !dirExists(path) {
 		return domain.Project{}, fmt.Errorf("map %s bestaat niet", path)
 	}
@@ -124,15 +127,16 @@ func (s *RegisterService) RemoveLocalProject(projectID string) error {
 }
 
 // LinkSiteFolder koppelt een map aan een site. Stond de map als lokaal project
-// in het register, dan wordt dat project overgenomen door de site.
+// in het register, dan wordt dat project overgenomen door de site. Volgorde:
+// eerst uit local-projects.yml, dan de site bijwerken; faalt dat laatste, dan
+// wordt local-projects.yml hersteld. Zo staat een pad nooit in beide bestanden.
 func (s *RegisterService) LinkSiteFolder(siteID, path string) error {
-	path = filepath.Clean(config.ExpandHome(strings.TrimSpace(path)))
-	if !dirExists(path) {
-		return fmt.Errorf("map %s bestaat niet", path)
-	}
-	site, err := s.sites.find(siteID)
+	path, err := normaliseerPad(path)
 	if err != nil {
 		return err
+	}
+	if !dirExists(path) {
+		return fmt.Errorf("map %s bestaat niet", path)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -140,38 +144,61 @@ func (s *RegisterService) LinkSiteFolder(siteID, path string) error {
 	if err != nil {
 		return err
 	}
-	for _, andere := range sites {
-		if andere.ID != siteID && andere.ProjectPath != "" && filepath.Clean(andere.ProjectPath) == path {
+	gevonden := false
+	nieuweSites := make([]domain.WPSite, len(sites))
+	for i, w := range sites {
+		if w.ID != siteID && w.ProjectPath != "" && filepath.Clean(w.ProjectPath) == path {
 			return fmt.Errorf("map %s staat al in het register", path)
 		}
+		if w.ID == siteID {
+			gevonden = true
+			w.ProjectPath = path
+		}
+		nieuweSites[i] = w
+	}
+	if !gevonden {
+		return fmt.Errorf("site %q niet gevonden", siteID)
 	}
 	locals, err := config.LoadLocalProjects(s.localsPath)
 	if err != nil {
 		return err
 	}
-	rest, _ := zonderPad(locals, path)
-	site.ProjectPath = path
-	nieuweSites := make([]domain.WPSite, len(sites))
-	for i, w := range sites {
-		if w.ID == siteID {
-			w = site
-		}
-		nieuweSites[i] = w
-	}
+	rest, overgenomen := zonderPad(locals, path)
 	if err := config.ValidateRegister(nieuweSites, rest); err != nil {
 		return err
 	}
-	// Update laat het wachtwoord en de bridge-vlag staan en herlaadt de projecten.
-	if _, err := s.sites.Update(site, ""); err != nil {
-		return err
-	}
-	if len(rest) != len(locals) {
+	if overgenomen {
 		if err := config.SaveLocalProjects(s.localsPath, rest); err != nil {
 			return err
 		}
 	}
-	_, err = s.projects.Reload()
+	// mutate leest en schrijft onder de lock van WPSiteService; wachtwoord en
+	// bridge-vlag blijven staan en de projecten worden herladen.
+	if _, err := s.sites.mutate(siteID, func(w *domain.WPSite) { w.ProjectPath = path }); err != nil {
+		if overgenomen {
+			if herstel := config.SaveLocalProjects(s.localsPath, locals); herstel != nil {
+				return fmt.Errorf("%w (herstel van local-projects.yml mislukt: %v)", err, herstel)
+			}
+			_, _ = s.projects.Reload()
+		}
+		return err
+	}
+	if overgenomen {
+		_, err = s.projects.Reload()
+	}
 	return err
+}
+
+// normaliseerPad maakt van invoer een schoon absoluut pad, of een nette fout.
+func normaliseerPad(path string) (string, error) {
+	path = config.ExpandHome(strings.TrimSpace(path))
+	if path == "" {
+		return "", errors.New("kies een map")
+	}
+	if !filepath.IsAbs(path) {
+		return "", errors.New("pad moet absoluut zijn")
+	}
+	return filepath.Clean(path), nil
 }
 
 // ConvertLocalToSite geeft een voorstel voor het siteformulier van een lokaal
