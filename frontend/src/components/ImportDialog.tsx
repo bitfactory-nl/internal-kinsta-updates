@@ -77,10 +77,16 @@ export default function ImportDialog({ onKlaar }: Props) {
         <div className="px-5 py-4 overflow-y-auto flex-1 min-h-0">
           {resultaat ? (
             <div className="space-y-2">
-              <p className="text-[13px] text-fg">
-                {resultaat.aantal} {resultaat.aantal === 1 ? 'project' : 'projecten'} toegevoegd.
-              </p>
-              {resultaat.fout && <p className="text-[12.5px] text-red whitespace-pre-wrap">{resultaat.fout}</p>}
+              {resultaat.fout ? (
+                <>
+                  <p className="text-[13px] text-fg">Import gedeeltelijk mislukt:</p>
+                  <p className="text-[12.5px] text-red whitespace-pre-wrap">{resultaat.fout}</p>
+                </>
+              ) : (
+                <p className="text-[13px] text-fg">
+                  {resultaat.aantal} {resultaat.aantal === 1 ? 'project' : 'projecten'} toegevoegd.
+                </p>
+              )}
             </div>
           ) : kandidaten === null ? (
             <p className="text-[12.5px] text-fg-faint">Laden…</p>

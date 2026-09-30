@@ -141,7 +141,7 @@ function ProjectRow({ s, active, onClick }: {
 export default function App() {
   const [summaries, setSummaries] = useState<ProjectStatusSummary[]>([])
   const [selected, setSelected] = useState<Project | null>(null)
-  const [scanning, setScanning] = useState(false)
+  const [herladen, setHerladen] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
   const [view, setView] = useState<View>('projects')
@@ -171,7 +171,7 @@ export default function App() {
 
   // Het register is de bron: Reload leest het opnieuw in, BatchStatus geeft de rijen.
   const doReload = useCallback(async (): Promise<ProjectStatusSummary[]> => {
-    setScanning(true)
+    setHerladen(true)
     try {
       await ProjectService.ProjectService.Reload()
       const results = (await ProjectService.ProjectService.BatchStatus()) ?? []
@@ -182,14 +182,18 @@ export default function App() {
       setFout(e instanceof Error ? e.message : String(e))
       return []
     } finally {
-      setScanning(false)
+      setHerladen(false)
     }
   }, [])
 
   const selectProject = useCallback(async (id: string) => {
     setWpSelected(undefined)
-    const p = await ProjectService.ProjectService.RefreshOne(id)
-    setSelected(p)
+    try {
+      const p = await ProjectService.ProjectService.RefreshOne(id)
+      setSelected(p)
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e))
+    }
   }, [])
 
   useEffect(() => { doReload() }, [doReload])
@@ -392,7 +396,7 @@ export default function App() {
               Projecten
             </span>
             <IconBtn onClick={doReload} title="Verversen" drag>
-              <span className={`inline-flex ${scanning ? 'animate-spin' : ''}`}>
+              <span className={`inline-flex ${herladen ? 'animate-spin' : ''}`}>
                 <RefreshIcon size={15} />
               </span>
             </IconBtn>
@@ -477,7 +481,7 @@ export default function App() {
 
           {/* project list */}
           <div className="flex-1 overflow-y-auto px-2 space-y-0.5 py-0.5">
-            {summaries.length === 0 && scanning ? (
+            {summaries.length === 0 && herladen ? (
               <div className="flex items-center justify-center py-12 gap-2 text-fg-muted text-sm">
                 <span className="animate-spin inline-flex"><RefreshIcon size={14} /></span> Laden…
               </div>
@@ -508,7 +512,7 @@ export default function App() {
           <div className="h-[38px] px-3.5 border-t border-border shrink-0 flex items-center">
             <p className="text-[11px] text-fg-faint flex-1">
               {summaries.length > 0
-                ? `${summaries.length} project${summaries.length !== 1 ? 'en' : ''}${(search || typeFilter) && filtered.length !== summaries.length ? ` · ${filtered.length} zichtbaar` : ''}`
+                ? `${summaries.length} project${summaries.length !== 1 ? 'en' : ''}${(search || typeFilter || alleenOnline) && filtered.length !== summaries.length ? ` · ${filtered.length} zichtbaar` : ''}`
                 : ''}
             </p>
           </div>

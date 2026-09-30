@@ -29,15 +29,26 @@ export default function WPSitePage({ onSaved }: Props) {
   }
 
   // De site is al aangemaakt zodra het formulier opslaat; de map koppelen we daarna.
-  const naOpslaan = async (v: WPSiteView) => {
-    if (pad) {
-      try {
-        await Services.RegisterService.LinkSiteFolder(v.site.id, pad)
-      } catch (e) {
-        setFout(`Site opgeslagen, maar de map koppelen mislukte: ${e instanceof Error ? e.message : String(e)}`)
-      }
+  // Mislukt dat, dan blijft de pagina staan zodat de fout zichtbaar is.
+  const [opgeslagen, setOpgeslagen] = useState<WPSiteView | null>(null)
+  const [koppelt, setKoppelt] = useState(false)
+
+  const koppel = async (v: WPSiteView) => {
+    setKoppelt(true)
+    try {
+      await Services.RegisterService.LinkSiteFolder(v.site.id, pad)
+      onSaved(v)
+    } catch (e) {
+      setOpgeslagen(v)
+      setFout(`Site opgeslagen, maar de map koppelen mislukte: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setKoppelt(false)
     }
-    onSaved(v)
+  }
+
+  const naOpslaan = async (v: WPSiteView) => {
+    if (pad) await koppel(v)
+    else onSaved(v)
   }
 
   return (
@@ -52,12 +63,19 @@ export default function WPSitePage({ onSaved }: Props) {
           </p>
           {fout && <Foutvak fout={fout} className="mb-3" />}
           <div className="flex items-center gap-2 mb-3">
-            <button onClick={kiesMap} className={knopStil}>Map kiezen (optioneel)</button>
+            <button onClick={kiesMap} disabled={!!opgeslagen} className={knopStil}>Map kiezen (optioneel)</button>
             <span className="text-[11.5px] text-fg-faint font-mono truncate" title={pad}>
               {pad || 'geen map gekozen'}
             </span>
           </div>
+          {opgeslagen ? (
+            <div className="flex items-center gap-2">
+              <button onClick={() => koppel(opgeslagen)} disabled={koppelt} className={knopStil}>Opnieuw koppelen</button>
+              <button onClick={() => onSaved(opgeslagen)} disabled={koppelt} className={knopStil}>Verder zonder map</button>
+            </div>
+          ) : (
           <WPSiteForm initial={leeg} isNew hasPassword={false} onSaved={naOpslaan} />
+          )}
         </div>
       </div>
     </div>
