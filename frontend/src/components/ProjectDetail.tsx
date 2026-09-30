@@ -90,14 +90,20 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
   const heeftMap = project.local && !project.missing
   const heeftKinsta = !!project.config?.kinsta?.siteId
   const [bridgeSite, setBridgeSite] = useState<boolean>(false)
+  const isWordPress = !!project.siteId || !!project.deploy?.type?.startsWith('wordpress')
+  // Opnieuw ophalen bij tabwissel en bij een nieuw project-object: de koppeling
+  // kan in Projectinstellingen zijn aangepast.
   useEffect(() => {
     let actueel = true
-    setBridgeSite(false)
+    if (!isWordPress) {
+      setBridgeSite(false)
+      return
+    }
     Services.WPSiteService.ForProject(project.id)
       .then(v => { if (actueel) setBridgeSite(!!v?.hasPassword && !!v?.site.bridge) })
-      .catch(() => {})
+      .catch(() => { if (actueel) setBridgeSite(false) })
     return () => { actueel = false }
-  }, [project.id])
+  }, [project, activeTab, isWordPress])
 
   // De DB editor verschijnt alleen als er echt een lokale database is; dat weet
   // alleen de backend (uit .env), dus dat wordt opgevraagd.
@@ -109,8 +115,6 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
       .then(i => setDbEditorBeschikbaar(i.beschikbaar))
       .catch(() => setDbEditorBeschikbaar(false))
   }, [project.id, heeftMap])
-
-  const isWordPress = !!project.siteId || !!project.deploy?.type?.startsWith('wordpress')
 
   const refreshStatus = useCallback(async () => {
     if (!heeftMap) return
@@ -322,6 +326,8 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
                         key={it.id}
                         onClick={() => setActiveTab('projectsettings')}
                         title={it.locked}
+                        aria-disabled="true"
+                        aria-label={`${it.label} (vergrendeld: ${it.locked})`}
                         className="w-full flex items-center justify-between gap-2 mx-0 my-px px-[11px] py-[7px]
                                    rounded-nav text-[13px] transition-colors text-left opacity-50
                                    font-[450] text-fg-muted hover:bg-hover"
