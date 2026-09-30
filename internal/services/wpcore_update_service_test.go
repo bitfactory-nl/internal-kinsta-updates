@@ -134,7 +134,7 @@ func (f *fakeCorePulls) CreatePull(_ context.Context, _, _, head, base, title, _
 func coreTestService(t *testing.T, git *fakeCoreGit, dl *fakeCoreDownloader, pulls *fakeCorePulls) *WPCoreUpdateService {
 	t.Helper()
 	projects := &fakeReportProjects{projects: map[string]domain.Project{
-		"p1": {ID: "p1", DisplayName: "AFC", Path: t.TempDir()},
+		"p1": {ID: "p1", DisplayName: "AFC", Local: true, Path: t.TempDir()},
 	}}
 	return newWPCoreUpdateServiceForTest(projects, git, dl, pulls, t.TempDir())
 }

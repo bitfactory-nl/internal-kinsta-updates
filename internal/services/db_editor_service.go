@@ -96,6 +96,9 @@ func (s *DBEditorService) project(id string) (domain.Project, error) {
 	if !ok {
 		return domain.Project{}, fmt.Errorf("project %q niet gevonden", id)
 	}
+	if _, err := requireLocal(p); err != nil {
+		return domain.Project{}, err
+	}
 	return p, nil
 }
 

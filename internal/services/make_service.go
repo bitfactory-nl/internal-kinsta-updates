@@ -35,7 +35,7 @@ func NewMakeService(project *ProjectService) *MakeService {
 func (s *MakeService) pathFor(id string) (string, error) {
 	for _, p := range s.project.List() {
 		if p.ID == id {
-			return p.Path, nil
+			return requireLocal(p)
 		}
 	}
 	return "", fmt.Errorf("project not found: %s", id)

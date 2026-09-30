@@ -161,7 +161,7 @@ func (s *WordfenceService) MatchProjects() ([]ProjectVulnReport, error) {
 
 	latestCache := map[string]string{} // slug -> latest version ("" = manual)
 	var reports []ProjectVulnReport
-	for _, p := range s.projects.List() {
+	for _, p := range localProjects(s.projects.List()) {
 		installed, err := wpplugins.ReadInstalled(p.Path)
 		if err != nil {
 			reports = append(reports, ProjectVulnReport{

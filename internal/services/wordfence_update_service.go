@@ -81,6 +81,11 @@ func (s *WordfenceUpdateService) ApplyProject(sel UpdateSelection, autoStash boo
 		res.Error = "project niet gevonden"
 		return res
 	}
+	if _, err := requireLocal(p); err != nil {
+		res.Status = "error"
+		res.Error = err.Error()
+		return res
+	}
 	if len(sel.Slugs) == 0 {
 		res.Status = "nothing"
 		return res

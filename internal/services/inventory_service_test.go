@@ -81,8 +81,8 @@ func TestInventoryPlugins(t *testing.T) {
 
 	svc := newTestInventory(
 		fakeInventoryLister{list: []domain.Project{
-			{ID: "a", Path: rootA, DisplayName: "Site A"},
-			{ID: "b", Path: rootB, DisplayName: "Site B"},
+			{ID: "a", Local: true, Path: rootA, DisplayName: "Site A"},
+			{ID: "b", Local: true, Path: rootB, DisplayName: "Site B"},
 		}},
 		fakeInventoryResolver{plugins: map[string]string{"contact-form-7": "5.9.2"}},
 	)
@@ -127,9 +127,9 @@ func TestInventoryWordPress(t *testing.T) {
 
 	svc := newTestInventory(
 		fakeInventoryLister{list: []domain.Project{
-			{ID: "a", Path: rootA, DisplayName: "Site A"},
-			{ID: "b", Path: rootB, DisplayName: "Site B"},
-			{ID: "c", Path: rootC, DisplayName: "Site C"},
+			{ID: "a", Local: true, Path: rootA, DisplayName: "Site A"},
+			{ID: "b", Local: true, Path: rootB, DisplayName: "Site B"},
+			{ID: "c", Local: true, Path: rootC, DisplayName: "Site C"},
 		}},
 		fakeInventoryResolver{core: "6.5.3"},
 	)
@@ -176,7 +176,7 @@ func TestInventoryReadsFromDefaultBranch(t *testing.T) {
 
 	svc := newTestInventory(
 		fakeInventoryLister{list: []domain.Project{
-			{ID: "a", Path: root, DisplayName: "Site A"},
+			{ID: "a", Local: true, Path: root, DisplayName: "Site A"},
 		}},
 		fakeInventoryResolver{plugins: map[string]string{"contact-form-7": "5.9"}},
 	)
@@ -234,7 +234,7 @@ func TestInventoryDisjuncteSlugs(t *testing.T) {
 	writePlugin(t, root, "alleen-lokaal", "2.0")
 
 	svc := newTestInventory(
-		fakeInventoryLister{list: []domain.Project{{ID: "a", Path: root, DisplayName: "Site A"}}},
+		fakeInventoryLister{list: []domain.Project{{ID: "a", Local: true, Path: root, DisplayName: "Site A"}}},
 		fakeInventoryResolver{plugins: map[string]string{"alleen-github": "1.0", "alleen-lokaal": "2.0"}},
 	)
 
@@ -281,8 +281,8 @@ func TestInventoryPluginsSluitReferentieProjectUit(t *testing.T) {
 	writePlugin(t, klantRoot, "acf-pro", "6.4.1")
 
 	lister := fakeInventoryLister{list: []domain.Project{
-		{ID: "ref", DisplayName: "referentie-installatie", Path: referentieRoot},
-		{ID: "klant", DisplayName: "klant", Path: klantRoot},
+		{ID: "ref", DisplayName: "referentie-installatie", Local: true, Path: referentieRoot},
+		{ID: "klant", DisplayName: "klant", Local: true, Path: klantRoot},
 	}}
 	svc := newTestInventoryMetReferentie(lister, fakeInventoryResolver{}, referentieRoot)
 
@@ -310,8 +310,8 @@ func TestInventoryPluginsReferentieWintVanWporg(t *testing.T) {
 	writePlugin(t, klantRoot, "jetpack-achtig", "2.9.0")
 
 	lister := fakeInventoryLister{list: []domain.Project{
-		{ID: "ref", DisplayName: "referentie-installatie", Path: referentieRoot},
-		{ID: "klant", DisplayName: "klant", Path: klantRoot},
+		{ID: "ref", DisplayName: "referentie-installatie", Local: true, Path: referentieRoot},
+		{ID: "klant", DisplayName: "klant", Local: true, Path: klantRoot},
 	}}
 	// wp.org kent een hogere versie dan de referentie; de referentie moet
 	// desondanks winnen.
@@ -344,8 +344,8 @@ func TestInventoryPluginsZonderReferentieBlijftWporgGebruiken(t *testing.T) {
 	writePlugin(t, klantRoot, "hello-dolly", "1.7.2")
 
 	lister := fakeInventoryLister{list: []domain.Project{
-		{ID: "ref", DisplayName: "referentie-installatie", Path: referentieRoot},
-		{ID: "klant", DisplayName: "klant", Path: klantRoot},
+		{ID: "ref", DisplayName: "referentie-installatie", Local: true, Path: referentieRoot},
+		{ID: "klant", DisplayName: "klant", Local: true, Path: klantRoot},
 	}}
 	resolver := fakeInventoryResolver{plugins: map[string]string{"hello-dolly": "1.7.2"}}
 	svc := newTestInventoryMetReferentie(lister, resolver, referentieRoot)
@@ -374,7 +374,7 @@ func TestInventoryThemesGeenReferentieBegrip(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "style.css"), []byte(css), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	lister := fakeInventoryLister{list: []domain.Project{{ID: "klant", DisplayName: "klant", Path: root}}}
+	lister := fakeInventoryLister{list: []domain.Project{{ID: "klant", DisplayName: "klant", Local: true, Path: root}}}
 	// De referentie wijst bewust naar een ándere map dan het testproject: anders
 	// zou scannableProjects() het enige project uitsluiten en is de test zinloos.
 	svc := newTestInventoryMetReferentie(lister, fakeInventoryResolver{}, t.TempDir())

@@ -202,7 +202,7 @@ func (s *OrgSyncService) ensureClient() error {
 func (s *OrgSyncService) localScan(ctx context.Context) ([]localMatch, []string) {
 	var matches []localMatch
 	var warnings []string
-	for _, p := range s.projects.List() {
+	for _, p := range localProjects(s.projects.List()) {
 		remote, err := s.remoteURL(ctx, p.Path)
 		if err != nil {
 			warnings = append(warnings, fmt.Sprintf("remote van project %q niet te lezen: %v", p.DisplayName, err))

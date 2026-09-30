@@ -140,6 +140,9 @@ func (s *LogFixService) Fix(projectID, groupID string) (domain.AIFixResult, erro
 	if !ok {
 		return domain.AIFixResult{}, fmt.Errorf("project %q niet gevonden", projectID)
 	}
+	if _, err := requireLocal(p); err != nil {
+		return domain.AIFixResult{}, err
+	}
 
 	slot := projectID + "|" + groupID
 	if !s.claim(slot) {

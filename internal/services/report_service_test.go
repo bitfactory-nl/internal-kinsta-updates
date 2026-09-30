@@ -443,7 +443,7 @@ func (f *fakeRepoFiles) ReadProjectFile(_ domain.Project, relPath string) ([]byt
 func TestPrefillFromRepoAndEOL(t *testing.T) {
 	dir := t.TempDir()
 	projects := &fakeReportProjects{projects: map[string]domain.Project{
-		"p1": {DisplayName: "Klant", Path: "/tmp/x"},
+		"p1": {DisplayName: "Klant", Local: true, Path: "/tmp/x"},
 	}}
 	repo := &fakeRepoFiles{files: map[string]string{
 		".bitfactory/docker/php-fpm/Dockerfile.dev": "FROM europe-docker.pkg.dev/bitfactory-nl/service-php/php:8.3-jit",
@@ -499,7 +499,7 @@ func TestPrefillFromRepoAndEOL(t *testing.T) {
 func TestPrefillRepoFallbackNaarDockerfile(t *testing.T) {
 	dir := t.TempDir()
 	projects := &fakeReportProjects{projects: map[string]domain.Project{
-		"p1": {DisplayName: "Klant", Path: "/tmp/x"},
+		"p1": {DisplayName: "Klant", Local: true, Path: "/tmp/x"},
 	}}
 	repo := &fakeRepoFiles{files: map[string]string{
 		".bitfactory/docker/php-fpm/Dockerfile": "FROM europe-docker.pkg.dev/bitfactory-nl/service-php/php:8.2 AS composer\nFROM europe-docker.pkg.dev/bitfactory-nl/service-node/node:20.12.2 AS frontend",

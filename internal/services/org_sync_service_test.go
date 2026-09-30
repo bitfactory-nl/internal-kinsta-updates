@@ -126,7 +126,7 @@ func TestSyncVolledigeRunClassificeertEnMatcht(t *testing.T) {
 	contents := vijfOrgContents()
 	remotes := map[string]string{localDir: "git@github.com:acme/site-a.git"}
 	svc := orgSyncOpstelling(t, lister, contents, remotes, []domain.Project{
-		{ID: "p1", DisplayName: "Site A", Path: localDir},
+		{ID: "p1", DisplayName: "Site A", Local: true, Path: localDir},
 	})
 
 	res, err := svc.Sync(false)
@@ -186,7 +186,7 @@ func TestSyncIncrementeelEnForce(t *testing.T) {
 	lister := &fakeOrgLister{repos: vijfOrgRepos()}
 	contents := vijfOrgContents()
 	svc := orgSyncOpstelling(t, lister, contents, nil, []domain.Project{
-		{ID: "p1", DisplayName: "Acme", Path: "/nergens"},
+		{ID: "p1", DisplayName: "Acme", Local: true, Path: "/nergens"},
 	})
 	// Zorg dat org bepaald kan worden zonder een echte lokale match nodig te
 	// hebben voor deze test: geef een remote voor het project.
@@ -248,7 +248,7 @@ func TestSyncKapotteDeployConfGeeftWarning(t *testing.T) {
 	}}
 	contents := &fakeOrgContents{body: map[string][]byte{"site-x": []byte("{niet geldige json")}}
 	svc := orgSyncOpstelling(t, lister, contents, map[string]string{"/p": "git@github.com:acme/site-x.git"}, []domain.Project{
-		{ID: "p1", DisplayName: "Site X", Path: "/p"},
+		{ID: "p1", DisplayName: "Site X", Local: true, Path: "/p"},
 	})
 
 	res, err := svc.Sync(false)
@@ -273,7 +273,7 @@ func TestSyncFetchFoutBehoudtCacheWaarde(t *testing.T) {
 	contents := &fakeOrgContents{body: map[string][]byte{"site-y": []byte(`{"type":"wordpress_kinsta"}`)}}
 	remotes := map[string]string{"/p": "git@github.com:acme/site-y.git"}
 	svc := orgSyncOpstelling(t, lister, contents, remotes, []domain.Project{
-		{ID: "p1", DisplayName: "Site Y", Path: "/p"},
+		{ID: "p1", DisplayName: "Site Y", Local: true, Path: "/p"},
 	})
 
 	if _, err := svc.Sync(false); err != nil {
@@ -309,9 +309,9 @@ func TestOrgBepalingMeerderheidEnFoutZonderRemotes(t *testing.T) {
 		"/c": "git@github.com:other/c.git",
 	}
 	svc := orgSyncOpstelling(t, nil, nil, remotes, []domain.Project{
-		{ID: "p1", DisplayName: "A", Path: "/a"},
-		{ID: "p2", DisplayName: "B", Path: "/b"},
-		{ID: "p3", DisplayName: "C", Path: "/c"},
+		{ID: "p1", DisplayName: "A", Local: true, Path: "/a"},
+		{ID: "p2", DisplayName: "B", Local: true, Path: "/b"},
+		{ID: "p3", DisplayName: "C", Local: true, Path: "/c"},
 	})
 
 	org, err := svc.Org(context.Background())
@@ -323,7 +323,7 @@ func TestOrgBepalingMeerderheidEnFoutZonderRemotes(t *testing.T) {
 	}
 
 	svc2 := orgSyncOpstelling(t, nil, nil, nil, []domain.Project{
-		{ID: "p1", DisplayName: "Zonder remote", Path: "/nergens"},
+		{ID: "p1", DisplayName: "Zonder remote", Local: true, Path: "/nergens"},
 	})
 	if _, err := svc2.Org(context.Background()); err == nil {
 		t.Fatal("verwachtte een fout zonder enige remote")
@@ -338,7 +338,7 @@ func TestLastZonderBestandEnHermatching(t *testing.T) {
 	}}
 	contents := &fakeOrgContents{body: map[string][]byte{"site-a": []byte(`{"type":"wordpress_kinsta"}`)}}
 	svc := orgSyncOpstelling(t, lister, contents, map[string]string{"/p": "git@github.com:acme/site-a.git"}, []domain.Project{
-		{ID: "p1", DisplayName: "Site A", Path: "/p"},
+		{ID: "p1", DisplayName: "Site A", Local: true, Path: "/p"},
 	})
 
 	if _, err := svc.Last(); err == nil {
@@ -359,7 +359,7 @@ func TestLastZonderBestandEnHermatching(t *testing.T) {
 
 	// Verplaats de lokale checkout naar een ander pad.
 	svc.projects.projects = []domain.Project{
-		{ID: "p1", DisplayName: "Site A", Path: "/anders"},
+		{ID: "p1", DisplayName: "Site A", Local: true, Path: "/anders"},
 	}
 	svc.remoteURL = fakeRemoteURL(map[string]string{"/anders": "git@github.com:acme/site-a.git"})
 
@@ -377,7 +377,7 @@ func TestSyncLaatGeenTweeRunsTegelijk(t *testing.T) {
 	lister := &fakeOrgLister{repos: vijfOrgRepos()}
 	contents := vijfOrgContents()
 	svc := orgSyncOpstelling(t, lister, contents, map[string]string{"/p": "git@github.com:acme/site-a.git"}, []domain.Project{
-		{ID: "p1", DisplayName: "Site A", Path: "/p"},
+		{ID: "p1", DisplayName: "Site A", Local: true, Path: "/p"},
 	})
 
 	if !svc.claim(orgSyncSlot) {
@@ -399,7 +399,7 @@ func TestSyncHersteltVanAfgekaptCachebestand(t *testing.T) {
 	}}
 	contents := &fakeOrgContents{body: map[string][]byte{"site-a": []byte(`{"type":"wordpress_kinsta"}`)}}
 	svc := orgSyncOpstelling(t, lister, contents, map[string]string{"/p": "git@github.com:acme/site-a.git"}, []domain.Project{
-		{ID: "p1", DisplayName: "Site A", Path: "/p"},
+		{ID: "p1", DisplayName: "Site A", Local: true, Path: "/p"},
 	})
 
 	// Simuleer een crash/volle schijf halverwege een eerdere schrijfactie: een
@@ -502,8 +502,8 @@ func TestSyncOnparseerbareRemoteGeeftWarningMetProjectnaam(t *testing.T) {
 		"/kapot": "geen-url",
 	}
 	svc := orgSyncOpstelling(t, lister, contents, remotes, []domain.Project{
-		{ID: "p1", DisplayName: "Site A", Path: "/goed"},
-		{ID: "p2", DisplayName: "Kapotte Remote", Path: "/kapot"},
+		{ID: "p1", DisplayName: "Site A", Local: true, Path: "/goed"},
+		{ID: "p2", DisplayName: "Kapotte Remote", Local: true, Path: "/kapot"},
 	})
 
 	res, err := svc.Sync(false)

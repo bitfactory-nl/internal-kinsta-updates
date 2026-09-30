@@ -198,7 +198,7 @@ func (s *InventoryService) WordPress() (WPCoreReport, error) {
 	}
 	report.LatestVersion = latest
 
-	projects := s.projects.List()
+	projects := localProjects(s.projects.List())
 	s.syncGithubRefs(projects)
 
 	for _, p := range projects {
@@ -246,7 +246,7 @@ func (s *InventoryService) FetchAll() (FetchAllResult, error) {
 	sem := make(chan struct{}, fetchWorkers)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	for _, p := range s.projects.List() {
+	for _, p := range localProjects(s.projects.List()) {
 		wg.Add(1)
 		sem <- struct{}{}
 		go func(id, name, path string) {
@@ -272,7 +272,7 @@ func (s *InventoryService) FetchAll() (FetchAllResult, error) {
 	// De lokale refs zijn nu actueel; een direct volgend overzicht hoeft niet
 	// opnieuw bij de GitHub API langs.
 	if s.syncer != nil {
-		s.syncer.MarkAllChecked(s.projects.List())
+		s.syncer.MarkAllChecked(localProjects(s.projects.List()))
 	}
 	sort.Strings(res.Errors)
 	return res, nil
@@ -290,11 +290,11 @@ type installedRef struct {
 func (s *InventoryService) scannableProjects() []domain.Project {
 	path := s.referencePath()
 	if path == "" {
-		return s.projects.List()
+		return localProjects(s.projects.List())
 	}
 	path = filepath.Clean(path)
 
-	alle := s.projects.List()
+	alle := localProjects(s.projects.List())
 	uit := make([]domain.Project, 0, len(alle))
 	for _, p := range alle {
 		if filepath.Clean(p.Path) == path {

@@ -193,7 +193,7 @@ func (s *SecurityService) githubClientFor(ctx context.Context, projectID string)
 func (s *SecurityService) pathFor(id string) (string, error) {
 	for _, p := range s.project.List() {
 		if p.ID == id {
-			return p.Path, nil
+			return requireLocal(p)
 		}
 	}
 	return "", fmt.Errorf("project %q not found", id)

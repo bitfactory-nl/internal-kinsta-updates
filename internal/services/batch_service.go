@@ -40,7 +40,7 @@ func (s *BatchService) PullAll() []BatchResult {
 }
 
 func (s *BatchService) runAll(op string, fn func(context.Context, string) error) []BatchResult {
-	projects := s.project.List()
+	projects := localProjects(s.project.List())
 	results := make([]BatchResult, len(projects))
 	var wg sync.WaitGroup
 

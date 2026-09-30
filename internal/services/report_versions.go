@@ -140,6 +140,9 @@ type GitRepoFiles struct{}
 func (GitRepoFiles) ReadProjectFile(p domain.Project, relPath string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+	if _, err := requireLocal(p); err != nil {
+		return nil, err
+	}
 	if ref := projectFileRef(ctx, p.Path); ref != "" {
 		if b, err := gitcli.ShowFile(ctx, p.Path, ref, relPath); err == nil {
 			return b, nil

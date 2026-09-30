@@ -32,7 +32,7 @@ func (s *SearchService) GrepAll(query string) []SearchHit {
 		return make([]SearchHit, 0)
 	}
 
-	projects := s.project.List()
+	projects := localProjects(s.project.List())
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	all := make([]SearchHit, 0)

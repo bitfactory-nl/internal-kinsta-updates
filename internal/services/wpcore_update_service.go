@@ -135,8 +135,8 @@ func (s *WPCoreUpdateService) UpdateProject(projectID, toVersion string) CoreUpd
 	if !reWPVersie.MatchString(res.To) {
 		return s.fout(res, fmt.Errorf("ongeldige doelversie %q", toVersion))
 	}
-	if p.Path == "" {
-		return s.fout(res, fmt.Errorf("project heeft geen pad"))
+	if _, err := requireLocal(p); err != nil {
+		return s.fout(res, err)
 	}
 
 	// Eén run per project+versie tegelijk: parallelle runs zouden dezelfde

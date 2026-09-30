@@ -217,6 +217,9 @@ func (s *PluginService) LocalPluginDiff(projectID string) (LocalPluginOverview, 
 	if !ok {
 		return LocalPluginOverview{}, fmt.Errorf("project %q niet gevonden", projectID)
 	}
+	if _, err := requireLocal(p); err != nil {
+		return LocalPluginOverview{}, err
+	}
 	lijst, err := s.ListLocalPaidPlugins()
 	if err != nil {
 		return LocalPluginOverview{}, err
@@ -254,8 +257,12 @@ func (s *PluginService) LocalPluginDiff(projectID string) (LocalPluginOverview, 
 // rechtstreekse commit op de huidige checkout zou zomaar een productie-branch
 // kunnen zijn. Pushing blijft in beide gevallen een bewuste, aparte actie.
 func (s *PluginService) ApplyLocalPlugins(projectID string, slugs []string) (LocalApplyResult, error) {
-	if _, ok := s.projects.Get(projectID); !ok {
+	p, ok := s.projects.Get(projectID)
+	if !ok {
 		return LocalApplyResult{}, fmt.Errorf("project %q niet gevonden", projectID)
+	}
+	if _, err := requireLocal(p); err != nil {
+		return LocalApplyResult{}, err
 	}
 	if len(slugs) == 0 {
 		return LocalApplyResult{}, fmt.Errorf("geen plugins geselecteerd")
@@ -326,6 +333,11 @@ func (s *PluginService) applyOnePlugin(projectID string, z LocalPaidPlugin) Loca
 	if !ok {
 		pr.Status = "error"
 		pr.Error = fmt.Sprintf("project %q niet gevonden", projectID)
+		return pr
+	}
+	if _, err := requireLocal(p); err != nil {
+		pr.Status = "error"
+		pr.Error = err.Error()
 		return pr
 	}
 

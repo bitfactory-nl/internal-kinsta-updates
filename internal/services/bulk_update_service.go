@@ -144,7 +144,7 @@ func (s *BulkUpdateService) referentiePad() string {
 func (s *BulkUpdateService) wordpressProjecten() []domain.Project {
 	ref := s.referentiePad()
 	var uit []domain.Project
-	for _, p := range s.projects.List() {
+	for _, p := range localProjects(s.projects.List()) {
 		if !strings.HasPrefix(p.Deploy.Type, "wordpress") {
 			continue
 		}
@@ -306,6 +306,11 @@ func (s *BulkUpdateService) updateOneProject(
 	if !ok {
 		r.Status = "error"
 		r.Error = fmt.Sprintf("project %q niet gevonden", projectID)
+		return r
+	}
+	if _, err := requireLocal(p); err != nil {
+		r.Status = "error"
+		r.Error = err.Error()
 		return r
 	}
 

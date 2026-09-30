@@ -18,6 +18,9 @@ func NewEditorService(cfg *config.Global) *EditorService {
 
 // OpenInEditor opens the project path in the configured editor.
 func (s *EditorService) OpenInEditor(projectID string, projectPath string) error {
+	if projectPath == "" {
+		return errGeenLokaleMap
+	}
 	editor := s.cfg.Editor
 	var cmd *exec.Cmd
 	switch editor {
