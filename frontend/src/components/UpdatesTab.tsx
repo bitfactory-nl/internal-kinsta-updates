@@ -10,6 +10,8 @@ interface Props {
   projectId: string
   currentBranch: string
   onBranchCheckedOut: () => void
+  // Zonder lokale map is er geen git: dan alleen het bridge-deel tonen.
+  heeftMap: boolean
 }
 
 function formatDate(dateStr: string): string {
@@ -128,7 +130,7 @@ function UpdateDetailPanel({ detail }: { detail: UpdateDetail }) {
   )
 }
 
-function UpdateBranches({ projectId, currentBranch, onBranchCheckedOut }: Props) {
+function UpdateBranches({ projectId, currentBranch, onBranchCheckedOut }: Omit<Props, 'heeftMap'>) {
   const [branches, setBranches] = useState<UpdateBranch[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [checkingOut, setCheckingOut] = useState<string | null>(null)
@@ -357,7 +359,13 @@ export default function UpdatesTab(props: Props) {
           <SiteUpdatesPanel key={koppeling.site.id} view={koppeling} />
         </div>
       )}
-      <UpdateBranches {...props} />
+      {props.heeftMap && (
+        <UpdateBranches
+          projectId={props.projectId}
+          currentBranch={props.currentBranch}
+          onBranchCheckedOut={props.onBranchCheckedOut}
+        />
+      )}
     </div>
   )
 }

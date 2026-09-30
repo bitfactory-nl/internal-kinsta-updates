@@ -11,7 +11,6 @@ import BranchesTab from './BranchesTab'
 import StashTagsTab from './StashTagsTab'
 import BlameTab from './BlameTab'
 import FileHistoryTab from './FileHistoryTab'
-import KinstaTab from './KinstaTab'
 import PluginsTab from './PluginsTab'
 import SshTerminalTab from './SshTerminalTab'
 import UpdatesTab from './UpdatesTab'
@@ -33,7 +32,7 @@ export interface ProjectDetailProps {
   onRefresh: () => void
 }
 
-type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'kinsta' | 'plugins' | 'media' | 'logs' | 'database' | 'dbeditor' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
+type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'plugins' | 'media' | 'logs' | 'database' | 'dbeditor' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
 
 // Elke menugroep is inklapbaar; de vouwstand staat per groepstitel in
 // localStorage, zodat het menu er na een herstart uitziet zoals je het liet.
@@ -44,6 +43,7 @@ interface NavItem {
   label: string
   badge?: number
   badgeClass?: string
+  locked?: string // tooltip-tekst als een vereiste ontbreekt
 }
 
 interface NavGroup {
@@ -87,26 +87,40 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
     }
   })
 
+  const heeftMap = project.local && !project.missing
+  const heeftKinsta = !!project.config?.kinsta?.siteId
+  const [bridgeSite, setBridgeSite] = useState<boolean>(false)
+  useEffect(() => {
+    let actueel = true
+    setBridgeSite(false)
+    Services.WPSiteService.ForProject(project.id)
+      .then(v => { if (actueel) setBridgeSite(!!v?.hasPassword && !!v?.site.bridge) })
+      .catch(() => {})
+    return () => { actueel = false }
+  }, [project.id])
+
   // De DB editor verschijnt alleen als er echt een lokale database is; dat weet
   // alleen de backend (uit .env), dus dat wordt opgevraagd.
   const [dbEditorBeschikbaar, setDbEditorBeschikbaar] = useState(false)
   useEffect(() => {
     setDbEditorBeschikbaar(false)
+    if (!heeftMap) return
     Services.DBEditorService.Info(project.id)
       .then(i => setDbEditorBeschikbaar(i.beschikbaar))
       .catch(() => setDbEditorBeschikbaar(false))
-  }, [project.id])
+  }, [project.id, heeftMap])
 
-  const isKinsta = project.deploy?.type === 'wordpress_kinsta'
+  const isWordPress = !!project.siteId || !!project.deploy?.type?.startsWith('wordpress')
 
   const refreshStatus = useCallback(async () => {
+    if (!heeftMap) return
     try {
       const s = await Services.GitService.GetStatus(project.id)
       setStatus(s)
     } catch {
       // non-critical
     }
-  }, [project.id])
+  }, [project.id, heeftMap])
 
   useEffect(() => {
     setActiveTab('info')
@@ -147,47 +161,49 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
 
   const isLoading = (key: string) => loadingOp === key
 
+  const geenMap = heeftMap ? undefined : 'vereist een lokale map'
+  const geenKinsta = heeftKinsta ? undefined : 'vereist een Kinsta-koppeling'
+  const geenMapOfKinsta = geenMap ?? geenKinsta
+
   const navGroups: NavGroup[] = [
     { title: 'OVERVIEW', items: [{ id: 'info' as TabId, label: 'Info' }] },
     {
       title: 'SOURCE CONTROL',
       items: [
-        { id: 'history' as TabId, label: 'History' },
-        { id: 'changes' as TabId, label: 'Changes', badge: dirtyCount > 0 ? dirtyCount : undefined, badgeClass: 'bg-amber-soft text-amber' },
-        { id: 'branches' as TabId, label: 'Branches' },
-        { id: 'stash' as TabId, label: 'Stash & Tags' },
-        { id: 'blame' as TabId, label: 'Blame' },
-        { id: 'filehistory' as TabId, label: 'File History' },
+        { id: 'history' as TabId, label: 'History', locked: geenMap },
+        { id: 'changes' as TabId, label: 'Changes', locked: geenMap, badge: dirtyCount > 0 ? dirtyCount : undefined, badgeClass: 'bg-amber-soft text-amber' },
+        { id: 'branches' as TabId, label: 'Branches', locked: geenMap },
+        { id: 'stash' as TabId, label: 'Stash & Tags', locked: geenMap },
+        { id: 'blame' as TabId, label: 'Blame', locked: geenMap },
+        { id: 'filehistory' as TabId, label: 'File History', locked: geenMap },
       ],
     },
-    ...(isKinsta || status?.isRepo ? [{
+    ...(isWordPress ? [{
       title: 'WORDPRESS',
       items: [
-        ...(isKinsta ? [{ id: 'kinsta' as TabId, label: 'Kinsta' }] : []),
-        ...(isKinsta ? [{ id: 'plugins' as TabId, label: 'Plugins' }] : []),
-        ...(isKinsta ? [{ id: 'media' as TabId, label: 'Media-analyse' }] : []),
-        ...(isKinsta ? [{ id: 'logs' as TabId, label: 'Logs' }] : []),
-        ...(status?.isRepo ? [{ id: 'updates' as TabId, label: 'Updates' }] : []),
-        ...(status?.isRepo ? [{ id: 'security' as TabId, label: 'Security' }] : []),
-        ...(status?.isRepo ? [{ id: 'tests' as TabId, label: 'Tests' }] : []),
+        { id: 'updates' as TabId, label: 'Updates', locked: !bridgeSite && !heeftMap ? 'vereist een bridge-koppeling' : undefined },
+        { id: 'plugins' as TabId, label: 'Plugins', locked: geenMap },
+        { id: 'security' as TabId, label: 'Security', locked: geenMap },
+        { id: 'tests' as TabId, label: 'Tests', locked: geenMap },
+        { id: 'logs' as TabId, label: 'Logs', locked: geenKinsta },
+        { id: 'media' as TabId, label: 'Media-analyse', locked: geenKinsta ?? geenMap },
       ],
-    }] : []),
-    ...(isKinsta ? [{
+    }, {
       title: 'MIGRATIE',
       items: [
-        { id: 'database' as TabId, label: 'Database' },
-        ...(dbEditorBeschikbaar ? [{ id: 'dbeditor' as TabId, label: 'DB editor' }] : []),
-        { id: 'migrationmedia' as TabId, label: 'Media' },
-        { id: 'migrationsettings' as TabId, label: 'Instellingen' },
+        { id: 'database' as TabId, label: 'Database', locked: geenMapOfKinsta },
+        ...(dbEditorBeschikbaar ? [{ id: 'dbeditor' as TabId, label: 'DB editor', locked: geenMapOfKinsta }] : []),
+        { id: 'migrationmedia' as TabId, label: 'Media', locked: geenMapOfKinsta },
+        { id: 'migrationsettings' as TabId, label: 'Instellingen', locked: geenMapOfKinsta },
       ],
     }] : []),
-    ...(isKinsta ? [{
+    ...(heeftKinsta || project.siteId ? [{
       title: 'TOOLS',
-      items: [{ id: 'terminal' as TabId, label: 'Terminal' }],
+      items: [{ id: 'terminal' as TabId, label: 'Terminal', locked: geenKinsta }],
     }] : []),
     {
       title: 'KLANT',
-      items: [{ id: 'report' as TabId, label: 'Rapportage' }],
+      items: [{ id: 'report' as TabId, label: 'Rapportage', locked: geenMap }],
     },
     {
       title: 'INSTELLINGEN',
@@ -226,7 +242,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
         <h2 className="font-display text-[20px] font-extrabold tracking-[-.02em] text-fg truncate">
           {project.displayName}
         </h2>
-        {status?.isRepo && status.branch && (
+        {heeftMap && status?.isRepo && status.branch && (
           <span className="inline-flex items-center gap-1.5 text-[11px] font-medium font-mono text-fg-muted
                            bg-panel-2 border border-border px-2 py-[3px] rounded-md max-w-[260px]">
             <span className="truncate">⑂ {status.branch}</span>
@@ -240,20 +256,22 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
         )}
 
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <Tooltip label="Open in editor">
-            <HeaderIconBtn
-              onClick={() => Services.EditorService.OpenInEditor(project.id, project.path)}
-              title="Open in editor"
-            >
-              ✎
-            </HeaderIconBtn>
-          </Tooltip>
+          {heeftMap && (
+            <Tooltip label="Open in editor">
+              <HeaderIconBtn
+                onClick={() => Services.EditorService.OpenInEditor(project.id, project.path)}
+                title="Open in editor"
+              >
+                ✎
+              </HeaderIconBtn>
+            </Tooltip>
+          )}
           <Tooltip label="Projectinstellingen">
             <HeaderIconBtn onClick={() => setActiveTab('projectsettings')} title="Projectinstellingen">
               ⚙
             </HeaderIconBtn>
           </Tooltip>
-          {status?.isRepo && (
+          {heeftMap && status?.isRepo && (
             <>
               <Tooltip label="Fetch">
                 <HeaderIconBtn onClick={doFetch} disabled={loadingOp !== null} title="Fetch">
@@ -298,6 +316,21 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
                 </button>
                 {!dicht && grp.items.map(it => {
                   const on = activeTab === it.id
+                  if (it.locked) {
+                    return (
+                      <button
+                        key={it.id}
+                        onClick={() => setActiveTab('projectsettings')}
+                        title={it.locked}
+                        className="w-full flex items-center justify-between gap-2 mx-0 my-px px-[11px] py-[7px]
+                                   rounded-nav text-[13px] transition-colors text-left opacity-50
+                                   font-[450] text-fg-muted hover:bg-hover"
+                      >
+                        <span>{it.label}</span>
+                        <span className="text-[10px]">🔒</span>
+                      </button>
+                    )
+                  }
                   return (
                     <button
                       key={it.id}
@@ -335,10 +368,9 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'stash' && <StashTagsTab projectId={project.id} />}
           {activeTab === 'blame' && <BlameTab projectId={project.id} />}
           {activeTab === 'filehistory' && <FileHistoryTab projectId={project.id} />}
-          {activeTab === 'kinsta' && <KinstaTab projectId={project.id} />}
           {activeTab === 'plugins' && <PluginsTab projectId={project.id} />}
           {activeTab === 'terminal' && <SshTerminalTab projectId={project.id} />}
-          {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} />}
+          {activeTab === 'updates' && <UpdatesTab projectId={project.id} currentBranch={status?.branch ?? ''} onBranchCheckedOut={refreshStatus} heeftMap={heeftMap} />}
           {activeTab === 'security' && <SecurityTab projectId={project.id} />}
           {activeTab === 'tests' && <TestsTab projectId={project.id} />}
           {activeTab === 'media' && <MediaTab projectId={project.id} />}

@@ -225,7 +225,7 @@ export default function InfoTab({ project }: Props) {
         </div>
 
         {/* Makefile / Docker actions */}
-        <MakePanel projectId={project.id} />
+        {project.local && !project.missing && <MakePanel projectId={project.id} />}
       </div>
     </div>
   )
