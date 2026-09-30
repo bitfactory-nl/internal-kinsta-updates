@@ -118,6 +118,9 @@ func (s *WPSiteService) UpdateCore(siteID string, allowMajor bool) (RunResult, e
 		Error   string `json:"error"`
 	}
 	if err := s.bridgeCall(site, pw, http.MethodPost, "/updates/core", map[string]bool{"allow_major": allowMajor}, bridgeRunTimeout, &raw); err != nil {
+		if errors.Is(err, errBridgeTimeout) && site.Depot && site.ProjectPath != "" {
+			return RunResult{}, fmt.Errorf("%w — maak de Composer-PR zo nodig handmatig", err)
+		}
 		return RunResult{}, err
 	}
 	res := RunResult{Items: []RunItem{{Name: "WordPress", From: raw.From, To: raw.To, Error: raw.Error, Success: raw.Success}}}

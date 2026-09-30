@@ -2,10 +2,12 @@ package services
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -16,8 +18,23 @@ import (
 const (
 	bridgeReadTimeout    = 15 * time.Second
 	bridgeRefreshTimeout = 60 * time.Second
-	bridgeRunTimeout     = 5 * time.Minute
 )
+
+// bridgeRunTimeout is een var zodat tests een korte wachttijd kunnen zetten.
+var bridgeRunTimeout = 5 * time.Minute
+
+// errBridgeTimeout: de site gaf geen antwoord binnen de wachttijd. Bij een
+// uitvoering betekent dat níet dat de update mislukt is.
+var errBridgeTimeout = errors.New("geen antwoord binnen de wachttijd — de update kan wel gelukt zijn; ververs en controleer")
+
+// isTimeout herkent een verlopen wachttijd in een transportfout.
+func isTimeout(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var ne net.Error
+	return errors.As(err, &ne) && ne.Timeout()
+}
 
 // siteMetSecret doet de gedeelde precheck voor elke bridge-aanroep: site
 // bestaat, wachtwoord staat in de Keychain, bridge is actief.
@@ -60,6 +77,9 @@ func (s *WPSiteService) bridgeCall(site domain.WPSite, pw, method, path string, 
 	}
 	resp, err := s.longClient(timeout).Do(req)
 	if err != nil {
+		if isTimeout(err) {
+			return errBridgeTimeout
+		}
 		return errors.New("site niet bereikbaar")
 	}
 	defer resp.Body.Close()

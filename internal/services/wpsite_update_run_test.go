@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -202,5 +203,48 @@ func TestUpdatePluginsDepotGeeftActionsURL(t *testing.T) {
 	res, err := svc.UpdatePlugins("klant", []string{"a/a.php"}, false)
 	if err != nil || res.ActionsURL != d.actionsURL {
 		t.Fatalf("res %+v err %v", res, err)
+	}
+}
+
+// trageBridge antwoordt niet voordat de test klaar is, zodat een kleine
+// bridgeRunTimeout een echte client-timeout geeft. De cleanup (die vóór
+// srv.Close draait) laat de handler los, zodat Close niet hoeft te wachten.
+func trageBridge(t *testing.T) *bridgeServer {
+	t.Helper()
+	b := nieuweBridgeServer(t, 200, `{}`)
+	stop := make(chan struct{})
+	b.srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-stop:
+		case <-time.After(2 * time.Second):
+		}
+	})
+	oud := bridgeRunTimeout
+	bridgeRunTimeout = 50 * time.Millisecond
+	t.Cleanup(func() {
+		close(stop)
+		bridgeRunTimeout = oud
+	})
+	return b
+}
+
+func TestUpdateCoreTimeoutApartHerkend(t *testing.T) {
+	b := trageBridge(t)
+	svc := bridgeSite(t, b, "goed", nil)
+	_, err := svc.UpdateCore("klant", false)
+	if err == nil || !strings.Contains(err.Error(), "geen antwoord binnen de wachttijd") {
+		t.Fatalf("fout %v", err)
+	}
+	if strings.Contains(err.Error(), "Composer-PR") {
+		t.Fatalf("geen depotsite, toch PR-hint: %v", err)
+	}
+}
+
+func TestUpdateCoreTimeoutDepotNoemtPR(t *testing.T) {
+	b := trageBridge(t)
+	svc := depotSite(t, b, &fakeDepot{}, true)
+	_, err := svc.UpdateCore("klant", false)
+	if err == nil || !strings.Contains(err.Error(), "geen antwoord binnen de wachttijd") || !strings.Contains(err.Error(), "maak de Composer-PR zo nodig handmatig") {
+		t.Fatalf("fout %v", err)
 	}
 }
