@@ -33,10 +33,30 @@ type composerRunner interface {
 type depotGit interface {
 	coreGit
 	StagePathsIn(ctx context.Context, worktreePath string, paths ...string) error
+	HasStagedChanges(ctx context.Context, worktreePath string) (bool, error)
+	ForcePushBranch(ctx context.Context, worktreePath, branch string) error
 }
 
 func (gitCoreOps) StagePathsIn(ctx context.Context, worktreePath string, paths ...string) error {
 	_, err := gitcli.Run(ctx, worktreePath, append([]string{"add", "--"}, paths...)...)
+	return err
+}
+
+// HasStagedChanges meldt of er iets gestaged is. Via --name-only in plaats
+// van --quiet: gitcli.Run geeft de exitcode niet door, de uitvoer wel.
+func (gitCoreOps) HasStagedChanges(ctx context.Context, worktreePath string) (bool, error) {
+	out, err := gitcli.Run(ctx, worktreePath, "diff", "--cached", "--name-only")
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(out) != "", nil
+}
+
+// ForcePushBranch pusht een branch die van de tool is (update/wordpress-X):
+// een restant van een eerdere run, waarvan de PR dicht is, mag overschreven
+// worden, maar alleen als niemand er intussen iets op heeft gezet.
+func (gitCoreOps) ForcePushBranch(ctx context.Context, worktreePath, branch string) error {
+	_, err := gitcli.Run(ctx, worktreePath, "push", "--force-with-lease", "-u", "origin", branch)
 	return err
 }
 
@@ -174,10 +194,17 @@ func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version 
 	if err := m.git.StagePathsIn(ctx, wt, "composer.json", "composer.lock"); err != nil {
 		return "", fmt.Errorf("stagen: %w", err)
 	}
+	gewijzigd, err := m.git.HasStagedChanges(ctx, wt)
+	if err != nil {
+		return "", fmt.Errorf("wijzigingen bepalen: %w", err)
+	}
+	if !gewijzigd {
+		return "", fmt.Errorf("composer-bestanden staan al op %s", version)
+	}
 	if err := m.git.CommitIn(ctx, wt, "chore: WordPress naar "+version); err != nil {
 		return "", fmt.Errorf("commit: %w", err)
 	}
-	if err := m.git.PushBranch(ctx, wt, branch); err != nil {
+	if err := m.git.ForcePushBranch(ctx, wt, branch); err != nil {
 		return "", fmt.Errorf("push: %w", err)
 	}
 	body := fmt.Sprintf("De live depotsite is via de RDM Sites Tool al bijgewerkt naar WordPress %s.\n\n"+

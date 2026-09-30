@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rdm/sites-tool/internal/adapters/gitcli"
 	"github.com/rdm/sites-tool/internal/adapters/github"
 )
 
@@ -21,6 +22,9 @@ type fakeDepotGit struct {
 	stagedPaths []string
 	committed   string
 	pushed      string
+	// geenWijzigingen laat HasStagedChanges false geven (composer-bestanden
+	// stonden al goed).
+	geenWijzigingen bool
 }
 
 func (f *fakeDepotGit) DefaultBranchName(context.Context, string) (string, error) {
@@ -48,7 +52,16 @@ func (f *fakeDepotGit) CommitIn(_ context.Context, _, msg string) error {
 	f.committed = msg
 	return nil
 }
-func (f *fakeDepotGit) PushBranch(_ context.Context, _, br string) error { f.pushed = br; return nil }
+func (f *fakeDepotGit) HasStagedChanges(context.Context, string) (bool, error) {
+	return !f.geenWijzigingen, nil
+}
+func (f *fakeDepotGit) PushBranch(context.Context, string, string) error {
+	return errors.New("PushBranch mag niet gebruikt worden; de branch is van de tool en gaat met --force-with-lease")
+}
+func (f *fakeDepotGit) ForcePushBranch(_ context.Context, _, br string) error {
+	f.pushed = br
+	return nil
+}
 
 type fakeComposer struct {
 	calls [][]string
@@ -145,6 +158,18 @@ func TestOpenCorePRLockOntbreekt(t *testing.T) {
 	}
 	if g.committed != "" || g.pushed != "" {
 		t.Fatalf("commit %q push %q", g.committed, g.pushed)
+	}
+}
+
+func TestOpenCorePRNietsTeCommitten(t *testing.T) {
+	m, g, p, _ := depotFixture(t)
+	g.geenWijzigingen = true
+	_, err := m.OpenCorePR(context.Background(), "/repo", "7.2.1")
+	if err == nil || err.Error() != "composer-bestanden staan al op 7.2.1" {
+		t.Fatalf("fout %v", err)
+	}
+	if g.committed != "" || g.pushed != "" || p.lastBase != "" || !g.removed {
+		t.Fatalf("commit %q push %q pr %q removed %v", g.committed, g.pushed, p.lastBase, g.removed)
 	}
 }
 
@@ -248,5 +273,31 @@ func TestComposerEnv(t *testing.T) {
 	}
 	if len(paths) != 1 || paths[0] != "PATH=/opt/x:/opt/homebrew/bin:/usr/local/bin:/usr/bin" || !nonInt {
 		t.Fatalf("env %v", env)
+	}
+}
+
+func TestGitCoreOpsHasStagedChanges(t *testing.T) {
+	dir := t.TempDir()
+	ctx := context.Background()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init"},
+	} {
+		if _, err := gitcli.Run(ctx, dir, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	g := gitCoreOps{}
+	if got, err := g.HasStagedChanges(ctx, dir); err != nil || got {
+		t.Fatalf("leeg: %v %v", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := g.StagePathsIn(ctx, dir, "composer.json"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := g.HasStagedChanges(ctx, dir); err != nil || !got {
+		t.Fatalf("gestaged: %v %v", got, err)
 	}
 }
