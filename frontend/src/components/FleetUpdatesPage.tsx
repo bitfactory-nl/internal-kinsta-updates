@@ -3,6 +3,7 @@ import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/ser
 import type { FleetSiteUpdates, WPSiteView } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import Foutvak from './Foutvak'
 import KnopTekst from './KnopTekst'
+import { hoogsteVersie } from '../lib/versie'
 
 interface Props {
   onOpenProject: (projectId: string) => void
@@ -11,7 +12,8 @@ interface Props {
 
 function aantal(r: FleetSiteUpdates): number {
   const u = r.updates
-  return u ? u.core.length + u.plugins.length + u.themes.length : 0
+  // Vertalingen tellen samen als één update.
+  return u ? u.core.length + u.plugins.length + u.themes.length + (u.translations > 0 ? 1 : 0) : 0
 }
 
 // Sites met updates bovenaan, dan fouten, dan bijgewerkte sites.
@@ -70,7 +72,7 @@ export default function FleetUpdatesPage({ onOpenProject, onOpenSite }: Props) {
               {rijen.map(r => (
                 <tr key={r.site.site.id} onClick={() => open(r)} className="border-t border-border hover:bg-hover cursor-pointer">
                   <td className="px-3 py-2 text-fg">{r.site.site.name}{r.site.site.depot && <span className="ml-1.5 text-[10px] text-accent">depot</span>}</td>
-                  <td className="px-3 py-2 font-mono">{r.updates ? (r.updates.core[0]?.version ?? '—') : ''}</td>
+                  <td className="px-3 py-2 font-mono">{r.updates ? (hoogsteVersie(r.updates.core.map(c => c.version)) ?? '—') : ''}</td>
                   <td className="px-3 py-2 font-mono">{r.updates ? r.updates.plugins.length : ''}</td>
                   <td className="px-3 py-2 font-mono">{r.updates ? r.updates.themes.length : ''}</td>
                   <td className="px-3 py-2 text-fg-faint">{r.updates?.checkedAt ? new Date(r.updates.checkedAt).toLocaleString('nl-NL') : ''}</td>

@@ -73,7 +73,7 @@ func (s *WPSiteService) UpdatePlugins(siteID string, plugins []string, all bool)
 	}
 	defer s.releaseRun(siteID)
 	if all {
-		u, err := s.AvailableUpdates(siteID, false)
+		u, err := s.AvailableUpdates(siteID, true)
 		if err != nil {
 			return RunResult{}, err
 		}

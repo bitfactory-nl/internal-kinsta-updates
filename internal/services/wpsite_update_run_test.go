@@ -33,13 +33,16 @@ func TestUpdatePluginsBodyEnResultaat(t *testing.T) {
 }
 
 func TestUpdatePluginsAllGebruiktBeschikbareLijst(t *testing.T) {
-	calls := 0
+	calls, getPad := 0, ""
 	b := nieuweBridgeServer(t, 200, updatesJSON)
 	svc := bridgeSite(t, b, "goed", nil)
 	// Eerste call (GET /updates) geeft de lijst; daarna antwoorden we met results.
 	orig := b.srv.Config.Handler
 	b.srv.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
+		if r.Method == http.MethodGet {
+			getPad = r.URL.RequestURI()
+		}
 		if r.Method == http.MethodPost {
 			b.respBody = `{"results":[{"plugin":"akismet/akismet.php","success":true,"from":"5.3","to":"5.4"}]}`
 		}
@@ -51,6 +54,10 @@ func TestUpdatePluginsAllGebruiktBeschikbareLijst(t *testing.T) {
 	}
 	if calls != 2 || b.lastBody != `{"plugins":["akismet/akismet.php"]}` || len(res.Items) != 1 {
 		t.Fatalf("calls %d body %q items %+v", calls, b.lastBody, res.Items)
+	}
+	// "Alles bijwerken" moet de verse lijst van wp.org gebruiken, niet de cache.
+	if getPad != "/wp-json/nb-mcp/v1/updates?refresh=1" {
+		t.Fatalf("lijst via %q", getPad)
 	}
 }
 

@@ -5,6 +5,7 @@ import Foutvak from './Foutvak'
 import KnopTekst from './KnopTekst'
 import { bevestig } from '../lib/bevestig'
 import ExternalLink from './ExternalLink'
+import { hoogsteVersie, vergelijkVersie } from '../lib/versie'
 
 type Actie = 'verversen' | 'plugins' | 'alles' | 'core' | 'vertalingen'
 
@@ -68,6 +69,14 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
   const core = data?.core ?? []
   const plugins = data?.plugins ?? []
   const themes = data?.themes ?? []
+  // De bridge kiest de hoogste nieuwere versie, zonder major-vinkje alleen
+  // binnen dezelfde major; de bevestiging noemt diezelfde keuze.
+  const coreDoel = () => {
+    const huidig = hoogsteVersie(core.map(c => c.current)) ?? '?'
+    const toegestaan = core.filter(c => vergelijkVersie(c.version, c.current) > 0 && (major || c.type !== 'major'))
+    const doel = hoogsteVersie((toegestaan.length > 0 ? toegestaan : core).map(c => c.version)) ?? '?'
+    return `WordPress ${huidig} → ${doel}${major ? ' (major toegestaan)' : ''}`
+  }
   const niksTeDoen = data && core.length === 0 && plugins.length === 0 && themes.length === 0 && data.translations === 0
 
   return (
@@ -95,7 +104,7 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
           <div className="flex items-center gap-3 mt-2">
             <button disabled={!kanUitvoeren} className={knop}
               onClick={() => voerUit('core', 'WordPress bijwerken?',
-                site.depot ? 'Daarna maakt de tool een Composer-PR in de gekoppelde repo.' : `WordPress op ${site.name} bijwerken.`,
+                `${coreDoel()} op ${site.name}.` + (site.depot ? '\n\nDaarna maakt de tool een Composer-PR in de gekoppelde repo.' : ''),
                 () => Services.WPSiteService.UpdateCore(site.id, major))}>
               <KnopTekst tekst="WordPress bijwerken" bezig={actie === 'core'} />
             </button>
