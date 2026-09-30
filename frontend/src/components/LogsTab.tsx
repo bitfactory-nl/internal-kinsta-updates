@@ -7,6 +7,7 @@ import Foutvak from './Foutvak'
 import Tooltip from './Tooltip'
 import ExternalLink from './ExternalLink'
 import { bevestig } from '../lib/bevestig'
+import { standaardOmgeving, useVoorkeurOmgeving } from '../lib/kinstaOmgeving'
 
 interface Props { projectId: string }
 
@@ -52,6 +53,7 @@ function soortStijl(kind: string): { label: string; klasse: string } {
 export default function LogsTab({ projectId }: Props) {
   const [site, setSite] = useState<SiteDetails | null>(null)
   const [envId, setEnvId] = useState('')
+  const voorkeurEnv = useVoorkeurOmgeving(projectId)
   const [bestand, setBestand] = useState('error')
   const [regels, setRegels] = useState(1000)
   const [verbergRuis, setVerbergRuis] = useState(true)
@@ -77,11 +79,11 @@ export default function LogsTab({ projectId }: Props) {
   }, [projectId])
 
   useEffect(() => {
-    if (!envId && site?.environments?.length) {
-      const live = site.environments.find(e => e.name === 'live') ?? site.environments[0]
-      setEnvId(live.id)
+    if (!envId && voorkeurEnv !== null && site?.environments?.length) {
+      const env = standaardOmgeving(site.environments, voorkeurEnv)
+      if (env) setEnvId(env.id)
     }
-  }, [site, envId])
+  }, [site, envId, voorkeurEnv])
 
   const ophalen = async () => {
     setBezig(true); setFout(null)

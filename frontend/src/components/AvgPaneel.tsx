@@ -3,6 +3,7 @@ import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/ser
 import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
 import type { AnonymiseCfg, SensitiveDataReport, SensitiveTable } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import Foutvak from './Foutvak'
+import { standaardOmgeving } from '../lib/kinstaOmgeving'
 
 interface Props {
   projectId: string
@@ -38,7 +39,7 @@ export default function AvgPaneel({ projectId, cfg, onChange }: Props) {
     setBezig(true); setFout(null)
     try {
       // De omgeving pakken we hier zelf op: dit paneel staat in de instellingen,
-      // waar geen omgevingskeuze staat, en de live-omgeving is wat je wilt weten.
+      // waar geen omgevingskeuze staat: de standaardomgeving van de site, anders live.
       let s = site
       if (!s) {
         const id = await Services.KinstaService.GetLinkedSiteID(projectId)
@@ -47,10 +48,11 @@ export default function AvgPaneel({ projectId, cfg, onChange }: Props) {
         setSite(s)
       }
       const envs = s?.environments ?? []
-      const live = envs.find(e => e.name === 'live') ?? envs[0]
-      if (!live) throw new Error('Geen omgevingen gevonden voor deze Kinsta-site.')
+      const voorkeur = await Services.KinstaService.LinkedEnvID(projectId).catch(() => '')
+      const env = standaardOmgeving(envs, voorkeur)
+      if (!env) throw new Error('Geen omgevingen gevonden voor deze Kinsta-site.')
 
-      const r = await Services.DBCloneService.InspectSensitiveData(projectId, live.id)
+      const r = await Services.DBCloneService.InspectSensitiveData(projectId, env.id)
       setRapport(r)
 
       // Bij een eerste inspectie alles aanvinken: veilig is de default, en je

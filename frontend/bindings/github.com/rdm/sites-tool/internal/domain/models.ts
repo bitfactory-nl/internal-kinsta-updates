@@ -2983,6 +2983,12 @@ export class Project {
      */
     "missing": boolean;
 
+    /**
+     * KinstaEnvID is de standaardomgeving die bij de site in wp-sites.yml is
+     * gekozen; leeg = live. Staat bewust niet in Config: dat gaat naar .rdm.
+     */
+    "kinstaEnvId"?: string;
+
     /** Creates a new Project instance. */
     constructor($$source: Partial<Project> = {}) {
         if (!("id" in $$source)) {

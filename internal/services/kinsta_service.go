@@ -69,6 +69,16 @@ func (s *KinstaService) GetLinkedSiteID(projectID string) (string, error) {
 	return p.Config.Kinsta.SiteID, nil
 }
 
+// LinkedEnvID geeft de standaardomgeving die bij de WordPress-site is gekozen,
+// of "" (dan is live de standaard). Een keuze in een tab gaat hier altijd voor.
+func (s *KinstaService) LinkedEnvID(projectID string) (string, error) {
+	p, err := s.projectFor(projectID)
+	if err != nil {
+		return "", err
+	}
+	return p.KinstaEnvID, nil
+}
+
 // ListSites returns all Kinsta sites for the configured company.
 func (s *KinstaService) ListSites() ([]kinsta.Site, error) {
 	c, err := s.client()
@@ -190,10 +200,14 @@ type EnvSSHEndpoint struct {
 }
 
 // EnvironmentSSH resolves the SSH endpoint of one environment of the project's
-// linked Kinsta site. An empty envID picks the live environment, or the only one
-// when the site has just a single environment.
+// linked Kinsta site. An empty envID picks the site's default environment
+// (KinstaEnvID), else the live one, else the first.
 func (s *KinstaService) EnvironmentSSH(projectID, envID string) (EnvSSHEndpoint, error) {
 	siteID, err := s.GetLinkedSiteID(projectID)
+	if err != nil {
+		return EnvSSHEndpoint{}, err
+	}
+	voorkeur, err := s.LinkedEnvID(projectID)
 	if err != nil {
 		return EnvSSHEndpoint{}, err
 	}
@@ -208,25 +222,9 @@ func (s *KinstaService) EnvironmentSSH(projectID, envID string) (EnvSSHEndpoint,
 		return EnvSSHEndpoint{}, fmt.Errorf("geen omgevingen gevonden voor deze Kinsta-site")
 	}
 
-	env := details.Environments[0]
-	if envID != "" {
-		gevonden := false
-		for _, e := range details.Environments {
-			if e.ID == envID {
-				env, gevonden = e, true
-				break
-			}
-		}
-		if !gevonden {
-			return EnvSSHEndpoint{}, fmt.Errorf("omgeving %q niet gevonden", envID)
-		}
-	} else {
-		for _, e := range details.Environments {
-			if e.Name == "live" {
-				env = e
-				break
-			}
-		}
+	env, err := kiesOmgeving(details.Environments, envID, voorkeur)
+	if err != nil {
+		return EnvSSHEndpoint{}, err
 	}
 
 	port, err := strconv.Atoi(strings.TrimSpace(env.SSHConnection.SSHPort))
@@ -264,4 +262,33 @@ func (s *KinstaService) GetEnvironmentPluginsAndThemes(envID string) (*kinsta.En
 		Plugins: plugins,
 		Themes:  themes,
 	}, nil
+}
+
+// kiesOmgeving kiest een omgeving: een expliciete keuze (gekozen) moet bestaan;
+// anders de voorkeur van de site als die er is, dan live, dan de eerste.
+// envs mag niet leeg zijn.
+func kiesOmgeving(envs []kinsta.Environment, gekozen, voorkeur string) (kinsta.Environment, error) {
+	zoek := func(ok func(kinsta.Environment) bool) (kinsta.Environment, bool) {
+		for _, e := range envs {
+			if ok(e) {
+				return e, true
+			}
+		}
+		return kinsta.Environment{}, false
+	}
+	if gekozen != "" {
+		if e, ok := zoek(func(e kinsta.Environment) bool { return e.ID == gekozen }); ok {
+			return e, nil
+		}
+		return kinsta.Environment{}, fmt.Errorf("omgeving %q niet gevonden", gekozen)
+	}
+	if voorkeur != "" {
+		if e, ok := zoek(func(e kinsta.Environment) bool { return e.ID == voorkeur }); ok {
+			return e, nil
+		}
+	}
+	if e, ok := zoek(func(e kinsta.Environment) bool { return e.Name == "live" }); ok {
+		return e, nil
+	}
+	return envs[0], nil
 }

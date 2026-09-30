@@ -121,6 +121,7 @@ func (s *ProjectService) projectForSite(site domain.WPSite) domain.Project {
 		k.SiteID = site.KinstaSiteID
 		p.Config.Kinsta = &k
 		p.Provider = domain.ProviderKinsta
+		p.KinstaEnvID = site.KinstaEnvID
 	}
 	return p
 }

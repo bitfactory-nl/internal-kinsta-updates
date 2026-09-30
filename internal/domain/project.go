@@ -40,6 +40,9 @@ type Project struct {
 	Local bool `json:"local"`
 	// Missing geeft aan of de map in het register staat maar niet bestaat.
 	Missing bool `json:"missing"`
+	// KinstaEnvID is de standaardomgeving die bij de site in wp-sites.yml is
+	// gekozen; leeg = live. Staat bewust niet in Config: dat gaat naar .rdm.
+	KinstaEnvID string `json:"kinstaEnvId,omitempty"`
 }
 
 type SSHTarget struct {

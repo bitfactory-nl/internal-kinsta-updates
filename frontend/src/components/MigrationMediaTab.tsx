@@ -5,6 +5,7 @@ import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/inter
 import type { UploadFolder, MediaPullResult } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import Foutvak from './Foutvak'
 import { bevestig } from '../lib/bevestig'
+import { standaardOmgeving, useVoorkeurOmgeving } from '../lib/kinstaOmgeving'
 
 interface Props { projectId: string }
 
@@ -32,6 +33,7 @@ function bytesLeesbaar(n: number): string {
 export default function MigrationMediaTab({ projectId }: Props) {
   const [site, setSite] = useState<SiteDetails | null>(null)
   const [envId, setEnvId] = useState('')
+  const voorkeurEnv = useVoorkeurOmgeving(projectId)
   const [folders, setFolders] = useState<UploadFolder[] | null>(null)
   const [gekozen, setGekozen] = useState<Set<string>>(new Set())
   const [doelPad, setDoelPad] = useState('')
@@ -56,11 +58,11 @@ export default function MigrationMediaTab({ projectId }: Props) {
   }, [projectId])
 
   useEffect(() => {
-    if (!envId && site?.environments?.length) {
-      const live = site.environments.find(e => e.name === 'live') ?? site.environments[0]
-      setEnvId(live.id)
+    if (!envId && voorkeurEnv !== null && site?.environments?.length) {
+      const env = standaardOmgeving(site.environments, voorkeurEnv)
+      if (env) setEnvId(env.id)
     }
-  }, [site, envId])
+  }, [site, envId, voorkeurEnv])
 
   const mappenOphalen = async () => {
     setLijstBezig(true); setFout(null)

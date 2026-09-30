@@ -7,6 +7,7 @@ import { MediaCategory } from '../../bindings/github.com/rdm/sites-tool/internal
 import ExternalLink from './ExternalLink'
 import { bevestig } from '../lib/bevestig'
 import Foutvak from './Foutvak'
+import { standaardOmgeving, useVoorkeurOmgeving } from '../lib/kinstaOmgeving'
 
 interface Props { projectId: string }
 
@@ -788,6 +789,7 @@ function CategorieBlok({ projectId, scanId, blok, gekozen, onToggleRij, onToggle
 export default function MediaTab({ projectId }: Props) {
   const [site, setSite] = useState<SiteDetails | null>(null)
   const [envId, setEnvId] = useState('')
+  const voorkeurEnv = useVoorkeurOmgeving(projectId)
   const [user, setUser] = useState('')
   const [pad, setPad] = useState('')
   const [wachtwoord, setWachtwoord] = useState('')
@@ -829,13 +831,13 @@ export default function MediaTab({ projectId }: Props) {
       .catch(() => {})
   }, [projectId])
 
-  // Zonder expliciete keuze de live-omgeving: dat is waar de klant naar kijkt.
+  // Zonder expliciete keuze de standaardomgeving van de site, anders live: dat is waar de klant naar kijkt.
   useEffect(() => {
-    if (!envId && site?.environments?.length) {
-      const live = site.environments.find(e => e.name === 'live') ?? site.environments[0]
-      setEnvId(live.id)
+    if (!envId && voorkeurEnv !== null && site?.environments?.length) {
+      const env = standaardOmgeving(site.environments, voorkeurEnv)
+      if (env) setEnvId(env.id)
     }
-  }, [site, envId])
+  }, [site, envId, voorkeurEnv])
 
   // Het wachtwoord gaat naar de macOS-keychain; .rdm/config.yml krijgt alleen een
   // verwijzing, want dat bestand staat in de repo van de klant.

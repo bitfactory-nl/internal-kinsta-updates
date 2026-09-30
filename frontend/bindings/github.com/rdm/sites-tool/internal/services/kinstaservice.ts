@@ -23,8 +23,8 @@ export function EnvironmentLogs(envID: string, fileName: string, lines: number):
 
 /**
  * EnvironmentSSH resolves the SSH endpoint of one environment of the project's
- * linked Kinsta site. An empty envID picks the live environment, or the only one
- * when the site has just a single environment.
+ * linked Kinsta site. An empty envID picks the site's default environment
+ * (KinstaEnvID), else the live one, else the first.
  */
 export function EnvironmentSSH(projectID: string, envID: string): $CancellablePromise<$models.EnvSSHEndpoint> {
     return $Call.ByID(4023335780, projectID, envID).then(($result: any) => {
@@ -72,6 +72,14 @@ export function IsConfigured(): $CancellablePromise<boolean> {
  */
 export function LinkSite(projectID: string, siteID: string): $CancellablePromise<void> {
     return $Call.ByID(4229065038, projectID, siteID);
+}
+
+/**
+ * LinkedEnvID geeft de standaardomgeving die bij de WordPress-site is gekozen,
+ * of "" (dan is live de standaard). Een keuze in een tab gaat hier altijd voor.
+ */
+export function LinkedEnvID(projectID: string): $CancellablePromise<string> {
+    return $Call.ByID(1079636902, projectID);
 }
 
 /**

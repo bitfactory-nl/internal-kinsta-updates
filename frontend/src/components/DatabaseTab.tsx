@@ -5,6 +5,7 @@ import type { SiteDetails } from '../../bindings/github.com/rdm/sites-tool/inter
 import type { DBProbe, DBCloneRequest, DBCloneResult } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import Foutvak from './Foutvak'
 import { bevestig } from '../lib/bevestig'
+import { standaardOmgeving, useVoorkeurOmgeving } from '../lib/kinstaOmgeving'
 
 interface Props { projectId: string }
 
@@ -41,6 +42,7 @@ function bytesLeesbaar(n: number): string {
 export default function DatabaseTab({ projectId }: Props) {
   const [site, setSite] = useState<SiteDetails | null>(null)
   const [envId, setEnvId] = useState('')
+  const voorkeurEnv = useVoorkeurOmgeving(projectId)
   const [probe, setProbe] = useState<DBProbe | null>(null)
   const [dbApp, setDbApp] = useState('Sequel Ace')
 
@@ -100,13 +102,13 @@ export default function DatabaseTab({ projectId }: Props) {
       .catch(() => {})
   }, [projectId])
 
-  // Zonder expliciete keuze de live-omgeving: dat is waar productie draait.
+  // Zonder expliciete keuze de standaardomgeving van de site, anders live: dat is waar productie draait.
   useEffect(() => {
-    if (!envId && site?.environments?.length) {
-      const live = site.environments.find(e => e.name === 'live') ?? site.environments[0]
-      setEnvId(live.id)
+    if (!envId && voorkeurEnv !== null && site?.environments?.length) {
+      const env = standaardOmgeving(site.environments, voorkeurEnv)
+      if (env) setEnvId(env.id)
     }
-  }, [site, envId])
+  }, [site, envId, voorkeurEnv])
 
   const verbindingControleren = async () => {
     setProbeBezig(true); setFout(null)
