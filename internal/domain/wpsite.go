@@ -20,6 +20,9 @@ type WPSite struct {
 	Tags        []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 	ReadOnly    bool     `json:"readOnly" yaml:"read_only"`
 	Bridge      bool     `json:"bridge" yaml:"bridge"`
+	// Depot markeert de SatisPress-depotsite: na een core-update daar maakt de
+	// tool een Composer-PR. Er is er hooguit één.
+	Depot bool `json:"depot,omitempty" yaml:"depot,omitempty"`
 }
 
 // Zelfde regel als wp-fleet-mcp's sites.json, zodat elke id daar ook geldig is.

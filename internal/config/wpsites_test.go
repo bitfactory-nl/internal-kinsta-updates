@@ -99,3 +99,31 @@ func TestSaveWPSitesFoutEenVoorvoegsel(t *testing.T) {
 		t.Fatalf("\"wp-sites\" komt %d keer voor: %v", n, err)
 	}
 }
+
+func TestSaveWPSitesWeigertTweeDepots(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wp-sites.yml")
+	sites := []domain.WPSite{
+		{ID: "aa", Name: "a", URL: "https://a.nl", Username: "u", Depot: true},
+		{ID: "bb", Name: "b", URL: "https://b.nl", Username: "u", Depot: true},
+	}
+	err := SaveWPSites(path, sites)
+	if err == nil || !strings.Contains(err.Error(), `site "bb" is al de depotsite`) &&
+		!strings.Contains(err.Error(), `site "aa" is al de depotsite`) {
+		t.Fatalf("verwacht depot-fout, kreeg %v", err)
+	}
+}
+
+func TestWPSitesDepotRoundtrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wp-sites.yml")
+	if err := SaveWPSites(path, []domain.WPSite{{ID: "aa", Name: "a", URL: "https://a.nl", Username: "u", Depot: true}}); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	if !strings.Contains(string(raw), "depot: true") {
+		t.Fatalf("depot niet opgeslagen:\n%s", raw)
+	}
+	got, err := LoadWPSites(path)
+	if err != nil || !got[0].Depot {
+		t.Fatalf("got %+v, %v", got, err)
+	}
+}

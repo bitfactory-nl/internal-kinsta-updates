@@ -95,6 +95,7 @@ func SaveWPSites(path string, sites []domain.WPSite) error {
 func validateWPSites(sites []domain.WPSite) error {
 	ids := map[string]bool{}
 	paden := map[string]string{}
+	depot := ""
 	for i, s := range sites {
 		if err := s.Validate(); err != nil {
 			return fmt.Errorf("site %d (%s): %w", i+1, s.ID, err)
@@ -108,6 +109,12 @@ func validateWPSites(sites []domain.WPSite) error {
 				return fmt.Errorf("project %s is al gekoppeld aan %q", s.ProjectPath, ander)
 			}
 			paden[s.ProjectPath] = s.ID
+		}
+		if s.Depot {
+			if depot != "" {
+				return fmt.Errorf("site %q is al de depotsite", depot)
+			}
+			depot = s.ID
 		}
 	}
 	return nil
