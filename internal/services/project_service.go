@@ -244,8 +244,9 @@ func (s *ProjectService) loadProject(path string) (domain.Project, error) {
 		provider = inferProvider(deploy.Type)
 	}
 
-	status, _ := gitread.Status(path)
-
+	// Geen git-status hier: Reload moet snel blijven bij tientallen projecten.
+	// De status komt uit BatchStatus (parallel) en RefreshOne; alleen of de map
+	// een repo is, is nodig voor zoeken en batch-acties.
 	return domain.Project{
 		ID:          projectID(path),
 		Path:        path,
@@ -253,9 +254,16 @@ func (s *ProjectService) loadProject(path string) (domain.Project, error) {
 		Provider:    provider,
 		Config:      cfg,
 		Deploy:      domain.DeployConf{Type: deploy.Type, Link: domain.DeployLinks{Test: deploy.Link.Test, Acc: deploy.Link.Acc, Prod: deploy.Link.Prod, Local: deploy.Link.Local}, Vars: deploy.Vars},
-		Git:         status,
+		Git:         domain.GitStatus{IsRepo: isGitRepo(path)},
 		LastScanAt:  time.Now(),
 	}, nil
+}
+
+// isGitRepo kijkt zonder git aan te roepen of de map een repo is (.git is een
+// map, of een bestand bij een worktree of submodule).
+func isGitRepo(path string) bool {
+	_, err := os.Stat(filepath.Join(path, ".git"))
+	return err == nil
 }
 
 // inferProvider maps a deploy_conf type to a Provider when .rdm/config.yml is absent.

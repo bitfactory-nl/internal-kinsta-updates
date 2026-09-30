@@ -150,3 +150,74 @@ func TestImportMetBestaandeSite(t *testing.T) {
 		}
 	}
 }
+
+// telHerladen telt hoe vaak de projectlijst wordt herladen.
+type telHerladen struct {
+	*ProjectService
+	n int
+}
+
+func (t *telHerladen) Reload() ([]domain.Project, error) {
+	t.n++
+	return t.ProjectService.Reload()
+}
+
+// Apply herlaadt de projectlijst één keer, aan het eind, hoeveel items er ook zijn.
+func TestImportApplyHerlaadtEenKeer(t *testing.T) {
+	f := importFixture(t)
+	teller := &telHerladen{ProjectService: f.svc.register.projects}
+	f.svc.sites.projects = teller
+	_, err := f.svc.Apply([]ImportChoice{
+		{Path: filepath.Join(f.root, "web-bnl"), AsSite: true},
+		{Path: filepath.Join(f.root, "web-anl"), AsSite: true},
+		{Path: filepath.Join(f.root, "tool-laravel"), AsSite: false},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if teller.n != 1 {
+		t.Fatalf("%d keer herladen, verwacht 1", teller.n)
+	}
+	if got := len(f.svc.register.projects.List()); got != 3 {
+		t.Fatalf("%d projecten na import", got)
+	}
+}
+
+// Een onderbroken import (lokale projecten, maar import_done nog niet gezet)
+// gaat verder: Needed blijft waar en al geregistreerde mappen zijn geen kandidaat.
+func TestImportOnderbrokenGaatVerder(t *testing.T) {
+	f := importFixture(t)
+	laravel := filepath.Join(f.root, "tool-laravel")
+	if err := config.SaveLocalProjects(f.localsPath, []domain.LocalProject{{Path: laravel}}); err != nil {
+		t.Fatal(err)
+	}
+	need, err := f.svc.Needed()
+	if err != nil || !need {
+		t.Fatalf("needed %v %v", need, err)
+	}
+	c, err := f.svc.Candidates()
+	if err != nil || len(c) != 2 {
+		t.Fatalf("candidates %+v %v", c, err)
+	}
+	for _, k := range c {
+		if filepath.Clean(k.Path) == laravel {
+			t.Fatalf("geregistreerd lokaal project is kandidaat: %+v", k)
+		}
+	}
+}
+
+// Lukt het opslaan van import_done niet, dan blijft de vlag in het geheugen uit
+// en komt de fout terug.
+func TestImportDoneAlleenNaOpslaan(t *testing.T) {
+	f := importFixture(t)
+	// Een map op de plek van config.yml laat SaveGlobal falen.
+	if err := os.MkdirAll(config.GlobalConfigPath(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.svc.Apply(nil); err == nil {
+		t.Fatal("verwacht een fout van SaveGlobal")
+	}
+	if f.cfg.ImportDone {
+		t.Fatal("ImportDone hoort false te blijven")
+	}
+}

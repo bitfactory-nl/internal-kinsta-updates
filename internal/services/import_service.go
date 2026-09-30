@@ -42,18 +42,11 @@ func NewImportService(cfg *config.Global, sites *WPSiteService, register *Regist
 	return &ImportService{cfg: cfg, sites: sites, register: register, sitesPath: sitesPath, localsPath: localsPath}
 }
 
-// Needed is waar zolang de import niet is afgerond, er nog geen lokale
-// projecten zijn geregistreerd en minstens één projectmap bestaat. Sites in
-// wp-sites.yml (uit een eerdere feature) sluiten de import niet uit.
+// Needed is waar zolang de import niet is afgerond en minstens één projectmap
+// bestaat. Een onderbroken import (al wat items in het register) gaat zo
+// gewoon verder; Candidates slaat die items over.
 func (s *ImportService) Needed() (bool, error) {
 	if s.cfg.ImportDone {
-		return false, nil
-	}
-	locals, err := config.LoadLocalProjects(s.localsPath)
-	if err != nil {
-		return false, err
-	}
-	if len(locals) > 0 {
 		return false, nil
 	}
 	for _, root := range s.cfg.ProjectsRoots {
@@ -65,9 +58,14 @@ func (s *ImportService) Needed() (bool, error) {
 }
 
 // Candidates loopt over de submappen van elke projectmap, zoals de oude scan,
-// en slaat mappen over die al het project_path van een site zijn.
+// en slaat mappen over die al in het register staan (als project_path van een
+// site of als lokaal project).
 func (s *ImportService) Candidates() ([]ImportCandidate, error) {
 	sites, err := config.LoadWPSites(s.sitesPath)
+	if err != nil {
+		return nil, err
+	}
+	locals, err := config.LoadLocalProjects(s.localsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +74,9 @@ func (s *ImportService) Candidates() ([]ImportCandidate, error) {
 		if w.ProjectPath != "" {
 			bezet[filepath.Clean(w.ProjectPath)] = true
 		}
+	}
+	for _, lp := range locals {
+		bezet[filepath.Clean(lp.Path)] = true
 	}
 	out := []ImportCandidate{}
 	for _, root := range s.cfg.ProjectsRoots {
@@ -120,7 +121,8 @@ func loadCandidate(path string) ImportCandidate {
 
 // Apply neemt de gekozen mappen op en markeert de import als afgerond, ook bij
 // nul keuzes (overslaan). Een fout bij één item stopt de rest niet; alle fouten
-// komen gebundeld terug. Het resultaat is het aantal toegevoegde items.
+// komen gebundeld terug. De projectlijst wordt één keer herladen, aan het eind.
+// Het resultaat is het aantal toegevoegde items.
 func (s *ImportService) Apply(choices []ImportChoice) (int, error) {
 	var errs []error
 	added := 0
@@ -129,7 +131,7 @@ func (s *ImportService) Apply(choices []ImportChoice) (int, error) {
 		if ch.AsSite {
 			err = s.addSite(ch.Path)
 		} else {
-			_, err = s.register.AddLocalProjectPath(ch.Path, "")
+			err = s.addLocal(ch.Path)
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", ch.Path, err))
@@ -137,14 +139,33 @@ func (s *ImportService) Apply(choices []ImportChoice) (int, error) {
 		}
 		added++
 	}
-	s.cfg.ImportDone = true
-	if err := config.SaveGlobal(*s.cfg); err != nil {
+	if len(choices) > 0 {
+		s.sites.herlaad()
+	}
+	next := *s.cfg
+	next.ImportDone = true
+	if err := config.SaveGlobal(next); err != nil {
 		errs = append(errs, fmt.Errorf("import_done opslaan: %w", err))
+	} else {
+		s.cfg.ImportDone = true
 	}
 	return added, errors.Join(errs...)
 }
 
-// addSite maakt van een map een site zonder wachtwoord, met een uniek id.
+// addLocal registreert een map als lokaal project, zonder te herladen.
+func (s *ImportService) addLocal(path string) error {
+	path, err := normaliseerPad(path)
+	if err != nil {
+		return err
+	}
+	if !dirExists(path) {
+		return fmt.Errorf("map %s bestaat niet", path)
+	}
+	return s.register.voegLokaalToe(path, "")
+}
+
+// addSite maakt van een map een site zonder wachtwoord, met een uniek id,
+// zonder te herladen.
 func (s *ImportService) addSite(path string) error {
 	path, err := normaliseerPad(path)
 	if err != nil {
@@ -155,14 +176,14 @@ func (s *ImportService) addSite(path string) error {
 		return err
 	}
 	c := loadCandidate(path)
-	_, err = s.sites.CreateWithoutPassword(domain.WPSite{
+	_, err = s.sites.create(domain.WPSite{
 		ID:           uniekSiteID(domain.SuggestWPSiteID(filepath.Base(path)), sites),
 		Name:         c.Name,
 		URL:          c.URL,
 		Username:     defaultWPUser,
 		ProjectPath:  path,
 		KinstaSiteID: c.KinstaSiteID,
-	})
+	}, "", false)
 	return err
 }
 

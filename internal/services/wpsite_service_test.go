@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -268,5 +269,41 @@ func TestWPSiteSuggestForProjectBridge(t *testing.T) {
 	}
 	if s, _ := svc.SuggestForProject("p1"); !s.Bridge {
 		t.Fatal("met bridge-bestand hoort Bridge true te zijn")
+	}
+}
+
+// herladerDieLeest leest de sitelijst tijdens het herladen, zoals ForProject
+// dat via de projectlijst doet: dat mag niet vastlopen op WPSiteService.mu.
+type herladerDieLeest struct {
+	wpNepProjecten
+	svc *WPSiteService
+}
+
+func (h *herladerDieLeest) Reload() ([]domain.Project, error) {
+	_, err := h.svc.List()
+	return nil, err
+}
+
+func TestWPSiteHerlaadtBuitenDeLock(t *testing.T) {
+	svc, _, _ := nieuweWPSiteService(t)
+	svc.projects = &herladerDieLeest{wpNepProjecten: wpNepProjecten{}, svc: svc}
+	klaar := make(chan error, 1)
+	go func() {
+		_, err := svc.Create(testWPSite("depot", ""), "pw")
+		if err == nil {
+			err = svc.Unlink("depot")
+		}
+		if err == nil {
+			err = svc.Delete("depot")
+		}
+		klaar <- err
+	}()
+	select {
+	case err := <-klaar:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("vastgelopen: herladen gebeurt onder WPSiteService.mu")
 	}
 }

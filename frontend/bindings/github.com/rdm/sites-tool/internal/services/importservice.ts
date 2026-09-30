@@ -17,7 +17,8 @@ import * as $models from "./models.js";
 /**
  * Apply neemt de gekozen mappen op en markeert de import als afgerond, ook bij
  * nul keuzes (overslaan). Een fout bij één item stopt de rest niet; alle fouten
- * komen gebundeld terug. Het resultaat is het aantal toegevoegde items.
+ * komen gebundeld terug. De projectlijst wordt één keer herladen, aan het eind.
+ * Het resultaat is het aantal toegevoegde items.
  */
 export function Apply(choices: $models.ImportChoice[]): $CancellablePromise<number> {
     return $Call.ByID(3370427460, choices);
@@ -25,7 +26,8 @@ export function Apply(choices: $models.ImportChoice[]): $CancellablePromise<numb
 
 /**
  * Candidates loopt over de submappen van elke projectmap, zoals de oude scan,
- * en slaat mappen over die al het project_path van een site zijn.
+ * en slaat mappen over die al in het register staan (als project_path van een
+ * site of als lokaal project).
  */
 export function Candidates(): $CancellablePromise<$models.ImportCandidate[]> {
     return $Call.ByID(4197043786).then(($result: any) => {
@@ -34,9 +36,9 @@ export function Candidates(): $CancellablePromise<$models.ImportCandidate[]> {
 }
 
 /**
- * Needed is waar zolang de import niet is afgerond, er nog geen lokale
- * projecten zijn geregistreerd en minstens één projectmap bestaat. Sites in
- * wp-sites.yml (uit een eerdere feature) sluiten de import niet uit.
+ * Needed is waar zolang de import niet is afgerond en minstens één projectmap
+ * bestaat. Een onderbroken import (al wat items in het register) gaat zo
+ * gewoon verder; Candidates slaat die items over.
  */
 export function Needed(): $CancellablePromise<boolean> {
     return $Call.ByID(185664933);

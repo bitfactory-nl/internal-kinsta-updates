@@ -189,17 +189,26 @@ func (s *WPSiteService) DetectBridge(projectID string) (bool, error) {
 }
 
 func (s *WPSiteService) Create(site domain.WPSite, password string) (WPSiteView, error) {
-	return s.create(site, password, true)
+	v, err := s.create(site, password, true)
+	if err == nil {
+		s.herlaad()
+	}
+	return v, err
 }
 
 // CreateWithoutPassword legt een site vast zonder Application Password en dus
 // zonder Keychain-item; het wachtwoord volgt later via Update. Bedoeld voor de
 // eenmalige import.
 func (s *WPSiteService) CreateWithoutPassword(site domain.WPSite) (WPSiteView, error) {
-	return s.create(site, "", false)
+	v, err := s.create(site, "", false)
+	if err == nil {
+		s.herlaad()
+	}
+	return v, err
 }
 
-// create is de gedeelde kern van Create en CreateWithoutPassword.
+// create is de gedeelde kern van Create en CreateWithoutPassword. Het herlaadt
+// de projectlijst niet: dat doet de aanroeper, buiten s.mu.
 func (s *WPSiteService) create(site domain.WPSite, password string, needPassword bool) (WPSiteView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -230,7 +239,6 @@ func (s *WPSiteService) create(site domain.WPSite, password string, needPassword
 		}
 		return WPSiteView{}, err
 	}
-	s.herlaad()
 	return s.view(site), nil
 }
 
@@ -263,8 +271,17 @@ func (s *WPSiteService) Unlink(id string) error {
 }
 
 // mutate laadt, wijzigt en bewaart één site onder één lock, zodat een
-// gelijktijdige Update niet overschreven wordt.
+// gelijktijdige Update niet overschreven wordt. Het herladen van de projecten
+// gebeurt daarna, buiten de lock.
 func (s *WPSiteService) mutate(id string, fn func(*domain.WPSite)) (domain.WPSite, error) {
+	saved, err := s.mutateLocked(id, fn)
+	if err == nil {
+		s.herlaad()
+	}
+	return saved, err
+}
+
+func (s *WPSiteService) mutateLocked(id string, fn func(*domain.WPSite)) (domain.WPSite, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sites, err := config.LoadWPSites(s.path)
@@ -278,7 +295,6 @@ func (s *WPSiteService) mutate(id string, fn func(*domain.WPSite)) (domain.WPSit
 			if err := s.schrijfSites(next); err != nil {
 				return domain.WPSite{}, err
 			}
-			s.herlaad()
 			return next[i], nil
 		}
 	}
@@ -330,6 +346,14 @@ func schoonPad(path string) string {
 }
 
 func (s *WPSiteService) Delete(id string) error {
+	if err := s.deleteLocked(id); err != nil {
+		return err
+	}
+	s.herlaad()
+	return nil
+}
+
+func (s *WPSiteService) deleteLocked(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sites, err := config.LoadWPSites(s.path)
@@ -353,7 +377,6 @@ func (s *WPSiteService) Delete(id string) error {
 	}
 	// Een ontbrekend Keychain-item is geen fout: het doel is dat het weg is.
 	_ = s.secrets.Delete(config.WPSecretAccount(id))
-	s.herlaad()
 	return nil
 }
 

@@ -2,6 +2,7 @@ package services
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -158,5 +159,35 @@ func TestReloadDubbelPadSiteWint(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("%d projecten voor %s", n, wpDir)
+	}
+}
+
+// Reload leest geen git-status (dat doen BatchStatus en RefreshOne); alleen of
+// de map een repo is, want zoeken en batch-acties filteren daarop.
+func TestReloadLeestGeenGitStatus(t *testing.T) {
+	svc, _, laravelDir, _, _ := registerFixture(t)
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"}, args...)...)
+		cmd.Dir = laravelDir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+	if _, err := svc.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := svc.Get(projectID(laravelDir))
+	if !p.Git.IsRepo {
+		t.Fatal("IsRepo hoort uit de map te komen")
+	}
+	if p.Git.Branch != "" {
+		t.Fatalf("Reload las git-status: branch %q", p.Git.Branch)
+	}
+	p, err := svc.RefreshOne(projectID(laravelDir))
+	if err != nil || p.Git.Branch != "main" {
+		t.Fatalf("RefreshOne: %+v %v", p.Git, err)
 	}
 }
