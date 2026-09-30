@@ -280,7 +280,9 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved, onRegiste
             isNew={!wpKoppeling && !wpLos}
             hasPassword={(wpKoppeling ?? wpLos)?.hasPassword ?? false}
             projectMissing={wpKoppeling?.projectMissing}
-            onSaved={v => { setWpKoppeling(v); onLocalUrlSaved() }}
+            // Herladen én opnieuw selecteren: een gekozen Kinsta-site of een
+            // nieuwe koppeling ontgrendelt tabs, dat moet het geselecteerde project zien.
+            onSaved={v => { setWpKoppeling(v); onRegisterChanged(v.site.id) }}
             onUnlink={() => onRegisterChanged(project.siteId)}
             onDelete={project.siteId ? () => onRegisterChanged() : undefined}
           />

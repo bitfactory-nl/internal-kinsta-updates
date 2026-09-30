@@ -127,10 +127,15 @@ export default function ProjectDetail({ project, onRefresh, onRegisterChanged }:
     }
   }, [project.id, heeftMap])
 
+  // Alleen een ander project zet de tab terug; een ververst project-object
+  // (zelfde ID, na opslaan in Projectinstellingen) laat je op je plek.
   useEffect(() => {
     setActiveTab('info')
-    setStatus(project.git ?? null)
     setOpError(null)
+  }, [project.id])
+
+  useEffect(() => {
+    setStatus(project.git ?? null)
     refreshStatus()
   }, [project.id, project.git, refreshStatus])
 
