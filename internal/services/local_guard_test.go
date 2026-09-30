@@ -2,6 +2,9 @@ package services
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,15 +50,31 @@ func siteZonderMap() domain.Project {
 }
 
 func TestSearchOverslaatSiteZonderMap(t *testing.T) {
-	svc := NewSearchService(newProjectServiceWith([]domain.Project{siteZonderMap()}))
-	if hits := svc.GrepAll("iets"); len(hits) != 0 {
+	dir := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "x"}} {
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("zoekwoord\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", dir, "add", "a.txt").CombinedOutput(); err != nil {
+		t.Fatalf("git add: %v %s", err, out)
+	}
+	lokaal := domain.Project{ID: "loc", DisplayName: "Lokaal", Local: true, Path: dir, Git: domain.GitStatus{IsRepo: true}}
+	svc := NewSearchService(newProjectServiceWith([]domain.Project{lokaal, siteZonderMap()}))
+	hits := svc.GrepAll("zoekwoord")
+	if len(hits) != 1 || hits[0].ProjectID != "loc" {
 		t.Fatalf("hits = %+v", hits)
 	}
 }
 
 func TestBatchOverslaatSiteZonderMap(t *testing.T) {
-	svc := NewBatchService(newProjectServiceWith([]domain.Project{siteZonderMap()}))
-	if res := svc.FetchAll(); len(res) != 0 {
+	lokaal := domain.Project{ID: "loc", DisplayName: "Lokaal", Local: true, Path: t.TempDir()}
+	svc := NewBatchService(newProjectServiceWith([]domain.Project{lokaal, siteZonderMap()}))
+	res := svc.FetchAll()
+	if len(res) != 1 || res[0].ProjectID != "loc" {
 		t.Fatalf("resultaten = %+v", res)
 	}
 }

@@ -134,6 +134,10 @@ func (s *KinstaService) LinkSite(projectID, siteID string) error {
 	if err != nil {
 		return err
 	}
+	pad, err := requireLocal(*p)
+	if err != nil {
+		return err
+	}
 	if other := s.projectWithSite(projectID, siteID); other != "" {
 		return fmt.Errorf("deze Kinsta-site is al gekoppeld aan %s; maak die koppeling eerst los", other)
 	}
@@ -142,7 +146,7 @@ func (s *KinstaService) LinkSite(projectID, siteID string) error {
 		cfg.Kinsta = &domain.KinstaProjectCfg{}
 	}
 	cfg.Kinsta.SiteID = siteID
-	if err := config.SaveProject(p.Path, cfg); err != nil {
+	if err := config.SaveProject(pad, cfg); err != nil {
 		return fmt.Errorf("opslaan .rdm/config.yml: %w", err)
 	}
 	s.project.UpdateProjectConfig(projectID, cfg)

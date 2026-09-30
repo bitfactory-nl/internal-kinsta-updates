@@ -275,7 +275,10 @@ func (s *ReportService) prefillFromKinsta(r *domain.Report, p domain.Project) {
 // (.bitfactory Dockerfile en docker-compose). Best-effort: leesfouten en
 // niet-parsebare bestanden slaan de betreffende cel over.
 func (s *ReportService) prefillFromRepo(r *domain.Report, p domain.Project) {
-	if _, err := requireLocal(p); s.repo == nil || err != nil {
+	if s.repo == nil {
+		return
+	}
+	if _, err := requireLocal(p); err != nil {
 		return
 	}
 	php := ""

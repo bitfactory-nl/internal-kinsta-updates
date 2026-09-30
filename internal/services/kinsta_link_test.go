@@ -1,6 +1,9 @@
 package services
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,5 +74,18 @@ func TestSiteLinkConflicts(t *testing.T) {
 	}
 	if len(got[0].Projects) != 2 || got[0].Projects[0] != "web-steinwegcom" {
 		t.Errorf("Projects = %v, wil beide projectnamen gesorteerd", got[0].Projects)
+	}
+}
+
+func TestLinkSiteZonderLokaleMapSchrijftNiets(t *testing.T) {
+	cwd := t.TempDir()
+	t.Chdir(cwd)
+	ps := newProjectServiceWith([]domain.Project{siteZonderMap()})
+	svc := NewKinstaService(&config.Global{}, ps)
+	if err := svc.LinkSite("site:x", "abc"); !errors.Is(err, errGeenLokaleMap) {
+		t.Fatalf("fout %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(cwd, ".rdm")); !os.IsNotExist(err) {
+		t.Fatalf(".rdm mag niet bestaan in de cwd: %v", err)
 	}
 }
