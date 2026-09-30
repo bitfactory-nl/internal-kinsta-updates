@@ -88,7 +88,7 @@ func NewServices(cfg Config) *Services {
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
 	plugin := services.NewPluginService(&cfg.Global, kinsta, project, git)
-	wpSite := services.NewWPSiteServiceWithDepot(config.WPSitesPath(), project, services.KeychainSecrets{}, services.NewDepotCorePR(&cfg.Global))
+	wpSite := services.NewWPSiteServiceWithDepot(config.WPSitesPath(), config.LocalProjectsPath(), project, services.KeychainSecrets{}, services.NewDepotCorePR(&cfg.Global))
 	register := services.NewRegisterService(project, wpSite, config.LocalProjectsPath())
 	importSvc := services.NewImportService(&cfg.Global, wpSite, register, config.WPSitesPath(), config.LocalProjectsPath())
 	orgSync := services.NewOrgSyncService(project, &cfg.Global)

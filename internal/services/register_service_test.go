@@ -16,7 +16,7 @@ func regFixture(t *testing.T) (*RegisterService, *ProjectService, *WPSiteService
 	if _, err := ps.Reload(); err != nil {
 		t.Fatal(err)
 	}
-	wp := NewWPSiteService(sitesPath, ps, &wpNepSecrets{m: map[string]string{}})
+	wp := NewWPSiteService(sitesPath, localsPath, ps, &wpNepSecrets{m: map[string]string{}})
 	return NewRegisterService(ps, wp, localsPath), ps, wp, wpDir, laravelDir, localsPath
 }
 
@@ -153,7 +153,7 @@ func TestLinkSiteFolderBehoudtWachtwoordEnBridge(t *testing.T) {
 		t.Fatal(err)
 	}
 	sec := &wpNepSecrets{m: map[string]string{config.WPSecretAccount("depot"): "geheim"}}
-	wp := NewWPSiteService(sitesPath, ps, sec)
+	wp := NewWPSiteService(sitesPath, localsPath, ps, sec)
 	if _, err := wp.mutate("depot", func(w *domain.WPSite) { w.Bridge = true }); err != nil {
 		t.Fatal(err)
 	}
@@ -186,5 +186,71 @@ func TestConvertLocalToSiteWeigertSite(t *testing.T) {
 	}
 	if _, err := rs.ConvertLocalToSite(projectID(laravelDir)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Een lokaal project omzetten naar een site (Create met project_path) laat de
+// map niet ook in local-projects.yml staan: er is één project voor dat pad.
+func TestCreateNeemtLokaalProjectOver(t *testing.T) {
+	_, ps, wp, _, laravelDir, localsPath := regFixture(t)
+	site := testWPSite("laravel", laravelDir)
+	if _, err := wp.Create(site, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	locals, _ := config.LoadLocalProjects(localsPath)
+	if len(locals) != 0 {
+		t.Fatalf("map staat nog als lokaal project: %+v", locals)
+	}
+	n := 0
+	for _, p := range ps.List() {
+		if p.Path == laravelDir {
+			n++
+			if p.SiteID != "laravel" {
+				t.Fatalf("project hoort bij de site: %+v", p)
+			}
+		}
+	}
+	if n != 1 {
+		t.Fatalf("%d projecten voor %s", n, laravelDir)
+	}
+}
+
+func TestUpdateMetProjectPathNeemtLokaalProjectOver(t *testing.T) {
+	_, ps, wp, _, laravelDir, localsPath := regFixture(t)
+	depot, err := wp.find("depot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	depot.ProjectPath = laravelDir
+	if _, err := wp.Update(depot, ""); err != nil {
+		t.Fatal(err)
+	}
+	locals, _ := config.LoadLocalProjects(localsPath)
+	if len(locals) != 0 {
+		t.Fatalf("map staat nog als lokaal project: %+v", locals)
+	}
+	p, ok := ps.Get(projectID(laravelDir))
+	if !ok || p.SiteID != "depot" {
+		t.Fatalf("project %+v ok=%v", p, ok)
+	}
+}
+
+// Lukt het schrijven van wp-sites.yml niet, dan komt local-projects.yml terug.
+func TestCreateHerstelLocalsBijFout(t *testing.T) {
+	_, _, wp, _, laravelDir, localsPath := regFixture(t)
+	// Een tweede depotsite is ongeldig: SaveWPSites weigert.
+	eerste := testWPSite("depot-een", "")
+	eerste.Depot = true
+	if _, err := wp.Create(eerste, "pw"); err != nil {
+		t.Fatal(err)
+	}
+	tweede := testWPSite("laravel", laravelDir)
+	tweede.Depot = true
+	if _, err := wp.Create(tweede, "pw"); err == nil {
+		t.Fatal("verwacht fout bij tweede depotsite")
+	}
+	locals, _ := config.LoadLocalProjects(localsPath)
+	if len(locals) != 1 || filepath.Clean(locals[0].Path) != laravelDir {
+		t.Fatalf("local-projects.yml niet hersteld: %+v", locals)
 	}
 }

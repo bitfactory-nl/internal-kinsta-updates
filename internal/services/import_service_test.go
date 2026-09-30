@@ -40,7 +40,7 @@ func importFixture(t *testing.T) importFix {
 	sitesPath, localsPath := config.WPSitesPath(), config.LocalProjectsPath()
 	ps := NewProjectService(sitesPath, localsPath)
 	sec := &wpNepSecrets{m: map[string]string{}}
-	wp := NewWPSiteService(sitesPath, ps, sec)
+	wp := NewWPSiteService(sitesPath, localsPath, ps, sec)
 	cfg := &config.Global{ProjectsRoots: []string{root}}
 	rs := NewRegisterService(ps, wp, localsPath)
 	return importFix{svc: NewImportService(cfg, wp, rs, sitesPath, localsPath), cfg: cfg, sec: sec, root: root, sitesPath: sitesPath, localsPath: localsPath}

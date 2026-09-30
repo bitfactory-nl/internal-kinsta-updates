@@ -136,3 +136,27 @@ func newProjectServiceForRoot(t *testing.T, root string) *ProjectService {
 	}
 	return ps
 }
+
+// Staat een map (met de hand) in beide bestanden, dan wint de site.
+func TestReloadDubbelPadSiteWint(t *testing.T) {
+	svc, wpDir, laravelDir, _, localsPath := registerFixture(t)
+	if err := config.SaveLocalProjects(localsPath, []domain.LocalProject{{Path: laravelDir}, {Path: wpDir + "/", Name: "dubbel"}}); err != nil {
+		t.Fatal(err)
+	}
+	ps, err := svc.Reload()
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, p := range ps {
+		if filepath.Clean(p.Path) == wpDir {
+			n++
+			if p.SiteID != "site-a" {
+				t.Fatalf("de site hoort te winnen: %+v", p)
+			}
+		}
+	}
+	if n != 1 {
+		t.Fatalf("%d projecten voor %s", n, wpDir)
+	}
+}

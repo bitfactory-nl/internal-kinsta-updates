@@ -46,27 +46,30 @@ type WPSiteView struct {
 
 // WPSiteService beheert de WordPress-sites voor wp-fleet (wp-sites.yml + Keychain).
 type WPSiteService struct {
-	mu       sync.Mutex
-	runMu    sync.Mutex
-	running  map[string]bool
-	path     string
-	projects WPProjectLookup
-	secrets  WPSecretStore
-	depot    DepotCorePR
-	http     *http.Client
+	mu      sync.Mutex
+	runMu   sync.Mutex
+	running map[string]bool
+	path    string
+	// localsPath is local-projects.yml: een map die een site krijgt, verdwijnt
+	// daar (zie schrijfSites).
+	localsPath string
+	projects   WPProjectLookup
+	secrets    WPSecretStore
+	depot      DepotCorePR
+	http       *http.Client
 }
 
 const defaultWPUser = "mcp-bot"
 
-func NewWPSiteService(path string, projects WPProjectLookup, secrets WPSecretStore) *WPSiteService {
-	return NewWPSiteServiceWithDepot(path, projects, secrets, nil)
+func NewWPSiteService(path, localsPath string, projects WPProjectLookup, secrets WPSecretStore) *WPSiteService {
+	return NewWPSiteServiceWithDepot(path, localsPath, projects, secrets, nil)
 }
 
 // NewWPSiteServiceWithDepot geeft de service de hulp voor Composer-PR's op de
 // depotsite. Een package-functie, geen methode: Wails bindt alle methodes.
-func NewWPSiteServiceWithDepot(path string, projects WPProjectLookup, secrets WPSecretStore, depot DepotCorePR) *WPSiteService {
+func NewWPSiteServiceWithDepot(path, localsPath string, projects WPProjectLookup, secrets WPSecretStore, depot DepotCorePR) *WPSiteService {
 	return &WPSiteService{
-		path: path, projects: projects, secrets: secrets, depot: depot,
+		path: path, localsPath: localsPath, projects: projects, secrets: secrets, depot: depot,
 		http: &http.Client{Timeout: 15 * time.Second, CheckRedirect: weigerDowngrade},
 	}
 }
@@ -204,6 +207,7 @@ func (s *WPSiteService) create(site domain.WPSite, password string, needPassword
 	if err != nil {
 		return WPSiteView{}, err
 	}
+	site.ProjectPath = schoonPad(site.ProjectPath)
 	if err := site.Validate(); err != nil {
 		return WPSiteView{}, err
 	}
@@ -220,7 +224,7 @@ func (s *WPSiteService) create(site domain.WPSite, password string, needPassword
 			return WPSiteView{}, err
 		}
 	}
-	if err := config.SaveWPSites(s.path, append(sites, site)); err != nil {
+	if err := s.schrijfSites(append(append([]domain.WPSite{}, sites...), site)); err != nil {
 		if needPassword {
 			_ = s.secrets.Delete(config.WPSecretAccount(site.ID))
 		}
@@ -239,6 +243,7 @@ func (s *WPSiteService) Update(site domain.WPSite, password string) (WPSiteView,
 		bridge := w.Bridge
 		*w = site
 		w.Bridge = bridge
+		w.ProjectPath = schoonPad(w.ProjectPath)
 	})
 	if err != nil {
 		return WPSiteView{}, err
@@ -270,7 +275,7 @@ func (s *WPSiteService) mutate(id string, fn func(*domain.WPSite)) (domain.WPSit
 	for i := range next {
 		if next[i].ID == id {
 			fn(&next[i])
-			if err := config.SaveWPSites(s.path, next); err != nil {
+			if err := s.schrijfSites(next); err != nil {
 				return domain.WPSite{}, err
 			}
 			s.herlaad()
@@ -278,6 +283,50 @@ func (s *WPSiteService) mutate(id string, fn func(*domain.WPSite)) (domain.WPSit
 		}
 	}
 	return domain.WPSite{}, fmt.Errorf("site %q niet gevonden", id)
+}
+
+// schrijfSites bewaart wp-sites.yml zo dat een map nooit tegelijk aan een site
+// en aan een lokaal project hangt: een map die een site krijgt, verdwijnt uit
+// local-projects.yml. Volgorde: eerst uit local-projects.yml, dan wp-sites.yml;
+// faalt dat laatste, dan komt local-projects.yml terug. De aanroeper houdt s.mu
+// vast; dat is ook de lock voor local-projects.yml (zie RegisterService).
+func (s *WPSiteService) schrijfSites(next []domain.WPSite) error {
+	locals, err := config.LoadLocalProjects(s.localsPath)
+	if err != nil {
+		return err
+	}
+	rest := locals
+	for _, w := range next {
+		if w.ProjectPath != "" {
+			rest, _ = zonderPad(rest, w.ProjectPath)
+		}
+	}
+	overgenomen := len(rest) != len(locals)
+	if err := config.ValidateRegister(next, rest); err != nil {
+		return err
+	}
+	if overgenomen {
+		if err := config.SaveLocalProjects(s.localsPath, rest); err != nil {
+			return err
+		}
+	}
+	if err := config.SaveWPSites(s.path, next); err != nil {
+		if overgenomen {
+			if herstel := config.SaveLocalProjects(s.localsPath, locals); herstel != nil {
+				return fmt.Errorf("%w (herstel van local-projects.yml mislukt: %v)", err, herstel)
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+// schoonPad maakt een ingevuld pad schoon; leeg blijft leeg.
+func schoonPad(path string) string {
+	if path == "" {
+		return ""
+	}
+	return filepath.Clean(config.ExpandHome(path))
 }
 
 func (s *WPSiteService) Delete(id string) error {

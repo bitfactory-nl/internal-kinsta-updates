@@ -44,7 +44,7 @@ func nieuweWPSiteService(t *testing.T) (*WPSiteService, *wpNepSecrets, string) {
 	p := domain.Project{ID: "p1", Path: projDir, Local: true, DisplayName: "web-ekcoatingsnl"}
 	p.Deploy.Link.Prod = "https://www.ekcoating.nl"
 	sec := &wpNepSecrets{m: map[string]string{}}
-	svc := NewWPSiteService(filepath.Join(dir, "wp-sites.yml"), wpNepProjecten{"p1": p}, sec)
+	svc := NewWPSiteService(filepath.Join(dir, "wp-sites.yml"), filepath.Join(dir, "local-projects.yml"), wpNepProjecten{"p1": p}, sec)
 	return svc, sec, projDir
 }
 

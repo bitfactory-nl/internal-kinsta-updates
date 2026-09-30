@@ -3,6 +3,7 @@ package services
 import (
 	"crypto/sha256"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -20,6 +21,8 @@ type ProjectService struct {
 	sitesPath  string
 	localsPath string
 	app        *application.App
+	// dubbelGemeld onthoudt welke dubbele paden al gelogd zijn.
+	dubbelGemeld map[string]bool
 }
 
 func NewProjectService(sitesPath, localsPath string) *ProjectService {
@@ -47,10 +50,20 @@ func (s *ProjectService) Reload() ([]domain.Project, error) {
 		return nil, err
 	}
 	found := make([]domain.Project, 0, len(sites)+len(locals))
+	sitePaden := make(map[string]bool, len(sites))
 	for _, site := range sites {
 		found = append(found, s.projectForSite(site))
+		if site.ProjectPath != "" {
+			sitePaden[filepath.Clean(site.ProjectPath)] = true
+		}
 	}
 	for _, lp := range locals {
+		// Een map hoort bij één project. Staat hij (met de hand) ook bij een
+		// site, dan wint de site en telt het lokale item niet mee.
+		if sitePaden[filepath.Clean(lp.Path)] {
+			s.meldDubbelPad(lp.Path)
+			continue
+		}
 		p, _ := s.loadProject(lp.Path)
 		if lp.Name != "" {
 			p.DisplayName = lp.Name
@@ -63,6 +76,21 @@ func (s *ProjectService) Reload() ([]domain.Project, error) {
 	s.projects = found
 	s.mu.Unlock()
 	return found, nil
+}
+
+// meldDubbelPad logt één keer per pad dat een lokaal project genegeerd wordt.
+func (s *ProjectService) meldDubbelPad(path string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dubbelGemeld == nil {
+		s.dubbelGemeld = map[string]bool{}
+	}
+	key := filepath.Clean(path)
+	if s.dubbelGemeld[key] {
+		return
+	}
+	s.dubbelGemeld[key] = true
+	log.Printf("register: %s staat ook bij een site; het lokale project wordt genegeerd", path)
 }
 
 func (s *ProjectService) projectForSite(site domain.WPSite) domain.Project {

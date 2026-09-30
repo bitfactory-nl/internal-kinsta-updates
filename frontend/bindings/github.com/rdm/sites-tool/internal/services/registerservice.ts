@@ -4,6 +4,10 @@
 /**
  * RegisterService beheert het register: lokale projecten (local-projects.yml)
  * en de koppeling tussen een WordPress-site en een lokale map.
+ * 
+ * Beide bestanden worden geschreven onder WPSiteService.mu: die lock bewaakt
+ * het hele register, zodat een site die een map overneemt en een nieuw lokaal
+ * project elkaar niet kruisen.
  * @module
  */
 
@@ -56,9 +60,8 @@ export function ConvertLocalToSite(projectID: string): $CancellablePromise<domai
 
 /**
  * LinkSiteFolder koppelt een map aan een site. Stond de map als lokaal project
- * in het register, dan wordt dat project overgenomen door de site. Volgorde:
- * eerst uit local-projects.yml, dan de site bijwerken; faalt dat laatste, dan
- * wordt local-projects.yml hersteld. Zo staat een pad nooit in beide bestanden.
+ * in het register, dan neemt de site dat project over (zie
+ * WPSiteService.schrijfSites): een pad staat nooit in beide bestanden.
  */
 export function LinkSiteFolder(siteID: string, path: string): $CancellablePromise<void> {
     return $Call.ByID(1152726715, siteID, path);

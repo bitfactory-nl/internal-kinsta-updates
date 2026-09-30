@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/domain"
@@ -14,8 +13,11 @@ import (
 
 // RegisterService beheert het register: lokale projecten (local-projects.yml)
 // en de koppeling tussen een WordPress-site en een lokale map.
+//
+// Beide bestanden worden geschreven onder WPSiteService.mu: die lock bewaakt
+// het hele register, zodat een site die een map overneemt en een nieuw lokaal
+// project elkaar niet kruisen.
 type RegisterService struct {
-	mu         sync.Mutex
 	projects   *ProjectService
 	sites      *WPSiteService
 	localsPath string
@@ -72,21 +74,7 @@ func (s *RegisterService) AddLocalProjectPath(path, name string) (domain.Project
 	if !dirExists(path) {
 		return domain.Project{}, fmt.Errorf("map %s bestaat niet", path)
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	sites, err := config.LoadWPSites(s.sites.path)
-	if err != nil {
-		return domain.Project{}, err
-	}
-	locals, err := config.LoadLocalProjects(s.localsPath)
-	if err != nil {
-		return domain.Project{}, err
-	}
-	next := append(append([]domain.LocalProject{}, locals...), domain.LocalProject{Path: path, Name: strings.TrimSpace(name)})
-	if err := config.ValidateRegister(sites, next); err != nil {
-		return domain.Project{}, err
-	}
-	if err := config.SaveLocalProjects(s.localsPath, next); err != nil {
+	if err := s.voegLokaalToe(path, name); err != nil {
 		return domain.Project{}, err
 	}
 	if _, err := s.projects.Reload(); err != nil {
@@ -99,6 +87,26 @@ func (s *RegisterService) AddLocalProjectPath(path, name string) (domain.Project
 	return p, nil
 }
 
+// voegLokaalToe schrijft een (al genormaliseerd) pad in local-projects.yml,
+// zonder de projectlijst te herladen.
+func (s *RegisterService) voegLokaalToe(path, name string) error {
+	s.sites.mu.Lock()
+	defer s.sites.mu.Unlock()
+	sites, err := config.LoadWPSites(s.sites.path)
+	if err != nil {
+		return err
+	}
+	locals, err := config.LoadLocalProjects(s.localsPath)
+	if err != nil {
+		return err
+	}
+	next := append(append([]domain.LocalProject{}, locals...), domain.LocalProject{Path: path, Name: strings.TrimSpace(name)})
+	if err := config.ValidateRegister(sites, next); err != nil {
+		return err
+	}
+	return config.SaveLocalProjects(s.localsPath, next)
+}
+
 // RemoveLocalProject haalt een lokaal project uit het register; de map zelf
 // blijft staan. Een WordPress-site verwijder of ontkoppel je via de site.
 func (s *RegisterService) RemoveLocalProject(projectID string) error {
@@ -109,27 +117,30 @@ func (s *RegisterService) RemoveLocalProject(projectID string) error {
 	if p.SiteID != "" || strings.HasPrefix(projectID, "site:") {
 		return errors.New("dit is een WordPress-site; ontkoppel of verwijder de site")
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if err := s.verwijderLokaal(p.Path); err != nil {
+		return err
+	}
+	_, err := s.projects.Reload()
+	return err
+}
+
+func (s *RegisterService) verwijderLokaal(path string) error {
+	s.sites.mu.Lock()
+	defer s.sites.mu.Unlock()
 	locals, err := config.LoadLocalProjects(s.localsPath)
 	if err != nil {
 		return err
 	}
-	rest, gevonden := zonderPad(locals, p.Path)
+	rest, gevonden := zonderPad(locals, path)
 	if !gevonden {
-		return fmt.Errorf("project %s staat niet in het register", p.Path)
+		return fmt.Errorf("project %s staat niet in het register", path)
 	}
-	if err := config.SaveLocalProjects(s.localsPath, rest); err != nil {
-		return err
-	}
-	_, err = s.projects.Reload()
-	return err
+	return config.SaveLocalProjects(s.localsPath, rest)
 }
 
 // LinkSiteFolder koppelt een map aan een site. Stond de map als lokaal project
-// in het register, dan wordt dat project overgenomen door de site. Volgorde:
-// eerst uit local-projects.yml, dan de site bijwerken; faalt dat laatste, dan
-// wordt local-projects.yml hersteld. Zo staat een pad nooit in beide bestanden.
+// in het register, dan neemt de site dat project over (zie
+// WPSiteService.schrijfSites): een pad staat nooit in beide bestanden.
 func (s *RegisterService) LinkSiteFolder(siteID, path string) error {
 	path, err := normaliseerPad(path)
 	if err != nil {
@@ -138,54 +149,18 @@ func (s *RegisterService) LinkSiteFolder(siteID, path string) error {
 	if !dirExists(path) {
 		return fmt.Errorf("map %s bestaat niet", path)
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	sites, err := config.LoadWPSites(s.sites.path)
 	if err != nil {
 		return err
 	}
-	gevonden := false
-	nieuweSites := make([]domain.WPSite, len(sites))
-	for i, w := range sites {
+	for _, w := range sites {
 		if w.ID != siteID && w.ProjectPath != "" && filepath.Clean(w.ProjectPath) == path {
 			return fmt.Errorf("map %s staat al in het register", path)
-		}
-		if w.ID == siteID {
-			gevonden = true
-			w.ProjectPath = path
-		}
-		nieuweSites[i] = w
-	}
-	if !gevonden {
-		return fmt.Errorf("site %q niet gevonden", siteID)
-	}
-	locals, err := config.LoadLocalProjects(s.localsPath)
-	if err != nil {
-		return err
-	}
-	rest, overgenomen := zonderPad(locals, path)
-	if err := config.ValidateRegister(nieuweSites, rest); err != nil {
-		return err
-	}
-	if overgenomen {
-		if err := config.SaveLocalProjects(s.localsPath, rest); err != nil {
-			return err
 		}
 	}
 	// mutate leest en schrijft onder de lock van WPSiteService; wachtwoord en
 	// bridge-vlag blijven staan en de projecten worden herladen.
-	if _, err := s.sites.mutate(siteID, func(w *domain.WPSite) { w.ProjectPath = path }); err != nil {
-		if overgenomen {
-			if herstel := config.SaveLocalProjects(s.localsPath, locals); herstel != nil {
-				return fmt.Errorf("%w (herstel van local-projects.yml mislukt: %v)", err, herstel)
-			}
-			_, _ = s.projects.Reload()
-		}
-		return err
-	}
-	if overgenomen {
-		_, err = s.projects.Reload()
-	}
+	_, err = s.sites.mutate(siteID, func(w *domain.WPSite) { w.ProjectPath = path })
 	return err
 }
 
