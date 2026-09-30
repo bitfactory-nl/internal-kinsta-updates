@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -112,9 +113,11 @@ func TestAvailableUpdatesFouten(t *testing.T) {
 		want   string
 	}{
 		{"401", 200, updatesJSON, "fout-geheim", nil, "gebruiker of Application Password klopt niet"},
-		{"403 met body", 403, `{"code":"nb_mcp_file_mods_disabled","message":"File modifications are disabled on this site (DISALLOW_FILE_MODS is true)."}`, "goed", nil, "DISALLOW_FILE_MODS"},
+		{"409 file-mods", 409, `{"code":"nb_mcp_file_mods_disabled","message":"File modifications are disabled on this site (DISALLOW_FILE_MODS is true)."}`, "goed", nil, "DISALLOW_FILE_MODS"},
+		{"403 met body", 403, `{"code":"nb_mcp_forbidden","message":"This action requires one of the following capabilities: update_plugins."}`, "goed", nil, "capabilities: update_plugins"},
 		{"403 zonder body", 403, ``, "goed", nil, "WordPress weigerde het verzoek (HTTP 403)"},
-		{"404", 404, `{"code":"rest_no_route"}`, "goed", nil, "nb-mcp-bridge ontbreekt op deze site"},
+		{"404", 404, `{"code":"rest_no_route","message":"No route was found matching the URL and request method."}`, "goed", nil, "nb-mcp-bridge ontbreekt op deze site"},
+		{"500 met JSON", 500, `{"code":"nb_mcp_filesystem","message":"Could not access filesystem."}`, "goed", nil, "Could not access filesystem."},
 		{"500", 500, ``, "goed", nil, "site niet bereikbaar (HTTP 500)"},
 		{"bridge uit", 200, updatesJSON, "goed", func(s *domain.WPSite) { s.Bridge = false }, "nb-mcp-bridge is niet actief"},
 	}
@@ -205,5 +208,17 @@ func TestFleetUpdatesConcurrencyMaxVier(t *testing.T) {
 	}
 	if max > fleetConcurrency || max < 2 {
 		t.Fatalf("max gelijktijdig %d, want 2..%d", max, fleetConcurrency)
+	}
+}
+
+func TestBridgeFoutKaptOpRuneGrens(t *testing.T) {
+	lang := strings.Repeat("€", 400)
+	err := bridgeFout(500, []byte(`{"code":"x","message":"`+lang+`"}`))
+	if err == nil {
+		t.Fatal("verwacht fout")
+	}
+	msg := err.Error()
+	if !utf8.ValidString(msg) || utf8.RuneCountInString(msg) != 300 {
+		t.Fatalf("geldig %v, runes %d", utf8.ValidString(msg), utf8.RuneCountInString(msg))
 	}
 }

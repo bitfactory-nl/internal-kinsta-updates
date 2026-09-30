@@ -78,10 +78,10 @@ func TestUpdateCoreBodyEnResultaat(t *testing.T) {
 }
 
 func TestUpdateCoreMajorGeblokkeerd409(t *testing.T) {
-	b := nieuweBridgeServer(t, 409, `{"code":"nb_mcp_major_blocked","message":"Major update 8.0 blocked; pass allow_major."}`)
+	b := nieuweBridgeServer(t, 409, `{"code":"nb_mcp_major_update_blocked","message":"Update to 8.0 is a major version change from 7.2.1. Pass allow_major=true to proceed."}`)
 	svc := bridgeSite(t, b, "goed", nil)
 	_, err := svc.UpdateCore("klant", false)
-	if err == nil || !strings.Contains(err.Error(), "allow_major") {
+	if err == nil || err.Error() != `Dit is een major-update; vink "ook major toestaan" aan.` {
 		t.Fatalf("fout %v", err)
 	}
 }

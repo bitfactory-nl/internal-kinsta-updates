@@ -96,26 +96,44 @@ func (s *WPSiteService) bridgeCall(site domain.WPSite, pw, method, path string, 
 	return bridgeFout(resp.StatusCode, raw)
 }
 
+// maxFoutRunes begrenst een doorgegeven WordPress-melding.
+const maxFoutRunes = 300
+
 // bridgeFout vertaalt een HTTP-fout van WordPress naar een leesbare melding.
+// 401 en 404 krijgen een vaste tekst; verder gaat de WordPress-melding
+// ({code,message}) voor, bij elke niet-2xx-status.
 func bridgeFout(status int, raw []byte) error {
 	switch status {
 	case http.StatusUnauthorized:
 		return errors.New("gebruiker of Application Password klopt niet")
 	case http.StatusNotFound:
 		return errors.New("nb-mcp-bridge ontbreekt op deze site")
+	}
+	var wpErr struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(raw, &wpErr) == nil {
+		if wpErr.Code == "nb_mcp_major_update_blocked" {
+			return errors.New(`Dit is een major-update; vink "ook major toestaan" aan.`)
+		}
+		if msg := strings.TrimSpace(wpErr.Message); msg != "" {
+			return errors.New(kapRunes(msg, maxFoutRunes))
+		}
+	}
+	switch status {
 	case http.StatusForbidden, http.StatusConflict:
-		var wpErr struct {
-			Message string `json:"message"`
-		}
-		if json.Unmarshal(raw, &wpErr) == nil && strings.TrimSpace(wpErr.Message) != "" {
-			msg := strings.TrimSpace(wpErr.Message)
-			if len(msg) > 300 {
-				msg = msg[:300]
-			}
-			return errors.New(msg)
-		}
 		return fmt.Errorf("WordPress weigerde het verzoek (HTTP %d)", status)
 	default:
 		return fmt.Errorf("site niet bereikbaar (HTTP %d)", status)
 	}
+}
+
+// kapRunes kort s in tot hooguit n tekens, zonder een teken te splitsen.
+func kapRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
