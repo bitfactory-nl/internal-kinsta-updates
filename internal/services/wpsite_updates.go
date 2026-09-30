@@ -2,6 +2,7 @@ package services
 
 import (
 	"net/http"
+	"sync"
 )
 
 // SiteUpdates zijn de updates die WordPress zelf op de site klaar heeft staan.
@@ -81,5 +82,55 @@ func (s *WPSiteService) AvailableUpdates(siteID string, refresh bool) (SiteUpdat
 	for _, t := range raw.Themes {
 		out.Themes = append(out.Themes, ItemUpdate{ID: t.Stylesheet, Name: t.Name, CurrentVersion: t.CurrentVersion, NewVersion: t.NewVersion})
 	}
+	return out, nil
+}
+
+const fleetConcurrency = 4
+
+// FleetSiteUpdates is één regel in het vlootoverzicht.
+type FleetSiteUpdates struct {
+	Site      WPSiteView   `json:"site"`
+	ProjectID string       `json:"projectId"`
+	Updates   *SiteUpdates `json:"updates"`
+	Error     string       `json:"error"`
+}
+
+// FleetUpdates haalt voor alle sites de beschikbare updates op, hooguit vier
+// tegelijk. Een fout op één site komt in die regel en stopt de rest niet.
+func (s *WPSiteService) FleetUpdates(refresh bool) ([]FleetSiteUpdates, error) {
+	views, err := s.List()
+	if err != nil {
+		return nil, err
+	}
+	projectByPath := map[string]string{}
+	for _, p := range s.projects.List() {
+		projectByPath[p.Path] = p.ID
+	}
+	out := make([]FleetSiteUpdates, len(views))
+	sem := make(chan struct{}, fleetConcurrency)
+	var wg sync.WaitGroup
+	for i, v := range views {
+		out[i] = FleetSiteUpdates{Site: v, ProjectID: projectByPath[v.Site.ProjectPath]}
+		if v.Site.ProjectPath == "" {
+			out[i].ProjectID = ""
+		}
+		if !v.HasPassword {
+			out[i].Error = "geen Application Password opgeslagen"
+			continue
+		}
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			u, err := s.AvailableUpdates(id, refresh)
+			if err != nil {
+				out[i].Error = err.Error()
+				return
+			}
+			out[i].Updates = &u
+		}(i, v.Site.ID)
+	}
+	wg.Wait()
 	return out, nil
 }

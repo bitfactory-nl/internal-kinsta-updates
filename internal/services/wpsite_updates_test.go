@@ -1,11 +1,14 @@
 package services
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -142,5 +145,65 @@ func TestAvailableUpdatesZonderWachtwoord(t *testing.T) {
 	}
 	if b.lastPath != "" {
 		t.Fatal("er mocht geen netwerkcall zijn")
+	}
+}
+
+func TestFleetUpdatesMixEnProjectID(t *testing.T) {
+	ok := nieuweBridgeServer(t, 200, updatesJSON)
+	kapot := nieuweBridgeServer(t, 500, ``)
+	svc, _, projDir := nieuweWPSiteService(t)
+	// Beide TLS-testservers gebruiken hetzelfde testcertificaat; één Transport volstaat.
+	svc.http.Transport = ok.srv.Client().Transport
+	if _, err := svc.Create(domain.WPSite{ID: "een", Name: "Een", URL: ok.srv.URL, Username: "mcp-bot", Bridge: true, ProjectPath: projDir}, "goed"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(domain.WPSite{ID: "twee", Name: "Twee", URL: kapot.srv.URL, Username: "mcp-bot", Bridge: true}, "goed"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := svc.FleetUpdates(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len %d", len(got))
+	}
+	if got[0].Site.Site.ID != "een" || got[0].Updates == nil || got[0].Error != "" || got[0].ProjectID != "p1" {
+		t.Fatalf("een: %+v", got[0])
+	}
+	if got[1].Site.Site.ID != "twee" || got[1].Updates != nil || !strings.Contains(got[1].Error, "HTTP 500") || got[1].ProjectID != "" {
+		t.Fatalf("twee: %+v", got[1])
+	}
+}
+
+func TestFleetUpdatesConcurrencyMaxVier(t *testing.T) {
+	var mu sync.Mutex
+	bezig, max := 0, 0
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		bezig++
+		if bezig > max {
+			max = bezig
+		}
+		mu.Unlock()
+		time.Sleep(50 * time.Millisecond)
+		mu.Lock()
+		bezig--
+		mu.Unlock()
+		w.Write([]byte(updatesJSON))
+	}))
+	t.Cleanup(srv.Close)
+	svc, _, _ := nieuweWPSiteService(t)
+	svc.http.Transport = srv.Client().Transport
+	for i := 0; i < 9; i++ {
+		id := fmt.Sprintf("site-%d", i)
+		if _, err := svc.Create(domain.WPSite{ID: id, Name: id, URL: srv.URL, Username: "mcp-bot", Bridge: true}, "goed"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := svc.FleetUpdates(false); err != nil {
+		t.Fatal(err)
+	}
+	if max > fleetConcurrency || max < 2 {
+		t.Fatalf("max gelijktijdig %d, want 2..%d", max, fleetConcurrency)
 	}
 }
