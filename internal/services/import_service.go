@@ -29,6 +29,13 @@ type ImportChoice struct {
 	AsSite bool   `json:"asSite"`
 }
 
+// ImportResult is de uitkomst van Apply: het aantal toegevoegde items en
+// notities over items die anders zijn opgenomen dan gekozen.
+type ImportResult struct {
+	Added int      `json:"added"`
+	Notes []string `json:"notes"`
+}
+
 // ImportService doet de eenmalige overstap van de oude mappenscan naar het register.
 type ImportService struct {
 	cfg        *config.Global
@@ -122,14 +129,18 @@ func loadCandidate(path string) ImportCandidate {
 // Apply neemt de gekozen mappen op en markeert de import als afgerond, ook bij
 // nul keuzes (overslaan). Een fout bij één item stopt de rest niet; alle fouten
 // komen gebundeld terug. De projectlijst wordt één keer herladen, aan het eind.
-// Het resultaat is het aantal toegevoegde items.
-func (s *ImportService) Apply(choices []ImportChoice) (int, error) {
+// Een WordPress-map zonder geldige URL wordt een lokaal project, met een notitie.
+func (s *ImportService) Apply(choices []ImportChoice) (ImportResult, error) {
 	var errs []error
-	added := 0
+	res := ImportResult{Notes: []string{}}
 	for _, ch := range choices {
 		var err error
 		if ch.AsSite {
-			err = s.addSite(ch.Path)
+			var note string
+			note, err = s.addSite(ch.Path)
+			if note != "" {
+				res.Notes = append(res.Notes, note)
+			}
 		} else {
 			err = s.addLocal(ch.Path)
 		}
@@ -137,7 +148,7 @@ func (s *ImportService) Apply(choices []ImportChoice) (int, error) {
 			errs = append(errs, fmt.Errorf("%s: %w", ch.Path, err))
 			continue
 		}
-		added++
+		res.Added++
 	}
 	if len(choices) > 0 {
 		s.sites.herlaad()
@@ -149,7 +160,7 @@ func (s *ImportService) Apply(choices []ImportChoice) (int, error) {
 	} else {
 		s.cfg.ImportDone = true
 	}
-	return added, errors.Join(errs...)
+	return res, errors.Join(errs...)
 }
 
 // addLocal registreert een map als lokaal project, zonder te herladen.
@@ -165,26 +176,35 @@ func (s *ImportService) addLocal(path string) error {
 }
 
 // addSite maakt van een map een site zonder wachtwoord, met een uniek id,
-// zonder te herladen.
-func (s *ImportService) addSite(path string) error {
+// zonder te herladen. Is de site ongeldig (in de praktijk: geen of een
+// ongeldige URL in deploy_conf.json), dan wordt de map een lokaal project en
+// komt er een notitie terug; de map valt dus niet weg.
+func (s *ImportService) addSite(path string) (string, error) {
 	path, err := normaliseerPad(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 	sites, err := config.LoadWPSites(s.sitesPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 	c := loadCandidate(path)
-	_, err = s.sites.create(domain.WPSite{
+	site := domain.WPSite{
 		ID:           uniekSiteID(domain.SuggestWPSiteID(filepath.Base(path)), sites),
 		Name:         c.Name,
 		URL:          c.URL,
 		Username:     defaultWPUser,
 		ProjectPath:  path,
 		KinstaSiteID: c.KinstaSiteID,
-	}, "", false)
-	return err
+	}
+	if err := site.Validate(); err != nil {
+		if lokaalErr := s.addLocal(path); lokaalErr != nil {
+			return "", lokaalErr
+		}
+		return fmt.Sprintf("%s: geen geldige URL in deploy_conf.json (%v), toegevoegd als lokaal project", c.Name, err), nil
+	}
+	_, err = s.sites.create(site, "", false)
+	return "", err
 }
 
 // uniekSiteID voegt -2, -3, … toe tot het id nog niet in sites voorkomt.

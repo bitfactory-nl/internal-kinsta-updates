@@ -18,10 +18,12 @@ import * as $models from "./models.js";
  * Apply neemt de gekozen mappen op en markeert de import als afgerond, ook bij
  * nul keuzes (overslaan). Een fout bij één item stopt de rest niet; alle fouten
  * komen gebundeld terug. De projectlijst wordt één keer herladen, aan het eind.
- * Het resultaat is het aantal toegevoegde items.
+ * Een WordPress-map zonder geldige URL wordt een lokaal project, met een notitie.
  */
-export function Apply(choices: $models.ImportChoice[]): $CancellablePromise<number> {
-    return $Call.ByID(3370427460, choices);
+export function Apply(choices: $models.ImportChoice[]): $CancellablePromise<$models.ImportResult> {
+    return $Call.ByID(3370427460, choices).then(($result: any) => {
+        return $$createType0($result);
+    });
 }
 
 /**
@@ -31,7 +33,7 @@ export function Apply(choices: $models.ImportChoice[]): $CancellablePromise<numb
  */
 export function Candidates(): $CancellablePromise<$models.ImportCandidate[]> {
     return $Call.ByID(4197043786).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType2($result);
     });
 }
 
@@ -45,5 +47,6 @@ export function Needed(): $CancellablePromise<boolean> {
 }
 
 // Private type creation functions
-const $$createType0 = $models.ImportCandidate.createFrom;
-const $$createType1 = $Create.Array($$createType0);
+const $$createType0 = $models.ImportResult.createFrom;
+const $$createType1 = $models.ImportCandidate.createFrom;
+const $$createType2 = $Create.Array($$createType1);

@@ -24,14 +24,15 @@ export default function ImportDialog({ onKlaar }: Props) {
   const [actie, setActie] = useState<'importeren' | 'overslaan' | null>(null)
   const [fout, setFout] = useState<string | null>(null)
   // Na het toepassen blijft het venster staan tot de gebruiker het resultaat gezien heeft.
-  const [resultaat, setResultaat] = useState<{ aantal: number; fout: string | null } | null>(null)
+  const [resultaat, setResultaat] = useState<{ aantal: number; notities: string[]; fout: string | null } | null>(null)
 
   useEffect(() => {
     Services.ImportService.Candidates()
       .then(lijst => {
         const l = lijst ?? []
         setKandidaten(l)
-        setKeuzes(Object.fromEntries(l.map(c => [c.path, { aan: c.wordPress, alsSite: true }])))
+        // Zonder URL kan een WordPress-map geen site worden: standaard lokaal.
+        setKeuzes(Object.fromEntries(l.map(c => [c.path, { aan: c.wordPress, alsSite: !!c.url }])))
       })
       .catch(e => { setKandidaten([]); setFout(foutTekst(e)) })
   }, [])
@@ -45,13 +46,13 @@ export default function ImportDialog({ onKlaar }: Props) {
       .filter(c => keuzes[c.path]?.aan)
       .map(c => new ImportChoice({ path: c.path, asSite: c.wordPress && keuzes[c.path].alsSite }))
     try {
-      const aantal = await Services.ImportService.Apply(gekozen)
+      const r = await Services.ImportService.Apply(gekozen)
       if (a === 'overslaan') { onKlaar(); return }
-      setResultaat({ aantal, fout: null })
+      setResultaat({ aantal: r.added, notities: r.notes ?? [], fout: null })
     } catch (e) {
       // De Go-kant past de rest wel toe; toon de fout, sluiten doet de gebruiker.
       if (a === 'overslaan') { onKlaar(); return }
-      setResultaat({ aantal: 0, fout: foutTekst(e) })
+      setResultaat({ aantal: 0, notities: [], fout: foutTekst(e) })
     } finally {
       setActie(null)
     }
@@ -87,6 +88,9 @@ export default function ImportDialog({ onKlaar }: Props) {
                   {resultaat.aantal} {resultaat.aantal === 1 ? 'project' : 'projecten'} toegevoegd.
                 </p>
               )}
+              {resultaat.notities.map(n => (
+                <p key={n} className="text-[12px] text-amber">{n}</p>
+              ))}
             </div>
           ) : kandidaten === null ? (
             <p className="text-[12.5px] text-fg-faint">Laden…</p>
@@ -115,7 +119,9 @@ export default function ImportDialog({ onKlaar }: Props) {
                       </td>
                       <td className="py-1.5 pr-2 text-fg" title={c.path}>{c.name}</td>
                       <td className="py-1.5 pr-2 font-mono text-fg-muted">{c.deployType || 'overig'}</td>
-                      <td className="py-1.5 pr-2 font-mono text-fg-muted truncate max-w-[180px]" title={c.url}>{c.url}</td>
+                      <td className="py-1.5 pr-2 font-mono text-fg-muted truncate max-w-[180px]" title={c.url}>
+                        {c.url || (c.wordPress && <span className="font-sans text-amber">geen URL in deploy_conf.json</span>)}
+                      </td>
                       <td className="py-1.5">
                         {k.aan && c.wordPress && (
                           <select value={k.alsSite ? 'site' : 'lokaal'} disabled={bezig}

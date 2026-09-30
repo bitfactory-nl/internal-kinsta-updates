@@ -92,6 +92,7 @@ export {
     FleetStatus,
     ImportCandidate,
     ImportChoice,
+    ImportResult,
     InventoryItem,
     InventoryProjectRef,
     ItemUpdate,

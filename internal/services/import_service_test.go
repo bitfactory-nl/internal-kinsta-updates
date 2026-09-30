@@ -69,12 +69,12 @@ func TestImportNeededEnCandidates(t *testing.T) {
 
 func TestImportApply(t *testing.T) {
 	f := importFixture(t)
-	n, err := f.svc.Apply([]ImportChoice{
+	res, err := f.svc.Apply([]ImportChoice{
 		{Path: filepath.Join(f.root, "web-bnl"), AsSite: true},
 		{Path: filepath.Join(f.root, "tool-laravel"), AsSite: false},
 	})
-	if err != nil || n != 2 {
-		t.Fatalf("n %d err %v", n, err)
+	if err != nil || res.Added != 2 || len(res.Notes) != 0 {
+		t.Fatalf("res %+v err %v", res, err)
 	}
 	sites, _ := config.LoadWPSites(f.sitesPath)
 	if len(sites) != 1 || sites[0].ID != "web-bnl" || sites[0].URL != "https://b.nl" || sites[0].KinstaSiteID != "k-b" || sites[0].Username != "mcp-bot" {
@@ -97,8 +97,8 @@ func TestImportApply(t *testing.T) {
 
 func TestImportOverslaan(t *testing.T) {
 	f := importFixture(t)
-	if n, err := f.svc.Apply(nil); err != nil || n != 0 {
-		t.Fatalf("n %d err %v", n, err)
+	if res, err := f.svc.Apply(nil); err != nil || res.Added != 0 {
+		t.Fatalf("res %+v err %v", res, err)
 	}
 	if need, _ := f.svc.Needed(); need {
 		t.Fatal("na overslaan geen import meer")
@@ -219,5 +219,29 @@ func TestImportDoneAlleenNaOpslaan(t *testing.T) {
 	}
 	if f.cfg.ImportDone {
 		t.Fatal("ImportDone hoort false te blijven")
+	}
+}
+
+// Een WordPress-map zonder geldige URL wordt geen site maar een lokaal
+// project, met een notitie in het resultaat in plaats van een fout.
+func TestImportZonderURLWordtLokaal(t *testing.T) {
+	f := importFixture(t)
+	leeg := filepath.Join(f.root, "web-leeg")
+	os.MkdirAll(leeg, 0o755)
+	os.WriteFile(filepath.Join(leeg, "deploy_conf.json"), []byte(`{"type":"wordpress_kinsta"}`), 0o644)
+	res, err := f.svc.Apply([]ImportChoice{{Path: leeg, AsSite: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Added != 1 || len(res.Notes) != 1 {
+		t.Fatalf("resultaat %+v", res)
+	}
+	sites, _ := config.LoadWPSites(f.sitesPath)
+	if len(sites) != 0 {
+		t.Fatalf("hoort geen site te worden: %+v", sites)
+	}
+	locals, _ := config.LoadLocalProjects(f.localsPath)
+	if len(locals) != 1 || filepath.Clean(locals[0].Path) != leeg {
+		t.Fatalf("locals %+v", locals)
 	}
 }

@@ -1081,6 +1081,39 @@ export class ImportChoice {
 }
 
 /**
+ * ImportResult is de uitkomst van Apply: het aantal toegevoegde items en
+ * notities over items die anders zijn opgenomen dan gekozen.
+ */
+export class ImportResult {
+    "added": number;
+    "notes": string[];
+
+    /** Creates a new ImportResult instance. */
+    constructor($$source: Partial<ImportResult> = {}) {
+        if (!("added" in $$source)) {
+            this["added"] = 0;
+        }
+        if (!("notes" in $$source)) {
+            this["notes"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportResult {
+        const $$createField1_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField1_0($$parsedSource["notes"]);
+        }
+        return new ImportResult($$parsedSource as Partial<ImportResult>);
+    }
+}
+
+/**
  * InventoryItem is one plugin or theme aggregated across all projects.
  */
 export class InventoryItem {
