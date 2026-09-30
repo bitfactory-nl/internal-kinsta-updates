@@ -32,6 +32,8 @@ func (n wpNepProjecten) List() []domain.Project {
 	return out
 }
 
+func (n wpNepProjecten) Reload() ([]domain.Project, error) { return n.List(), nil }
+
 func nieuweWPSiteService(t *testing.T) (*WPSiteService, *wpNepSecrets, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -39,7 +41,7 @@ func nieuweWPSiteService(t *testing.T) (*WPSiteService, *wpNepSecrets, string) {
 	if err := os.MkdirAll(filepath.Join(projDir, "public", "wp-content", "mu-plugins"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	p := domain.Project{ID: "p1", Path: projDir, DisplayName: "web-ekcoatingsnl"}
+	p := domain.Project{ID: "p1", Path: projDir, Local: true, DisplayName: "web-ekcoatingsnl"}
 	p.Deploy.Link.Prod = "https://www.ekcoating.nl"
 	sec := &wpNepSecrets{m: map[string]string{}}
 	svc := NewWPSiteService(filepath.Join(dir, "wp-sites.yml"), wpNepProjecten{"p1": p}, sec)

@@ -3,6 +3,7 @@ package services
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 type WPProjectLookup interface {
 	Get(id string) (domain.Project, bool)
 	List() []domain.Project
+	Reload() ([]domain.Project, error)
 }
 
 // WPSecretStore abstraheert de Keychain zodat de service te testen is.
@@ -112,11 +114,30 @@ func (s *WPSiteService) ForProject(projectID string) (*WPSiteView, error) {
 		return nil, err
 	}
 	for _, v := range list {
-		if v.Site.ProjectPath == p.Path {
+		if p.SiteID != "" {
+			if v.Site.ID == p.SiteID {
+				return &v, nil
+			}
+			continue
+		}
+		// Zonder SiteID koppelt alleen een lokale map aan een site.
+		if p.Local && p.Path != "" && v.Site.ProjectPath == p.Path {
 			return &v, nil
 		}
 	}
 	return nil, nil
+}
+
+// herlaad ververst de projectlijst na een wijziging in wp-sites.yml. Een fout
+// hier maakt de mutatie zelf niet ongedaan; de lijst wordt bij de volgende
+// wijziging opnieuw opgebouwd.
+func (s *WPSiteService) herlaad() {
+	if s.projects == nil {
+		return
+	}
+	if _, err := s.projects.Reload(); err != nil {
+		log.Printf("wpsite: projecten herladen mislukt: %v", err)
+	}
 }
 
 // SuggestForProject vult een nieuw formulier voor een project voor. De
@@ -125,6 +146,9 @@ func (s *WPSiteService) SuggestForProject(projectID string) (domain.WPSite, erro
 	p, ok := s.projects.Get(projectID)
 	if !ok {
 		return domain.WPSite{}, fmt.Errorf("project %s niet gevonden", projectID)
+	}
+	if _, err := requireLocal(p); err != nil {
+		return domain.WPSite{}, err
 	}
 	bridge, err := s.DetectBridge(projectID)
 	if err != nil {
@@ -145,6 +169,9 @@ func (s *WPSiteService) DetectBridge(projectID string) (bool, error) {
 	p, ok := s.projects.Get(projectID)
 	if !ok {
 		return false, fmt.Errorf("project %s niet gevonden", projectID)
+	}
+	if !p.Local || p.Path == "" {
+		return false, nil
 	}
 	mu := filepath.Join(p.Path, "public", "wp-content", "mu-plugins")
 	for _, naam := range []string{"nb-mcp-bridge.php", "nb-mcp-bridge"} {
@@ -180,6 +207,7 @@ func (s *WPSiteService) Create(site domain.WPSite, password string) (WPSiteView,
 		_ = s.secrets.Delete(config.WPSecretAccount(site.ID))
 		return WPSiteView{}, err
 	}
+	s.herlaad()
 	return s.view(site), nil
 }
 
@@ -226,6 +254,7 @@ func (s *WPSiteService) mutate(id string, fn func(*domain.WPSite)) (domain.WPSit
 			if err := config.SaveWPSites(s.path, next); err != nil {
 				return domain.WPSite{}, err
 			}
+			s.herlaad()
 			return next[i], nil
 		}
 	}
@@ -256,6 +285,7 @@ func (s *WPSiteService) Delete(id string) error {
 	}
 	// Een ontbrekend Keychain-item is geen fout: het doel is dat het weg is.
 	_ = s.secrets.Delete(config.WPSecretAccount(id))
+	s.herlaad()
 	return nil
 }
 
