@@ -144,7 +144,62 @@ func TestComposerBinViaEnv(t *testing.T) {
 	os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755)
 	t.Setenv("RDM_COMPOSER", p)
 	resetComposerBin()
+	t.Cleanup(resetComposerBin)
 	if got := ComposerBin(); got != p {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestOpenCorePRUniekeWorktreePerProject(t *testing.T) {
+	m, g, _, _ := depotFixture(t)
+	if _, err := m.OpenCorePR(context.Background(), "/a/depot", "7.2.1"); err != nil {
+		t.Fatal(err)
+	}
+	eerste := g.worktreeDir
+	if _, err := m.OpenCorePR(context.Background(), "/b/depot", "7.2.1"); err != nil {
+		t.Fatal(err)
+	}
+	if eerste == g.worktreeDir {
+		t.Fatalf("zelfde worktree-map %q voor verschillende projecten", eerste)
+	}
+}
+
+func TestOpenCorePRRunGuard(t *testing.T) {
+	m, _, _, c := depotFixture(t)
+	m.claim("/repo@7.2.1")
+	_, err := m.OpenCorePR(context.Background(), "/repo", "7.2.1")
+	if err == nil || !strings.Contains(err.Error(), "loopt al een PR-run") {
+		t.Fatalf("fout %v", err)
+	}
+	if len(c.calls) != 0 {
+		t.Fatal("composer mag niet draaien")
+	}
+}
+
+func TestOpenCorePRFindFoutStopt(t *testing.T) {
+	m, g, p, c := depotFixture(t)
+	p.findErr = errors.New("boem")
+	if _, err := m.OpenCorePR(context.Background(), "/repo", "7.2.1"); err == nil || !strings.Contains(err.Error(), "bestaande PR zoeken") {
+		t.Fatalf("fout %v", err)
+	}
+	if len(c.calls) != 0 || g.addedBranch != "" {
+		t.Fatal("er mag niets gebouwd worden")
+	}
+}
+
+func TestComposerEnv(t *testing.T) {
+	env := composerEnv([]string{"HOME=/h", "PATH=/usr/bin"}, "/opt/x/composer")
+	var paths []string
+	nonInt := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "PATH=") {
+			paths = append(paths, e)
+		}
+		if e == "COMPOSER_NO_INTERACTION=1" {
+			nonInt = true
+		}
+	}
+	if len(paths) != 1 || paths[0] != "PATH=/opt/x:/opt/homebrew/bin:/usr/local/bin:/usr/bin" || !nonInt {
+		t.Fatalf("env %v", env)
 	}
 }

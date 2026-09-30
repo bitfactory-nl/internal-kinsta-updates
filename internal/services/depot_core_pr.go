@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -42,6 +44,35 @@ type depotCorePRMaker struct {
 	pulls    func() (corePulls, error)
 	composer composerRunner
 	tmpBase  string
+
+	mu       sync.Mutex
+	inFlight map[string]bool
+}
+
+// claim reserveert een run voor project+versie; false als er al een loopt.
+func (m *depotCorePRMaker) claim(key string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.inFlight == nil {
+		m.inFlight = map[string]bool{}
+	}
+	if m.inFlight[key] {
+		return false
+	}
+	m.inFlight[key] = true
+	return true
+}
+
+func (m *depotCorePRMaker) release(key string) {
+	m.mu.Lock()
+	delete(m.inFlight, key)
+	m.mu.Unlock()
+}
+
+// kortHash geeft de eerste 8 hex-tekens van de sha256 van s.
+func kortHash(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])[:8]
 }
 
 // NewDepotCorePR bouwt de echte implementatie; het GitHub-token wordt pas bij
@@ -85,6 +116,11 @@ func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version 
 	if !reWPVersie.MatchString(version) {
 		return "", fmt.Errorf("ongeldige WordPress-versie %q", version)
 	}
+	slot := projectPath + "@" + version
+	if !m.claim(slot) {
+		return "", errors.New("er loopt al een PR-run voor deze versie")
+	}
+	defer m.release(slot)
 	parts := strings.Split(version, ".")
 	constraint := "^" + parts[0] + "." + parts[1]
 	branch := "update/wordpress-" + version
@@ -98,7 +134,11 @@ func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version 
 	if err != nil {
 		return "", err
 	}
-	if open, err := pulls.FindOpenPull(ctx, owner, repo, branch); err == nil && open != nil {
+	open, err := pulls.FindOpenPull(ctx, owner, repo, branch)
+	if err != nil {
+		return "", fmt.Errorf("bestaande PR zoeken: %w", err)
+	}
+	if open != nil {
 		return open.HTMLURL, nil
 	}
 	if err := m.git.Fetch(ctx, projectPath); err != nil {
@@ -108,7 +148,7 @@ func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version 
 	if err != nil {
 		return "", fmt.Errorf("default-branch bepalen: %w", err)
 	}
-	wt := filepath.Join(m.tmpBase, fmt.Sprintf("%s-wp-%s", filepath.Base(projectPath), version))
+	wt := filepath.Join(m.tmpBase, fmt.Sprintf("%s-%s-wp-%s", filepath.Base(projectPath), kortHash(projectPath), version))
 	if err := m.git.PrepareWorktree(ctx, projectPath, wt); err != nil {
 		return "", fmt.Errorf("oude worktree opruimen: %w", err)
 	}
@@ -151,13 +191,30 @@ func (execComposer) Run(ctx context.Context, dir string, args ...string) (string
 	defer cancel()
 	cmd := exec.CommandContext(cctx, ComposerBin(), args...)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "COMPOSER_NO_INTERACTION=1")
+	cmd.Env = composerEnv(os.Environ(), ComposerBin())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		regels := strings.Split(strings.TrimSpace(string(out)), "\n")
 		return string(out), fmt.Errorf("%w: %s", err, regels[len(regels)-1])
 	}
 	return string(out), nil
+}
+
+// composerEnv zet PATH zo dat composer (een PHP-script) php kan vinden, ook
+// als de app vanuit Finder start zonder shell-PATH, en zet niet-interactief.
+func composerEnv(base []string, composerBin string) []string {
+	path := filepath.Dir(composerBin) + ":/opt/homebrew/bin:/usr/local/bin"
+	env := make([]string, 0, len(base)+2)
+	for _, e := range base {
+		if v, ok := strings.CutPrefix(e, "PATH="); ok {
+			if v != "" {
+				path += ":" + v
+			}
+			continue
+		}
+		env = append(env, e)
+	}
+	return append(env, "PATH="+path, "COMPOSER_NO_INTERACTION=1")
 }
 
 var (
