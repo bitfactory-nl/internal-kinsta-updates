@@ -3,12 +3,14 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/rdm/sites-tool/internal/adapters/gitcli"
+	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/domain"
 )
 
@@ -30,10 +32,9 @@ const (
 // orgCloneProgressEvent is de naam van het Wails-event dat de UI meeleest.
 const orgCloneProgressEvent = "orgclone:progress"
 
-// Clone haalt de opgegeven org-repo's lokaal binnen in de eerste
-// geconfigureerde projects-root, met de repo-naam als mapnaam. Dat is precies
-// waar ProjectService.Scan() naar kijkt, dus de clone verschijnt daarna als
-// gewoon project.
+// Clone haalt de opgegeven org-repo's lokaal binnen in de kloonmap
+// (clone_dir), met de repo-naam als mapnaam. Elke geslaagde clone wordt daarna
+// in het register opgenomen, zodat hij als project verschijnt.
 //
 // De run is sequentieel en gaat door na een fout: elke repo levert een eigen
 // OrgCloneOutcome op. Een bestaande doelmap wordt overgeslagen, nooit
@@ -64,6 +65,9 @@ func (s *OrgSyncService) Clone(names []string) (domain.OrgCloneResult, error) {
 	for i, t := range targets {
 		s.emitClone(domain.OrgCloneProgress{Phase: "bezig", Repo: t.name, Done: i, Total: len(targets)})
 		outcome := s.cloneOne(ctx, root, t)
+		if outcome.Status == domain.OrgCloneCloned {
+			s.registreerClone(outcome.Path, t.name)
+		}
 		result.Outcomes = append(result.Outcomes, outcome)
 		switch outcome.Status {
 		case domain.OrgCloneCloned:
@@ -75,15 +79,14 @@ func (s *OrgSyncService) Clone(names []string) (domain.OrgCloneResult, error) {
 		}
 	}
 
-	// Eén rescan aan het eind in plaats van per repo: pas hierna kent
-	// ProjectService de nieuwe checkouts, en dat is wat de org-sync-matching
-	// gebruikt om "Lokaal" te vullen.
+	// Eén herlaadronde aan het eind: pas hierna kent ProjectService de nieuwe
+	// checkouts, en dat is wat de org-sync-matching gebruikt om "Lokaal" te vullen.
 	if result.Cloned > 0 {
 		if _, serr := s.projects.Reload(); serr != nil {
-			// De clones staan er al; een mislukte rescan is hinderlijk, niet fataal.
+			// De clones staan er al; een mislukte herlaadronde is hinderlijk, niet fataal.
 			result.Outcomes = append(result.Outcomes, domain.OrgCloneOutcome{
 				Status:  domain.OrgCloneFailed,
-				Message: fmt.Sprintf("projecten opnieuw scannen mislukt: %v", serr),
+				Message: fmt.Sprintf("projecten herladen mislukt: %v", serr),
 			})
 			result.Failed++
 		}
@@ -100,23 +103,87 @@ type cloneTarget struct {
 	url  string
 }
 
-// cloneRoot bepaalt de doelmap. Tijdelijk ~/Projects (of cloneDir in tests);
-// het register-werk maakt hier de instelling clone_dir van. Er is bewust geen
-// fallback naar de cwd — de working directory van een .app-bundle is
+// cloneRoot bepaalt de doelmap: clone_dir uit de instellingen. Er is bewust
+// geen fallback naar de cwd — de working directory van een .app-bundle is
 // onvoorspelbaar.
 func (s *OrgSyncService) cloneRoot() (string, error) {
-	root := s.cloneDir
-	if root == "" {
-		root = expandHome("~/Projects")
+	dir := "~/Projects"
+	if s.cfg != nil && s.cfg.CloneDir != "" {
+		dir = s.cfg.CloneDir
 	}
+	root := expandHome(dir)
 	info, err := os.Stat(root)
 	if err != nil {
-		return "", fmt.Errorf("projectmap %q is niet te openen: %w", root, err)
+		return "", fmt.Errorf("kloonmap %s is niet te openen: %w", root, err)
 	}
 	if !info.IsDir() {
-		return "", fmt.Errorf("projectmap %q is geen map", root)
+		return "", fmt.Errorf("kloonmap %s is geen map", root)
 	}
 	return root, nil
+}
+
+// registreerClone neemt een verse clone op in het register: gekoppeld aan de
+// site waarvan de prod-URL uit deploy_conf.json overeenkomt (mits precies één
+// site past en die nog geen map heeft), anders als lokaal project. Fouten
+// worden gelogd en breken de run niet af: de clone zelf staat er al.
+func (s *OrgSyncService) registreerClone(path, name string) {
+	if s.register == nil {
+		log.Printf("org-sync: geen register gekoppeld, %s niet geregistreerd", name)
+		return
+	}
+	if siteID := s.siteVoorClone(path); siteID != "" {
+		if err := s.register.LinkSiteFolder(siteID, path); err != nil {
+			log.Printf("org-sync: %s koppelen aan site %s mislukt: %v", name, siteID, err)
+		}
+		return
+	}
+	if _, err := s.register.AddLocalProjectPath(path, name); err != nil {
+		log.Printf("org-sync: %s registreren mislukt: %v", name, err)
+	}
+}
+
+// siteVoorClone geeft het id van de enige site zonder map waarvan de URL gelijk
+// is aan link.prod in de deploy_conf.json van de clone; anders "".
+func (s *OrgSyncService) siteVoorClone(path string) string {
+	if s.loadSites == nil {
+		return ""
+	}
+	dc, err := config.LoadDeployConf(path)
+	if err != nil || dc.Link.Prod == "" {
+		return ""
+	}
+	sites, err := s.loadSites()
+	if err != nil {
+		return ""
+	}
+	prod := normaliseerSiteURL(dc.Link.Prod)
+	if prod == "" {
+		return ""
+	}
+	var hit *domain.WPSite
+	for i := range sites {
+		if normaliseerSiteURL(sites[i].URL) != prod {
+			continue
+		}
+		if hit != nil {
+			return ""
+		}
+		hit = &sites[i]
+	}
+	if hit == nil || hit.ProjectPath != "" {
+		return ""
+	}
+	return hit.ID
+}
+
+// normaliseerSiteURL: lowercase, zonder schema, "www." en afsluitende slash.
+func normaliseerSiteURL(raw string) string {
+	u := strings.ToLower(strings.TrimSpace(raw))
+	if i := strings.Index(u, "://"); i >= 0 {
+		u = u[i+3:]
+	}
+	u = strings.TrimPrefix(u, "www.")
+	return strings.TrimRight(u, "/")
 }
 
 // resolveCloneTargets zet de aangevraagde namen om in clone-opdrachten. Elke

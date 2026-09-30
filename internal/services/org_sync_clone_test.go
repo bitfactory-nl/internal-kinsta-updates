@@ -11,8 +11,31 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rdm/sites-tool/internal/config"
 	"github.com/rdm/sites-tool/internal/domain"
 )
+
+// fakeOrgRegister legt vast welke paden als lokaal project zijn toegevoegd en
+// welke site-koppelingen zijn gelegd.
+type fakeOrgRegister struct {
+	mu     sync.Mutex
+	added  []string // "pad|naam"
+	linked []string // "siteID|pad"
+}
+
+func (f *fakeOrgRegister) AddLocalProjectPath(path, name string) (domain.Project, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.added = append(f.added, path+"|"+name)
+	return domain.Project{Path: path, DisplayName: name}, nil
+}
+
+func (f *fakeOrgRegister) LinkSiteFolder(siteID, path string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.linked = append(f.linked, siteID+"|"+path)
+	return nil
+}
 
 // fakeCloner legt vast met welke argumenten er "gecloned" is en maakt de
 // doelmap net als git zou doen, zodat vervolgcontroles op het bestandssysteem
@@ -57,7 +80,9 @@ func cloneOpstelling(t *testing.T, repos []domain.OrgSyncRepo) (*OrgSyncService,
 	cloner := &fakeCloner{err: map[string]error{}}
 	svc := &OrgSyncService{
 		projects:  ps,
-		cloneDir:  root,
+		cfg:       &config.Global{CloneDir: root},
+		register:  &fakeOrgRegister{},
+		loadSites: func() ([]domain.WPSite, error) { return nil, nil },
 		clone:     cloner.clone,
 		now:       time.Now,
 		bezig:     map[string]bool{},
@@ -144,28 +169,98 @@ func TestCloneHaaltRepoBinnenInProjectsRoot(t *testing.T) {
 	}
 }
 
-// TestCloneScantProjectenNaEenGeslaagdeRun is de reden dat de clone-actie in
-// deze service zit: zonder rescan blijft "Lokaal" leeg tot de gebruiker zelf
-// ergens een scan uitlokt.
-func TestCloneScantProjectenNaEenGeslaagdeRun(t *testing.T) {
-	t.Skip("register: clones worden pas in Task 5 in het register opgenomen")
+// TestCloneRegistreertProjectenNaEenGeslaagdeRun: een geslaagde clone moet als
+// lokaal project in het register komen, anders blijft "Lokaal" leeg.
+func TestCloneRegistreertProjectenNaEenGeslaagdeRun(t *testing.T) {
 	svc, _, root := cloneOpstelling(t, drieCloneRepos())
+	reg := svc.register.(*fakeOrgRegister)
 
 	if _, err := svc.Clone([]string{"web-alpha"}); err != nil {
 		t.Fatalf("Clone: %v", err)
 	}
 
-	var paden []string
-	for _, p := range svc.projects.List() {
-		paden = append(paden, p.Path)
+	wil := filepath.Join(root, "web-alpha") + "|web-alpha"
+	if len(reg.added) != 1 || reg.added[0] != wil {
+		t.Fatalf("geregistreerd = %v, wil [%q]", reg.added, wil)
 	}
-	wil := filepath.Join(root, "web-alpha")
-	for _, p := range paden {
-		if p == wil {
-			return
+	if len(reg.linked) != 0 {
+		t.Errorf("onverwachte koppelingen: %v", reg.linked)
+	}
+}
+
+func schrijfDeployConfProd(t *testing.T, dir, prod string) {
+	t.Helper()
+	data := fmt.Sprintf(`{"type":"wordpress_kinsta","link":{"prod":%q}}`, prod)
+	if err := os.WriteFile(filepath.Join(dir, "deploy_conf.json"), []byte(data), 0o644); err != nil {
+		t.Fatalf("deploy_conf schrijven: %v", err)
+	}
+}
+
+// fakeCloner maakt alleen .git aan; dit variant schrijft ook deploy_conf.json.
+func metDeployConf(svc *OrgSyncService, cloner *fakeCloner, t *testing.T, prod string) {
+	svc.clone = func(ctx context.Context, parentDir, url, name string) error {
+		if err := cloner.clone(ctx, parentDir, url, name); err != nil {
+			return err
 		}
+		schrijfDeployConfProd(t, filepath.Join(parentDir, name), prod)
+		return nil
 	}
-	t.Fatalf("projecten na clone = %v, wil dat %q erbij staat", paden, wil)
+}
+
+func TestCloneKoppeltAanSiteMetGelijkeProdURL(t *testing.T) {
+	svc, cloner, root := cloneOpstelling(t, drieCloneRepos())
+	reg := svc.register.(*fakeOrgRegister)
+	metDeployConf(svc, cloner, t, "https://www.Klant.nl/")
+	svc.loadSites = func() ([]domain.WPSite, error) {
+		return []domain.WPSite{
+			{ID: "klant", URL: "klant.nl"},
+			{ID: "andere", URL: "https://andere.nl"},
+		}, nil
+	}
+
+	if _, err := svc.Clone([]string{"web-alpha"}); err != nil {
+		t.Fatalf("Clone: %v", err)
+	}
+
+	wil := "klant|" + filepath.Join(root, "web-alpha")
+	if len(reg.linked) != 1 || reg.linked[0] != wil {
+		t.Fatalf("gekoppeld = %v, wil [%q]", reg.linked, wil)
+	}
+	if len(reg.added) != 0 {
+		t.Errorf("mag niet ook als lokaal project: %v", reg.added)
+	}
+}
+
+func TestCloneRegistreertAlsLokaalBijTweeTreffersOfBestaandeMap(t *testing.T) {
+	cases := map[string][]domain.WPSite{
+		"twee treffers":  {{ID: "a1", URL: "https://klant.nl"}, {ID: "a2", URL: "https://www.klant.nl/"}},
+		"site heeft map": {{ID: "a1", URL: "https://klant.nl", ProjectPath: "/ergens/anders"}},
+		"geen treffer":   {{ID: "a1", URL: "https://iets.nl"}},
+	}
+	for naam, sites := range cases {
+		t.Run(naam, func(t *testing.T) {
+			svc, cloner, _ := cloneOpstelling(t, drieCloneRepos())
+			reg := svc.register.(*fakeOrgRegister)
+			metDeployConf(svc, cloner, t, "https://klant.nl")
+			svc.loadSites = func() ([]domain.WPSite, error) { return sites, nil }
+
+			if _, err := svc.Clone([]string{"web-alpha"}); err != nil {
+				t.Fatalf("Clone: %v", err)
+			}
+			if len(reg.linked) != 0 || len(reg.added) != 1 {
+				t.Fatalf("linked=%v added=%v, wil 0 koppelingen en 1 lokaal project", reg.linked, reg.added)
+			}
+		})
+	}
+}
+
+func TestCloneZonderRegisterOverslaatRegistratie(t *testing.T) {
+	svc, _, _ := cloneOpstelling(t, drieCloneRepos())
+	svc.register = nil
+	res, err := svc.Clone([]string{"web-alpha"})
+	if err != nil || res.Cloned != 1 || res.Failed != 0 {
+		t.Fatalf("res=%+v err=%v, wil 1 geslaagde clone zonder paniek", res, err)
+	}
 }
 
 func TestCloneSlaatBestaandeMapOverZonderTeClonen(t *testing.T) {
@@ -261,14 +356,14 @@ func TestCloneZonderSelectieOfCacheGeeftFout(t *testing.T) {
 
 func TestCloneZonderProjectmapGeeftFout(t *testing.T) {
 	svc, cloner, _ := cloneOpstelling(t, drieCloneRepos())
-	svc.cloneDir = filepath.Join(t.TempDir(), "bestaat-niet")
+	svc.cfg.CloneDir = filepath.Join(t.TempDir(), "bestaat-niet")
 
 	_, err := svc.Clone([]string{"web-alpha"})
 	if err == nil {
 		t.Fatal("clone zonder ingestelde projectmap werd geaccepteerd")
 	}
-	if !strings.Contains(err.Error(), "projectmap") {
-		t.Errorf("fout = %v, wil een melding over de ontbrekende projectmap", err)
+	if !strings.Contains(err.Error(), "is niet te openen") || !strings.Contains(err.Error(), "kloonmap") {
+		t.Errorf("fout = %v, wil een melding over de ontbrekende kloonmap", err)
 	}
 	if calls := cloner.aanroepen(); len(calls) != 0 {
 		t.Errorf("er is gecloned zonder doelmap: %v", calls)

@@ -94,9 +94,12 @@ type OrgSyncService struct {
 	// leeg laten gebruikt DefaultOrgSyncPath().
 	storePath string
 
-	// cloneDir overschrijft de doelmap voor clones (tijdelijk, tot clone_dir uit
-	// de instellingen komt); leeg gebruikt ~/Projects.
-	cloneDir string
+	// register neemt geslaagde clones op in het register; nil slaat de
+	// registratie over (zie SetRegister).
+	register orgRegister
+	// loadSites levert de WordPress-sites voor de deploy_conf-koppeling na een
+	// clone; tests injecteren een fake.
+	loadSites func() ([]domain.WPSite, error)
 
 	bezigMu sync.Mutex
 	bezig   map[string]bool
@@ -111,10 +114,20 @@ func NewOrgSyncService(projects *ProjectService, cfg *config.Global) *OrgSyncSer
 		cfg:       cfg,
 		remoteURL: defaultRemoteURL,
 		clone:     defaultClone,
+		loadSites: func() ([]domain.WPSite, error) { return config.LoadWPSites(config.WPSitesPath()) },
 		now:       time.Now,
 		bezig:     map[string]bool{},
 	}
 }
+
+// orgRegister is het deel van RegisterService dat Org-sync na een clone nodig heeft.
+type orgRegister interface {
+	AddLocalProjectPath(path, name string) (domain.Project, error)
+	LinkSiteFolder(siteID, path string) error
+}
+
+// SetRegister koppelt het register waarin geclonede repo's worden opgenomen.
+func (s *OrgSyncService) SetRegister(r orgRegister) { s.register = r }
 
 // defaultRemoteURL leest de origin-remote van een lokale checkout via git.
 func defaultRemoteURL(ctx context.Context, dir string) (string, error) {
