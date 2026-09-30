@@ -45,6 +45,8 @@ type WPSiteView struct {
 // WPSiteService beheert de WordPress-sites voor wp-fleet (wp-sites.yml + Keychain).
 type WPSiteService struct {
 	mu       sync.Mutex
+	runMu    sync.Mutex
+	running  map[string]bool
 	path     string
 	projects WPProjectLookup
 	secrets  WPSecretStore
