@@ -4007,6 +4007,12 @@ export class WPSite {
     "readOnly": boolean;
     "bridge": boolean;
 
+    /**
+     * Depot markeert de SatisPress-depotsite: na een core-update daar maakt de
+     * tool een Composer-PR. Er is er hooguit één.
+     */
+    "depot"?: boolean;
+
     /** Creates a new WPSite instance. */
     constructor($$source: Partial<WPSite> = {}) {
         if (!("id" in $$source)) {

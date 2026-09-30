@@ -18,9 +18,19 @@ import * as domain$0 from "../domain/models.js";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+/**
+ * AvailableUpdates vraagt de bridge welke updates er klaarstaan. Met refresh
+ * laat de bridge WordPress eerst opnieuw bij wp.org kijken (trager).
+ */
+export function AvailableUpdates(siteID: string, refresh: boolean): $CancellablePromise<$models.SiteUpdates> {
+    return $Call.ByID(232888446, siteID, refresh).then(($result: any) => {
+        return $$createType0($result);
+    });
+}
+
 export function Create(site: domain$0.WPSite, password: string): $CancellablePromise<$models.WPSiteView> {
     return $Call.ByID(3159806589, site, password).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
     });
 }
 
@@ -35,15 +45,25 @@ export function DetectBridge(projectID: string): $CancellablePromise<boolean> {
     return $Call.ByID(1787982851, projectID);
 }
 
+/**
+ * FleetUpdates haalt voor alle sites de beschikbare updates op, hooguit vier
+ * tegelijk. Een fout op één site komt in die regel en stopt de rest niet.
+ */
+export function FleetUpdates(refresh: boolean): $CancellablePromise<$models.FleetSiteUpdates[]> {
+    return $Call.ByID(484879223, refresh).then(($result: any) => {
+        return $$createType3($result);
+    });
+}
+
 export function ForProject(projectID: string): $CancellablePromise<$models.WPSiteView | null> {
     return $Call.ByID(3799675381, projectID).then(($result: any) => {
-        return $$createType1($result);
+        return $$createType4($result);
     });
 }
 
 export function List(): $CancellablePromise<$models.WPSiteView[]> {
     return $Call.ByID(3527472545).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType5($result);
     });
 }
 
@@ -55,21 +75,23 @@ export function Stats(): $CancellablePromise<[number, number]> {
 }
 
 /**
- * SuggestForProject vult een nieuw formulier voor een project voor.
+ * SuggestForProject vult een nieuw formulier voor een project voor. De
+ * bridge-vlag volgt de mu-plugin in de checkout; een leesfout telt als geen bridge.
  */
 export function SuggestForProject(projectID: string): $CancellablePromise<domain$0.WPSite> {
     return $Call.ByID(3785860885, projectID).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType6($result);
     });
 }
 
 /**
  * TestConnection controleert auth (users/me vereist een ingelogde gebruiker)
- * en de bridge, en zet de bridge-vlag van de site op de uitkomst.
+ * en de bridge, en zet de bridge-vlag van de site op de uitkomst zodra die
+ * eenduidig is.
  */
 export function TestConnection(id: string): $CancellablePromise<$models.ConnectionResult> {
     return $Call.ByID(3374618425, id).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType7($result);
     });
 }
 
@@ -82,16 +104,41 @@ export function Unlink(id: string): $CancellablePromise<void> {
 
 /**
  * Update wijzigt een bestaande site; een leeg wachtwoord laat het bestaande staan.
+ * De bridge-vlag komt niet uit het formulier: die houdt de opgeslagen waarde,
+ * want alleen TestConnection mag hem bijwerken. wp-fleet-mcp weigert elke
+ * bridge-call als de vlag op false staat.
  */
 export function Update(site: domain$0.WPSite, password: string): $CancellablePromise<$models.WPSiteView> {
     return $Call.ByID(2439773332, site, password).then(($result: any) => {
-        return $$createType0($result);
+        return $$createType1($result);
+    });
+}
+
+export function UpdateCore(siteID: string, allowMajor: boolean): $CancellablePromise<$models.RunResult> {
+    return $Call.ByID(3029095523, siteID, allowMajor).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+export function UpdatePlugins(siteID: string, plugins: string[], all: boolean): $CancellablePromise<$models.RunResult> {
+    return $Call.ByID(2430331180, siteID, plugins, all).then(($result: any) => {
+        return $$createType8($result);
+    });
+}
+
+export function UpdateTranslations(siteID: string): $CancellablePromise<$models.RunResult> {
+    return $Call.ByID(1230038180, siteID).then(($result: any) => {
+        return $$createType8($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.WPSiteView.createFrom;
-const $$createType1 = $Create.Nullable($$createType0);
-const $$createType2 = $Create.Array($$createType0);
-const $$createType3 = domain$0.WPSite.createFrom;
-const $$createType4 = $models.ConnectionResult.createFrom;
+const $$createType0 = $models.SiteUpdates.createFrom;
+const $$createType1 = $models.WPSiteView.createFrom;
+const $$createType2 = $models.FleetSiteUpdates.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = $Create.Nullable($$createType1);
+const $$createType5 = $Create.Array($$createType1);
+const $$createType6 = domain$0.WPSite.createFrom;
+const $$createType7 = $models.ConnectionResult.createFrom;
+const $$createType8 = $models.RunResult.createFrom;

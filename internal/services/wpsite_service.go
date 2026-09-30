@@ -50,14 +50,21 @@ type WPSiteService struct {
 	path     string
 	projects WPProjectLookup
 	secrets  WPSecretStore
+	depot    DepotCorePR
 	http     *http.Client
 }
 
 const defaultWPUser = "mcp-bot"
 
 func NewWPSiteService(path string, projects WPProjectLookup, secrets WPSecretStore) *WPSiteService {
+	return NewWPSiteServiceWithDepot(path, projects, secrets, nil)
+}
+
+// NewWPSiteServiceWithDepot geeft de service de hulp voor Composer-PR's op de
+// depotsite. Een package-functie, geen methode: Wails bindt alle methodes.
+func NewWPSiteServiceWithDepot(path string, projects WPProjectLookup, secrets WPSecretStore, depot DepotCorePR) *WPSiteService {
 	return &WPSiteService{
-		path: path, projects: projects, secrets: secrets,
+		path: path, projects: projects, secrets: secrets, depot: depot,
 		http: &http.Client{Timeout: 15 * time.Second, CheckRedirect: weigerDowngrade},
 	}
 }

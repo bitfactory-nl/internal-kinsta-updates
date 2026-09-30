@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -124,5 +126,81 @@ func TestUpdateDubbeleRunGeweigerd(t *testing.T) {
 	defer svc.releaseRun("klant")
 	if _, err := svc.UpdateCore("klant", false); err == nil || err.Error() != "er loopt al een update voor deze site" {
 		t.Fatalf("fout %v", err)
+	}
+}
+
+type fakeDepot struct {
+	prURL      string
+	prErr      error
+	prVersion  string
+	prPath     string
+	actionsURL string
+}
+
+func (f *fakeDepot) OpenCorePR(_ context.Context, path, version string) (string, error) {
+	f.prPath, f.prVersion = path, version
+	return f.prURL, f.prErr
+}
+func (f *fakeDepot) PluginWorkflowURL(context.Context, string) (string, error) {
+	return f.actionsURL, nil
+}
+
+func depotSite(t *testing.T, b *bridgeServer, d *fakeDepot, depot bool) *WPSiteService {
+	t.Helper()
+	svc, _, projDir := nieuweWPSiteService(t)
+	svc.depot = d
+	svc.http.Transport = b.srv.Client().Transport
+	if _, err := svc.Create(domain.WPSite{ID: "klant", Name: "K", URL: b.srv.URL, Username: "mcp-bot", Bridge: true, Depot: depot, ProjectPath: projDir}, "goed"); err != nil {
+		t.Fatal(err)
+	}
+	return svc
+}
+
+func TestUpdateCoreDepotMaaktPR(t *testing.T) {
+	b := nieuweBridgeServer(t, 200, `{"success":true,"from":"7.1.1","to":"7.2.1"}`)
+	d := &fakeDepot{prURL: "https://github.com/x/y/pull/1"}
+	svc := depotSite(t, b, d, true)
+	res, err := svc.UpdateCore("klant", false)
+	if err != nil || res.PullRequest != "https://github.com/x/y/pull/1" || d.prVersion != "7.2.1" || res.Warning != "" {
+		t.Fatalf("res %+v err %v depot %+v", res, err, d)
+	}
+}
+
+func TestUpdateCoreDepotPRFoutWordtWaarschuwing(t *testing.T) {
+	b := nieuweBridgeServer(t, 200, `{"success":true,"from":"7.1.1","to":"7.2.1"}`)
+	svc := depotSite(t, b, &fakeDepot{prErr: errors.New("github token niet geconfigureerd")}, true)
+	res, err := svc.UpdateCore("klant", false)
+	if err != nil || res.PullRequest != "" || !strings.Contains(res.Warning, "github token niet geconfigureerd") {
+		t.Fatalf("res %+v err %v", res, err)
+	}
+}
+
+func TestUpdateCoreGeenDepotGeenPR(t *testing.T) {
+	b := nieuweBridgeServer(t, 200, `{"success":true,"from":"7.1.1","to":"7.2.1"}`)
+	d := &fakeDepot{prURL: "x"}
+	svc := depotSite(t, b, d, false)
+	res, _ := svc.UpdateCore("klant", false)
+	if res.PullRequest != "" || d.prVersion != "" {
+		t.Fatalf("geen PR verwacht: %+v", res)
+	}
+}
+
+func TestUpdateCoreMisluktGeenPR(t *testing.T) {
+	b := nieuweBridgeServer(t, 200, `{"success":false,"from":"7.1.1","to":"7.1.1","error":"No core update is available."}`)
+	d := &fakeDepot{prURL: "x"}
+	svc := depotSite(t, b, d, true)
+	res, _ := svc.UpdateCore("klant", false)
+	if res.PullRequest != "" || d.prVersion != "" {
+		t.Fatalf("geen PR verwacht: %+v", res)
+	}
+}
+
+func TestUpdatePluginsDepotGeeftActionsURL(t *testing.T) {
+	b := nieuweBridgeServer(t, 200, `{"results":[{"plugin":"a/a.php","success":true,"from":"1","to":"2"}]}`)
+	d := &fakeDepot{actionsURL: "https://github.com/x/y/actions/workflows/plugin-update.yml"}
+	svc := depotSite(t, b, d, true)
+	res, err := svc.UpdatePlugins("klant", []string{"a/a.php"}, false)
+	if err != nil || res.ActionsURL != d.actionsURL {
+		t.Fatalf("res %+v err %v", res, err)
 	}
 }

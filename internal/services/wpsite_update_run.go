@@ -1,10 +1,12 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/rdm/sites-tool/internal/domain"
 )
@@ -146,6 +148,35 @@ func (s *WPSiteService) UpdateTranslations(siteID string) (RunResult, error) {
 	return RunResult{Items: []RunItem{{Name: name, Success: raw.Success, Error: strings.Join(raw.Errors, " ")}}}, nil
 }
 
-// afterRun koppelt na een uitvoering de PR/Actions-informatie van de
-// depotsite. Task 6 vult dit; tot dan doet het niets.
-func (s *WPSiteService) afterRun(site domain.WPSite, kind string, res *RunResult) {}
+// afterRun koppelt de depot-informatie aan het resultaat: bij plugins de
+// link naar de workflow die de PR maakt, bij een geslaagde core-update een
+// eigen Composer-PR. Een mislukte PR is een waarschuwing, geen fout: de live
+// update is dan al gebeurd.
+func (s *WPSiteService) afterRun(site domain.WPSite, kind string, res *RunResult) {
+	if s.depot == nil || !site.Depot || site.ProjectPath == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	switch kind {
+	case "plugins":
+		for _, it := range res.Items {
+			if it.Success {
+				if url, err := s.depot.PluginWorkflowURL(ctx, site.ProjectPath); err == nil {
+					res.ActionsURL = url
+				}
+				return
+			}
+		}
+	case "core":
+		if len(res.Items) == 0 || !res.Items[0].Success {
+			return
+		}
+		url, err := s.depot.OpenCorePR(ctx, site.ProjectPath, res.Items[0].To)
+		if err != nil {
+			res.Warning = "WordPress is live bijgewerkt, maar de Composer-PR is niet gemaakt: " + err.Error()
+			return
+		}
+		res.PullRequest = url
+	}
+}

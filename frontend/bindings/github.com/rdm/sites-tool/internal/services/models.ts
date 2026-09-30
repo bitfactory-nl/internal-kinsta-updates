@@ -647,6 +647,39 @@ export class ConnectionResult {
     }
 }
 
+export class CoreUpdateOffer {
+    "current": string;
+    "version": string;
+
+    /**
+     * major | minor
+     */
+    "type": string;
+
+    /** Creates a new CoreUpdateOffer instance. */
+    constructor($$source: Partial<CoreUpdateOffer> = {}) {
+        if (!("current" in $$source)) {
+            this["current"] = "";
+        }
+        if (!("version" in $$source)) {
+            this["version"] = "";
+        }
+        if (!("type" in $$source)) {
+            this["type"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoreUpdateOffer instance from a string or object.
+     */
+    static createFrom($$source: any = {}): CoreUpdateOffer {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoreUpdateOffer($$parsedSource as Partial<CoreUpdateOffer>);
+    }
+}
+
 /**
  * CoreUpdateResult is de uitkomst van één core-update.
  */
@@ -844,6 +877,50 @@ export class FetchAllResult {
     }
 }
 
+/**
+ * FleetSiteUpdates is één regel in het vlootoverzicht.
+ */
+export class FleetSiteUpdates {
+    "site": WPSiteView;
+    "projectId": string;
+    "updates": SiteUpdates | null;
+    "error": string;
+
+    /** Creates a new FleetSiteUpdates instance. */
+    constructor($$source: Partial<FleetSiteUpdates> = {}) {
+        if (!("site" in $$source)) {
+            this["site"] = (new WPSiteView());
+        }
+        if (!("projectId" in $$source)) {
+            this["projectId"] = "";
+        }
+        if (!("updates" in $$source)) {
+            this["updates"] = null;
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new FleetSiteUpdates instance from a string or object.
+     */
+    static createFrom($$source: any = {}): FleetSiteUpdates {
+        const $$createField0_0 = $$createType14;
+        const $$createField2_0 = $$createType16;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("site" in $$parsedSource) {
+            $$parsedSource["site"] = $$createField0_0($$parsedSource["site"]);
+        }
+        if ("updates" in $$parsedSource) {
+            $$parsedSource["updates"] = $$createField2_0($$parsedSource["updates"]);
+        }
+        return new FleetSiteUpdates($$parsedSource as Partial<FleetSiteUpdates>);
+    }
+}
+
 export class FleetStatus {
     "registered": boolean;
     "pointsToThisApp": boolean;
@@ -932,7 +1009,7 @@ export class InventoryItem {
      * Creates a new InventoryItem instance from a string or object.
      */
     static createFrom($$source: any = {}): InventoryItem {
-        const $$createField4_0 = $$createType15;
+        const $$createField4_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField4_0($$parsedSource["projects"]);
@@ -1011,6 +1088,42 @@ export class InventoryProjectRef {
     static createFrom($$source: any = {}): InventoryProjectRef {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new InventoryProjectRef($$parsedSource as Partial<InventoryProjectRef>);
+    }
+}
+
+/**
+ * ItemUpdate is één plugin (ID = plugin-bestand) of thema (ID = stylesheet).
+ */
+export class ItemUpdate {
+    "id": string;
+    "name": string;
+    "currentVersion": string;
+    "newVersion": string;
+
+    /** Creates a new ItemUpdate instance. */
+    constructor($$source: Partial<ItemUpdate> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("currentVersion" in $$source)) {
+            this["currentVersion"] = "";
+        }
+        if (!("newVersion" in $$source)) {
+            this["newVersion"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ItemUpdate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ItemUpdate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ItemUpdate($$parsedSource as Partial<ItemUpdate>);
     }
 }
 
@@ -1196,7 +1309,7 @@ export class LocalPluginOverview {
      * Creates a new LocalPluginOverview instance from a string or object.
      */
     static createFrom($$source: any = {}): LocalPluginOverview {
-        const $$createField1_0 = $$createType17;
+        const $$createField1_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("rows" in $$parsedSource) {
             $$parsedSource["rows"] = $$createField1_0($$parsedSource["rows"]);
@@ -1414,7 +1527,7 @@ export class MediaCrawlResult {
      */
     static createFrom($$source: any = {}): MediaCrawlResult {
         const $$createField7_0 = $$createType0;
-        const $$createField8_0 = $$createType18;
+        const $$createField8_0 = $$createType21;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("errors" in $$parsedSource) {
             $$parsedSource["errors"] = $$createField7_0($$parsedSource["errors"]);
@@ -1630,7 +1743,7 @@ export class ProjectUpdateResult {
      * Creates a new ProjectUpdateResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectUpdateResult {
-        const $$createField5_0 = $$createType20;
+        const $$createField5_0 = $$createType23;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField5_0($$parsedSource["plugins"]);
@@ -1675,7 +1788,7 @@ export class ProjectVulnReport {
      * Creates a new ProjectVulnReport instance from a string or object.
      */
     static createFrom($$source: any = {}): ProjectVulnReport {
-        const $$createField3_0 = $$createType22;
+        const $$createField3_0 = $$createType25;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField3_0($$parsedSource["findings"]);
@@ -1844,9 +1957,9 @@ export class QuarantineResult {
      * Creates a new QuarantineResult instance from a string or object.
      */
     static createFrom($$source: any = {}): QuarantineResult {
-        const $$createField1_0 = $$createType24;
-        const $$createField2_0 = $$createType26;
-        const $$createField5_0 = $$createType28;
+        const $$createField1_0 = $$createType27;
+        const $$createField2_0 = $$createType29;
+        const $$createField5_0 = $$createType31;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("moved" in $$parsedSource) {
             $$parsedSource["moved"] = $$createField1_0($$parsedSource["moved"]);
@@ -1934,7 +2047,7 @@ export class QueryUitkomst {
      */
     static createFrom($$source: any = {}): QueryUitkomst {
         const $$createField0_0 = $$createType1;
-        const $$createField1_0 = $$createType30;
+        const $$createField1_0 = $$createType33;
         const $$createField5_0 = $$createType0;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("beoordeling" in $$parsedSource) {
@@ -1982,7 +2095,7 @@ export class RijVerzoek {
      */
     static createFrom($$source: any = {}): RijVerzoek {
         const $$createField2_0 = $$createType13;
-        const $$createField3_0 = $$createType32;
+        const $$createField3_0 = $$createType35;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sleutel" in $$parsedSource) {
             $$parsedSource["sleutel"] = $$createField2_0($$parsedSource["sleutel"]);
@@ -2043,6 +2156,80 @@ export class RijenVerzoek {
     static createFrom($$source: any = {}): RijenVerzoek {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new RijenVerzoek($$parsedSource as Partial<RijenVerzoek>);
+    }
+}
+
+export class RunItem {
+    "name": string;
+    "from": string;
+    "to": string;
+    "error": string;
+    "success": boolean;
+
+    /** Creates a new RunItem instance. */
+    constructor($$source: Partial<RunItem> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("from" in $$source)) {
+            this["from"] = "";
+        }
+        if (!("to" in $$source)) {
+            this["to"] = "";
+        }
+        if (!("error" in $$source)) {
+            this["error"] = "";
+        }
+        if (!("success" in $$source)) {
+            this["success"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunItem instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RunItem {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new RunItem($$parsedSource as Partial<RunItem>);
+    }
+}
+
+export class RunResult {
+    "items": RunItem[];
+    "pullRequest": string;
+    "actionsUrl": string;
+    "warning": string;
+
+    /** Creates a new RunResult instance. */
+    constructor($$source: Partial<RunResult> = {}) {
+        if (!("items" in $$source)) {
+            this["items"] = [];
+        }
+        if (!("pullRequest" in $$source)) {
+            this["pullRequest"] = "";
+        }
+        if (!("actionsUrl" in $$source)) {
+            this["actionsUrl"] = "";
+        }
+        if (!("warning" in $$source)) {
+            this["warning"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new RunResult instance from a string or object.
+     */
+    static createFrom($$source: any = {}): RunResult {
+        const $$createField0_0 = $$createType37;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("items" in $$parsedSource) {
+            $$parsedSource["items"] = $$createField0_0($$parsedSource["items"]);
+        }
+        return new RunResult($$parsedSource as Partial<RunResult>);
     }
 }
 
@@ -2319,7 +2506,7 @@ export class SecurityScanResult {
      * Creates a new SecurityScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): SecurityScanResult {
-        const $$createField4_0 = $$createType34;
+        const $$createField4_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("findings" in $$parsedSource) {
             $$parsedSource["findings"] = $$createField4_0($$parsedSource["findings"]);
@@ -2357,6 +2544,62 @@ export class SiteLinkConflict {
             $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
         }
         return new SiteLinkConflict($$parsedSource as Partial<SiteLinkConflict>);
+    }
+}
+
+/**
+ * SiteUpdates zijn de updates die WordPress zelf op de site klaar heeft staan.
+ */
+export class SiteUpdates {
+    "siteId": string;
+    "checkedAt": string;
+    "core": CoreUpdateOffer[];
+    "plugins": ItemUpdate[];
+    "themes": ItemUpdate[];
+    "translations": number;
+
+    /** Creates a new SiteUpdates instance. */
+    constructor($$source: Partial<SiteUpdates> = {}) {
+        if (!("siteId" in $$source)) {
+            this["siteId"] = "";
+        }
+        if (!("checkedAt" in $$source)) {
+            this["checkedAt"] = "";
+        }
+        if (!("core" in $$source)) {
+            this["core"] = [];
+        }
+        if (!("plugins" in $$source)) {
+            this["plugins"] = [];
+        }
+        if (!("themes" in $$source)) {
+            this["themes"] = [];
+        }
+        if (!("translations" in $$source)) {
+            this["translations"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SiteUpdates instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SiteUpdates {
+        const $$createField2_0 = $$createType41;
+        const $$createField3_0 = $$createType43;
+        const $$createField4_0 = $$createType43;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("core" in $$parsedSource) {
+            $$parsedSource["core"] = $$createField2_0($$parsedSource["core"]);
+        }
+        if ("plugins" in $$parsedSource) {
+            $$parsedSource["plugins"] = $$createField3_0($$parsedSource["plugins"]);
+        }
+        if ("themes" in $$parsedSource) {
+            $$parsedSource["themes"] = $$createField4_0($$parsedSource["themes"]);
+        }
+        return new SiteUpdates($$parsedSource as Partial<SiteUpdates>);
     }
 }
 
@@ -2407,9 +2650,9 @@ export class TabelWeergave {
      * Creates a new TabelWeergave instance from a string or object.
      */
     static createFrom($$source: any = {}): TabelWeergave {
-        const $$createField0_0 = $$createType35;
-        const $$createField1_0 = $$createType37;
-        const $$createField2_0 = $$createType29;
+        const $$createField0_0 = $$createType44;
+        const $$createField1_0 = $$createType46;
+        const $$createField2_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tabel" in $$parsedSource) {
             $$parsedSource["tabel"] = $$createField0_0($$parsedSource["tabel"]);
@@ -2516,11 +2759,11 @@ export class UpdateDetail {
      * Creates a new UpdateDetail instance from a string or object.
      */
     static createFrom($$source: any = {}): UpdateDetail {
-        const $$createField2_0 = $$createType39;
-        const $$createField3_0 = $$createType41;
-        const $$createField4_0 = $$createType41;
-        const $$createField5_0 = $$createType41;
-        const $$createField6_0 = $$createType41;
+        const $$createField2_0 = $$createType48;
+        const $$createField3_0 = $$createType50;
+        const $$createField4_0 = $$createType50;
+        const $$createField5_0 = $$createType50;
+        const $$createField6_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("wpCore" in $$parsedSource) {
             $$parsedSource["wpCore"] = $$createField2_0($$parsedSource["wpCore"]);
@@ -2641,7 +2884,7 @@ export class WPCoreReport {
      * Creates a new WPCoreReport instance from a string or object.
      */
     static createFrom($$source: any = {}): WPCoreReport {
-        const $$createField1_0 = $$createType15;
+        const $$createField1_0 = $$createType18;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField1_0($$parsedSource["projects"]);
@@ -2711,7 +2954,7 @@ export class WPSiteView {
      * Creates a new WPSiteView instance from a string or object.
      */
     static createFrom($$source: any = {}): WPSiteView {
-        const $$createField0_0 = $$createType42;
+        const $$createField0_0 = $$createType51;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("site" in $$parsedSource) {
             $$parsedSource["site"] = $$createField0_0($$parsedSource["site"]);
@@ -2794,32 +3037,41 @@ const $$createType10 = BulkUpdateProjectResult.createFrom;
 const $$createType11 = $Create.Array($$createType10);
 const $$createType12 = mysqldb$0.SleutelWaarde.createFrom;
 const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = InventoryProjectRef.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = LocalPluginRow.createFrom;
-const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Map($Create.Any, $$createType0);
-const $$createType19 = PluginUpdateResult.createFrom;
+const $$createType14 = WPSiteView.createFrom;
+const $$createType15 = SiteUpdates.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = InventoryProjectRef.createFrom;
+const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = LocalPluginRow.createFrom;
 const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = WordfenceVulnFinding.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = QuarantineEntry.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = QuarantineSkip.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = QuarantineBatch.createFrom;
-const $$createType28 = $Create.Array($$createType27);
-const $$createType29 = mysqldb$0.Resultaat.createFrom;
-const $$createType30 = $Create.Nullable($$createType29);
-const $$createType31 = mysqldb$0.NieuweWaarde.createFrom;
-const $$createType32 = $Create.Array($$createType31);
-const $$createType33 = SecurityFinding.createFrom;
-const $$createType34 = $Create.Array($$createType33);
-const $$createType35 = mysqldb$0.Tabel.createFrom;
-const $$createType36 = mysqldb$0.Kolom.createFrom;
+const $$createType21 = $Create.Map($Create.Any, $$createType0);
+const $$createType22 = PluginUpdateResult.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = WordfenceVulnFinding.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = QuarantineEntry.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = QuarantineSkip.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = QuarantineBatch.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = mysqldb$0.Resultaat.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = mysqldb$0.NieuweWaarde.createFrom;
+const $$createType35 = $Create.Array($$createType34);
+const $$createType36 = RunItem.createFrom;
 const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = WPCoreUpdate.createFrom;
+const $$createType38 = SecurityFinding.createFrom;
 const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = PackageUpdate.createFrom;
+const $$createType40 = CoreUpdateOffer.createFrom;
 const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = domain$0.WPSite.createFrom;
+const $$createType42 = ItemUpdate.createFrom;
+const $$createType43 = $Create.Array($$createType42);
+const $$createType44 = mysqldb$0.Tabel.createFrom;
+const $$createType45 = mysqldb$0.Kolom.createFrom;
+const $$createType46 = $Create.Array($$createType45);
+const $$createType47 = WPCoreUpdate.createFrom;
+const $$createType48 = $Create.Array($$createType47);
+const $$createType49 = PackageUpdate.createFrom;
+const $$createType50 = $Create.Array($$createType49);
+const $$createType51 = domain$0.WPSite.createFrom;

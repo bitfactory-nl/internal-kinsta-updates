@@ -83,7 +83,7 @@ func NewServices(cfg Config) *Services {
 	wordfence := services.NewWordfenceService(&cfg.Global, project)
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
 	plugin := services.NewPluginService(&cfg.Global, kinsta, project, git)
-	wpSite := services.NewWPSiteService(config.WPSitesPath(), project, services.KeychainSecrets{})
+	wpSite := services.NewWPSiteServiceWithDepot(config.WPSitesPath(), project, services.KeychainSecrets{}, services.NewDepotCorePR(&cfg.Global))
 	wpFleet := services.NewWPFleetService(&cfg.Global, wpSite, services.DefaultClaudeRunner, os.Executable)
 
 	return &Services{
