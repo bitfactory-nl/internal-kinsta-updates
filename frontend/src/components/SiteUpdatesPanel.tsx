@@ -35,7 +35,7 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
     }
   }, [site.id])
 
-  useEffect(() => { setData(null); setResultaat(null); void laad(false) }, [laad])
+  useEffect(() => { setData(null); setResultaat(null); setMajor(false); void laad(false) }, [laad])
 
   const waarschuwing = site.depot
     ? null
@@ -46,18 +46,22 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
     setActie(a); setFout(null); setResultaat(null)
     try {
       setResultaat(await werk())
-      await laad(false)
+      await laad(true)
     } catch (e) {
       setFout(foutTekst(e))
     } finally {
+      setMajor(false)
       setActie(null)
     }
   }
 
   const verversen = async () => {
     setActie('verversen')
-    await laad(true)
-    setActie(null)
+    try {
+      await laad(true)
+    } finally {
+      setActie(null)
+    }
   }
 
   const kanUitvoeren = !site.readOnly && !bezig

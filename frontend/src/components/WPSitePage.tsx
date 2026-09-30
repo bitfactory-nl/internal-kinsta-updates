@@ -43,7 +43,7 @@ export default function WPSitePage({ view, onSaved, onDeleted, onUnlinked }: Pro
         </div>
         {view && view.hasPassword && (
           <div className="max-w-[760px] mt-4">
-            <SiteUpdatesPanel view={view} />
+            <SiteUpdatesPanel key={view.site.id} view={view} />
           </div>
         )}
       </div>
