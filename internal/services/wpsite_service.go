@@ -16,6 +16,7 @@ import (
 // WPProjectLookup is het deel van ProjectService dat WPSiteService nodig heeft.
 type WPProjectLookup interface {
 	Get(id string) (domain.Project, bool)
+	List() []domain.Project
 }
 
 // WPSecretStore abstraheert de Keychain zodat de service te testen is.
@@ -69,6 +70,13 @@ func weigerDowngrade(req *http.Request, via []*http.Request) error {
 		return errors.New("redirect van https naar http geweigerd")
 	}
 	return nil
+}
+
+// longClient is de gewone client met een andere timeout. Transport en
+// redirectbeleid blijven gelijk, zodat tests (Transport) en de https→http-
+// weigering ook hier gelden.
+func (s *WPSiteService) longClient(timeout time.Duration) *http.Client {
+	return &http.Client{Transport: s.http.Transport, CheckRedirect: s.http.CheckRedirect, Timeout: timeout}
 }
 
 func (s *WPSiteService) List() ([]WPSiteView, error) {

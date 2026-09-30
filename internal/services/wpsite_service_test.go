@@ -24,6 +24,14 @@ type wpNepProjecten map[string]domain.Project
 
 func (n wpNepProjecten) Get(id string) (domain.Project, bool) { p, ok := n[id]; return p, ok }
 
+func (n wpNepProjecten) List() []domain.Project {
+	out := make([]domain.Project, 0, len(n))
+	for _, p := range n {
+		out = append(out, p)
+	}
+	return out
+}
+
 func nieuweWPSiteService(t *testing.T) (*WPSiteService, *wpNepSecrets, string) {
 	t.Helper()
 	dir := t.TempDir()
