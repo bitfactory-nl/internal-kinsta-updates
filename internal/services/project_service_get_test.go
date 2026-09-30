@@ -7,7 +7,7 @@ import (
 )
 
 func TestProjectServiceGet(t *testing.T) {
-	s := NewProjectService(nil)
+	s := NewProjectService("", "")
 	s.projects = []domain.Project{{ID: "abc", DisplayName: "X"}}
 	got, ok := s.Get("abc")
 	if !ok || got.DisplayName != "X" {

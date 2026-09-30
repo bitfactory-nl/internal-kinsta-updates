@@ -184,8 +184,8 @@ func TestMakeRunKrijgtVerrijktePATH(t *testing.T) {
 	t.Setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
 	t.Setenv("SHELL", "")
 
-	projects := NewProjectService(nil)
-	projects.projects = []domain.Project{{ID: "p1", DisplayName: "Test", Path: dir}}
+	projects := NewProjectService("", "")
+	projects.projects = []domain.Project{{ID: "p1", DisplayName: "Test", Path: dir, Local: true}}
 	svc := NewMakeService(projects)
 
 	res, err := svc.Run("p1", "padtest")

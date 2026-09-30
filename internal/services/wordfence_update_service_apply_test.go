@@ -61,10 +61,7 @@ func setupApplyTestProject(t *testing.T, slug, version string) (ps *ProjectServi
 	runGitApply(t, projectDir, "add", "-A")
 	runGitApply(t, projectDir, "commit", "-m", "initial")
 
-	ps = NewProjectService([]string{root})
-	if _, err := ps.Scan(); err != nil {
-		t.Fatalf("scan: %v", err)
-	}
+	ps = newProjectServiceForRoot(t, root)
 	for _, p := range ps.List() {
 		if p.Path == projectDir {
 			projectID = p.ID

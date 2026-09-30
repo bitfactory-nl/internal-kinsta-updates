@@ -15,14 +15,15 @@ import (
 )
 
 type ProjectService struct {
-	mu       sync.RWMutex
-	projects []domain.Project
-	roots    []string
-	app      *application.App
+	mu         sync.RWMutex
+	projects   []domain.Project
+	sitesPath  string
+	localsPath string
+	app        *application.App
 }
 
-func NewProjectService(roots []string) *ProjectService {
-	return &ProjectService{roots: roots}
+func NewProjectService(sitesPath, localsPath string) *ProjectService {
+	return &ProjectService{sitesPath: sitesPath, localsPath: localsPath}
 }
 
 // SetApp injects the Wails app reference (called after app creation).
@@ -30,113 +31,75 @@ func (s *ProjectService) SetApp(app *application.App) {
 	s.app = app
 }
 
-// GetRoots returns the currently configured project roots.
-func (s *ProjectService) GetRoots() []string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	out := make([]string, len(s.roots))
-	copy(out, s.roots)
-	return out
-}
+// SiteProjectID is het project-ID van een WordPress-site zonder lokale map.
+func SiteProjectID(siteID string) string { return "site:" + siteID }
 
-// AddRoot opens a native folder picker, adds the chosen folder, persists it, and returns updated roots.
-func (s *ProjectService) AddRoot() ([]string, error) {
-	if s.app == nil {
-		return nil, fmt.Errorf("app not initialized")
-	}
-
-	chosen, err := s.app.Dialog.OpenFile().
-		SetTitle("Selecteer project folder").
-		CanChooseFiles(false).
-		CanChooseDirectories(true).
-		CanCreateDirectories(false).
-		PromptForSingleSelection()
+// Reload bouwt de projectlijst uit het register: sites (met of zonder map) en
+// lokale projecten. Items met een map houden het ID op basis van het pad, zodat
+// opgeslagen historie (testruns, rapporten, mediascans) blijft aansluiten.
+func (s *ProjectService) Reload() ([]domain.Project, error) {
+	sites, err := config.LoadWPSites(s.sitesPath)
 	if err != nil {
-		return nil, fmt.Errorf("dialog: %w", err)
+		return nil, err
 	}
-	if chosen == "" {
-		return s.GetRoots(), nil // user cancelled
-	}
-
-	s.mu.Lock()
-	// Avoid duplicates
-	for _, r := range s.roots {
-		if r == chosen {
-			s.mu.Unlock()
-			return s.GetRoots(), nil
-		}
-	}
-	s.roots = append(s.roots, chosen)
-	roots := make([]string, len(s.roots))
-	copy(roots, s.roots)
-	s.mu.Unlock()
-
-	if err := s.persistRoots(roots); err != nil {
-		return roots, fmt.Errorf("save config: %w", err)
-	}
-	return roots, nil
-}
-
-// RemoveRoot removes a folder from the configured roots and persists.
-func (s *ProjectService) RemoveRoot(path string) ([]string, error) {
-	s.mu.Lock()
-	filtered := s.roots[:0]
-	for _, r := range s.roots {
-		if r != path {
-			filtered = append(filtered, r)
-		}
-	}
-	s.roots = filtered
-	roots := make([]string, len(s.roots))
-	copy(roots, s.roots)
-	s.mu.Unlock()
-
-	if err := s.persistRoots(roots); err != nil {
-		return roots, fmt.Errorf("save config: %w", err)
-	}
-	return roots, nil
-}
-
-func (s *ProjectService) persistRoots(roots []string) error {
-	g, err := config.LoadGlobal()
+	locals, err := config.LoadLocalProjects(s.localsPath)
 	if err != nil {
-		g = config.Global{}
+		return nil, err
 	}
-	g.ProjectsRoots = roots
-	return config.SaveGlobal(g)
-}
-
-// Scan discovers all projects under configured roots and refreshes git status.
-func (s *ProjectService) Scan() ([]domain.Project, error) {
-	s.mu.RLock()
-	roots := make([]string, len(s.roots))
-	copy(roots, s.roots)
-	s.mu.RUnlock()
-
-	var found []domain.Project
-	for _, root := range roots {
-		entries, err := os.ReadDir(expandHome(root))
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if !e.IsDir() {
-				continue
-			}
-			path := filepath.Join(expandHome(root), e.Name())
-			p, err := s.loadProject(path)
-			if err != nil {
-				continue
-			}
-			found = append(found, p)
-		}
+	found := make([]domain.Project, 0, len(sites)+len(locals))
+	for _, site := range sites {
+		found = append(found, s.projectForSite(site))
 	}
-
+	for _, lp := range locals {
+		p, _ := s.loadProject(lp.Path)
+		if lp.Name != "" {
+			p.DisplayName = lp.Name
+		}
+		p.Local = true
+		p.Missing = !dirExists(lp.Path)
+		found = append(found, p)
+	}
 	s.mu.Lock()
 	s.projects = found
 	s.mu.Unlock()
-
 	return found, nil
+}
+
+func (s *ProjectService) projectForSite(site domain.WPSite) domain.Project {
+	var p domain.Project
+	if site.ProjectPath != "" {
+		p, _ = s.loadProject(site.ProjectPath)
+		p.Local = true
+		p.Missing = !dirExists(site.ProjectPath)
+	} else {
+		p = domain.Project{
+			ID:         SiteProjectID(site.ID),
+			Provider:   domain.ProviderNone,
+			Deploy:     domain.DeployConf{Type: "wordpress", Link: domain.DeployLinks{Prod: site.URL}},
+			LastScanAt: time.Now(),
+		}
+	}
+	p.SiteID = site.ID
+	p.DisplayName = site.Name
+	if p.Deploy.Link.Prod == "" {
+		p.Deploy.Link.Prod = site.URL
+	}
+	if site.KinstaSiteID != "" {
+		// Eigen kopie: de config uit loadProject mag niet gemuteerd worden.
+		k := domain.KinstaProjectCfg{}
+		if p.Config.Kinsta != nil {
+			k = *p.Config.Kinsta
+		}
+		k.SiteID = site.KinstaSiteID
+		p.Config.Kinsta = &k
+		p.Provider = domain.ProviderKinsta
+	}
+	return p
+}
+
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // List returns the last scanned project list without re-scanning.
@@ -177,6 +140,9 @@ func (s *ProjectService) RefreshOne(id string) (domain.Project, error) {
 
 	for i, p := range s.projects {
 		if p.ID == id {
+			if !p.Local || p.Missing {
+				return p, nil
+			}
 			status, _ := gitread.Status(p.Path)
 			s.projects[i].Git = status
 			if deploy, err := config.LoadDeployConf(p.Path); err == nil {
@@ -208,7 +174,10 @@ func (s *ProjectService) BatchStatus() []domain.ProjectStatusSummary {
 		wg.Add(1)
 		go func(p domain.Project) {
 			defer wg.Done()
-			status, _ := gitread.Status(p.Path)
+			var status domain.GitStatus
+			if p.Local && !p.Missing {
+				status, _ = gitread.Status(p.Path)
+			}
 			dirty := len(status.Staged)+len(status.Unstaged)+len(status.Untracked) > 0
 			summary := domain.ProjectStatusSummary{
 				ProjectID:   p.ID,
@@ -219,6 +188,9 @@ func (s *ProjectService) BatchStatus() []domain.ProjectStatusSummary {
 				Dirty:       dirty,
 				IsRepo:      status.IsRepo,
 				DeployType:  p.Deploy.Type,
+				SiteID:      p.SiteID,
+				Local:       p.Local,
+				Missing:     p.Missing,
 			}
 			mu.Lock()
 			results = append(results, summary)

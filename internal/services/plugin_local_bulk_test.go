@@ -94,10 +94,7 @@ func setupTweeProjecten(t *testing.T, slug string, versies map[string]string) (p
 		dirs[naam] = projectDir
 	}
 
-	ps = NewProjectService([]string{root})
-	if _, err := ps.Scan(); err != nil {
-		t.Fatalf("scan: %v", err)
-	}
+	ps = newProjectServiceForRoot(t, root)
 	for _, p := range ps.List() {
 		for naam, dir := range dirs {
 			if p.Path == dir {

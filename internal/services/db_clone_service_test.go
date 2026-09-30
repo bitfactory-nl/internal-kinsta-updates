@@ -141,10 +141,11 @@ func gzipBytes(t *testing.T, s string) []byte {
 
 func newDBCloneService(t *testing.T, ssh dbSSH, docker *fakeDockerExec, projectPad string) (*DBCloneService, *ProjectService) {
 	t.Helper()
-	ps := NewProjectService(nil)
+	ps := NewProjectService("", "")
 	ps.projects = []domain.Project{{
 		ID:          "p1",
 		Path:        projectPad,
+		Local:       true,
 		DisplayName: "web-vanluykennl",
 		Config: domain.ProjectConfig{
 			SSH: &domain.SSHTarget{User: "vanluykennl"},

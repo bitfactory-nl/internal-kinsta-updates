@@ -45,8 +45,8 @@ func editorProject(t *testing.T, envRegels string) (*ProjectService, string) {
 			t.Fatal(err)
 		}
 	}
-	projects := NewProjectService(nil)
-	projects.projects = []domain.Project{{ID: "p1", DisplayName: "Test", Path: dir}}
+	projects := NewProjectService("", "")
+	projects.projects = []domain.Project{{ID: "p1", DisplayName: "Test", Path: dir, Local: true}}
 	return projects, "p1"
 }
 
@@ -111,7 +111,7 @@ func TestDBEditorInfoNietBeschikbaar(t *testing.T) {
 }
 
 func TestDBEditorOnbekendProject(t *testing.T) {
-	svc := NewDBEditorService(NewProjectService(nil), &fakeDumper{}, nil)
+	svc := NewDBEditorService(NewProjectService("", ""), &fakeDumper{}, nil)
 	if _, err := svc.Info("bestaatniet"); err == nil {
 		t.Error("onbekend project gaf geen fout")
 	}
@@ -159,7 +159,7 @@ func TestDBEditorQueryWeigertMeerdereStatements(t *testing.T) {
 }
 
 func TestDBEditorBeoordeelQuery(t *testing.T) {
-	svc := NewDBEditorService(NewProjectService(nil), &fakeDumper{}, nil)
+	svc := NewDBEditorService(NewProjectService("", ""), &fakeDumper{}, nil)
 	if got := svc.BeoordeelQuery("SELECT 1"); got.Soort != SQLLezen {
 		t.Errorf("Soort = %q", got.Soort)
 	}

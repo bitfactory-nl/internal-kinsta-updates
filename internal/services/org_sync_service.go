@@ -94,6 +94,10 @@ type OrgSyncService struct {
 	// leeg laten gebruikt DefaultOrgSyncPath().
 	storePath string
 
+	// cloneDir overschrijft de doelmap voor clones (tijdelijk, tot clone_dir uit
+	// de instellingen komt); leeg gebruikt ~/Projects.
+	cloneDir string
+
 	bezigMu sync.Mutex
 	bezig   map[string]bool
 }

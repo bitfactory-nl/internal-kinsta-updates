@@ -64,7 +64,10 @@ type Services struct {
 }
 
 func NewServices(cfg Config) *Services {
-	project := services.NewProjectService(cfg.Global.ProjectsRoots)
+	project := services.NewProjectService(config.WPSitesPath(), config.LocalProjectsPath())
+	if _, err := project.Reload(); err != nil {
+		log.Printf("projecten laden uit het register: %v", err)
+	}
 	kinsta := services.NewKinstaService(&cfg.Global, project)
 	notify := services.NewNotifyService()
 	security := services.NewSecurityService(&cfg.Global, project)

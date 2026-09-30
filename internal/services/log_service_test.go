@@ -37,8 +37,8 @@ func logServiceMetProject(t *testing.T, bron *fakeLogSource, bestanden ...string
 	for _, b := range bestanden {
 		maakBestand(t, wortel, b)
 	}
-	projects := NewProjectService(nil)
-	projects.projects = []domain.Project{{ID: "p1", DisplayName: "Voorbeeld", Path: wortel}}
+	projects := NewProjectService("", "")
+	projects.projects = []domain.Project{{ID: "p1", DisplayName: "Voorbeeld", Path: wortel, Local: true}}
 	return NewLogService(projects, bron), "p1", wortel
 }
 
@@ -315,7 +315,7 @@ func TestFixPreviewVanPIIGroepMaskeert(t *testing.T) {
 }
 
 func TestFetchOnbekendProject(t *testing.T) {
-	svc := NewLogService(NewProjectService(nil), &fakeLogSource{})
+	svc := NewLogService(NewProjectService("", ""), &fakeLogSource{})
 	if _, err := svc.Fetch("bestaatniet", "e", "error", 10); err == nil {
 		t.Error("onbekend project gaf geen fout")
 	}

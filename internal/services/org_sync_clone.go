@@ -79,7 +79,7 @@ func (s *OrgSyncService) Clone(names []string) (domain.OrgCloneResult, error) {
 	// ProjectService de nieuwe checkouts, en dat is wat de org-sync-matching
 	// gebruikt om "Lokaal" te vullen.
 	if result.Cloned > 0 {
-		if _, serr := s.projects.Scan(); serr != nil {
+		if _, serr := s.projects.Reload(); serr != nil {
 			// De clones staan er al; een mislukte rescan is hinderlijk, niet fataal.
 			result.Outcomes = append(result.Outcomes, domain.OrgCloneOutcome{
 				Status:  domain.OrgCloneFailed,
@@ -100,30 +100,23 @@ type cloneTarget struct {
 	url  string
 }
 
-// cloneRoot bepaalt de doelmap: de eerste geconfigureerde projects-root. Er is
-// bewust geen fallback naar de cwd — de working directory van een .app-bundle
-// is onvoorspelbaar, dus zonder root is "waar dan ook clonen" erger dan een
-// duidelijke fout.
+// cloneRoot bepaalt de doelmap. Tijdelijk ~/Projects (of cloneDir in tests);
+// het register-werk maakt hier de instelling clone_dir van. Er is bewust geen
+// fallback naar de cwd — de working directory van een .app-bundle is
+// onvoorspelbaar.
 func (s *OrgSyncService) cloneRoot() (string, error) {
-	if s.projects == nil {
-		return "", fmt.Errorf("projectservice niet beschikbaar")
+	root := s.cloneDir
+	if root == "" {
+		root = expandHome("~/Projects")
 	}
-	roots := s.projects.GetRoots()
-	for _, r := range roots {
-		if strings.TrimSpace(r) == "" {
-			continue
-		}
-		root := expandHome(strings.TrimSpace(r))
-		info, err := os.Stat(root)
-		if err != nil {
-			return "", fmt.Errorf("projectmap %q is niet te openen: %w", root, err)
-		}
-		if !info.IsDir() {
-			return "", fmt.Errorf("projectmap %q is geen map", root)
-		}
-		return root, nil
+	info, err := os.Stat(root)
+	if err != nil {
+		return "", fmt.Errorf("projectmap %q is niet te openen: %w", root, err)
 	}
-	return "", fmt.Errorf("geen projectmap ingesteld (zie Instellingen)")
+	if !info.IsDir() {
+		return "", fmt.Errorf("projectmap %q is geen map", root)
+	}
+	return root, nil
 }
 
 // resolveCloneTargets zet de aangevraagde namen om in clone-opdrachten. Elke

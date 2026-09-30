@@ -131,10 +131,11 @@ func voorbeeldPayload() map[string]any {
 
 func newMediaService(t *testing.T, runner sshRunner, projectPad string) (*MediaService, *ProjectService) {
 	t.Helper()
-	ps := NewProjectService(nil)
+	ps := NewProjectService("", "")
 	ps.projects = []domain.Project{{
 		ID:          "p1",
 		Path:        projectPad,
+		Local:       true,
 		DisplayName: "web-vanluykennl",
 		Config: domain.ProjectConfig{
 			SSH: &domain.SSHTarget{User: "vanluykennl", Port: 12345},

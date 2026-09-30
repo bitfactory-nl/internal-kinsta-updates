@@ -53,10 +53,11 @@ func (f *fakeVision) Heal(_ context.Context, _, _ string) (string, error) {
 
 func newTestService(t *testing.T, repoPath string, runner browserRunner, vis visionClient) *TestService {
 	t.Helper()
-	ps := NewProjectService(nil)
+	ps := NewProjectService("", "")
 	ps.projects = []domain.Project{{
-		ID:   "p1",
-		Path: repoPath,
+		ID:    "p1",
+		Path:  repoPath,
+		Local: true,
 		Config: domain.ProjectConfig{Testing: &domain.TestingCfg{
 			Environments: map[string]string{"local": "https://local.test"},
 		}},
@@ -208,7 +209,7 @@ func TestServiceRunSelfHealRerun(t *testing.T) {
 
 func TestServiceScreenshot(t *testing.T) {
 	base := t.TempDir()
-	ps := NewProjectService(nil)
+	ps := NewProjectService("", "")
 	svc := NewTestService(ps, &config.Global{}, NewRunStore(base), &fakeRunner{})
 
 	png := filepath.Join(base, "p", "r", "screenshots", "s0.png")

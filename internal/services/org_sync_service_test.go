@@ -80,8 +80,13 @@ func fakeRemoteURL(remotes map[string]string) func(ctx context.Context, dir stri
 // t.TempDir(), en zet de gegeven lokale projecten op de ProjectService.
 func orgSyncOpstelling(t *testing.T, lister orgRepoLister, contents orgContentsGetter, remotes map[string]string, projects []domain.Project) *OrgSyncService {
 	t.Helper()
-	ps := NewProjectService(nil)
-	ps.projects = projects
+	// Projecten met een pad zijn lokale checkouts.
+	lokaal := make([]domain.Project, len(projects))
+	for i, p := range projects {
+		p.Local = p.Path != ""
+		lokaal[i] = p
+	}
+	ps := newProjectServiceWith(lokaal)
 	return &OrgSyncService{
 		projects:  ps,
 		lister:    lister,

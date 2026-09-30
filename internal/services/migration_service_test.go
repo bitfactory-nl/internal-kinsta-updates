@@ -56,10 +56,11 @@ func (f *fakeMigrationSSH) snapshot() []string {
 
 func newMigrationService(t *testing.T, ssh migrationSSH, projectPad string) (*MigrationService, *ProjectService) {
 	t.Helper()
-	ps := NewProjectService(nil)
+	ps := NewProjectService("", "")
 	ps.projects = []domain.Project{{
 		ID:          "p1",
 		Path:        projectPad,
+		Local:       true,
 		DisplayName: "web-vanluykennl",
 		Config: domain.ProjectConfig{
 			SSH: &domain.SSHTarget{User: "vanluykennl"},

@@ -12,10 +12,10 @@ import (
 // zodat LinkSite een echt .rdm/config.yml kan schrijven.
 func newKinstaService(t *testing.T) (*KinstaService, *ProjectService) {
 	t.Helper()
-	ps := NewProjectService(nil)
+	ps := NewProjectService("", "")
 	ps.projects = []domain.Project{
-		{ID: "p1", Path: t.TempDir(), DisplayName: "web-steinwegcom"},
-		{ID: "p2", Path: t.TempDir(), DisplayName: "web-vanderlelienl"},
+		{ID: "p1", Path: t.TempDir(), DisplayName: "web-steinwegcom", Local: true},
+		{ID: "p2", Path: t.TempDir(), DisplayName: "web-vanderlelienl", Local: true},
 	}
 	return NewKinstaService(&config.Global{}, ps), ps
 }

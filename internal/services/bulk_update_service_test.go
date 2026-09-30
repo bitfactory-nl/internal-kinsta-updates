@@ -82,10 +82,7 @@ func bulkOpstelling(t *testing.T, refCore string, refPlugins map[string]string) 
 // bulkService bouwt de service nadat de projecten onder root staan.
 func bulkService(t *testing.T, refDir, root string, pulls pluginPulls) (*BulkUpdateService, *ProjectService) {
 	t.Helper()
-	ps := NewProjectService([]string{root})
-	if _, err := ps.Scan(); err != nil {
-		t.Fatalf("scan: %v", err)
-	}
+	ps := newProjectServiceForRoot(t, root)
 	cfg := &config.Global{}
 	cfg.PluginRepo.ReferenceProjectPath = refDir
 	git := NewGitService(ps)
@@ -392,7 +389,7 @@ func TestBulkUpdateRunProjectDatAlBijIsCommitNiets(t *testing.T) {
 // TestBulkUpdateRunGeenReferentieIngesteld: zonder referentie-installatie kan
 // deze pagina niets, en dat moet een duidelijke fout zijn.
 func TestBulkUpdateRunGeenReferentieIngesteld(t *testing.T) {
-	ps := NewProjectService([]string{t.TempDir()})
+	ps := NewProjectService("", "")
 	svc := NewBulkUpdateService(&config.Global{}, ps, NewGitService(ps), &PluginService{cfg: &config.Global{}})
 	if _, err := svc.Plan(); err == nil {
 		t.Error("Plan zonder referentie-installatie hoort te falen")
