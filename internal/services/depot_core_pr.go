@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -162,8 +163,13 @@ func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version 
 	if _, err := m.composer.Run(ctx, wt, "require", "roots/wordpress:"+constraint, "--no-update", "--no-scripts", "--no-plugins"); err != nil {
 		return "", fmt.Errorf("composer require: %w", err)
 	}
-	if _, err := m.composer.Run(ctx, wt, "update", "roots/wordpress", "--with-dependencies", "--no-install", "--no-scripts", "--no-plugins"); err != nil {
+	// Inline tijdelijke constraint (Composer >= 2.2): de lock moet exact de
+	// live versie krijgen, niet de hoogste die ^X.Y toestaat.
+	if _, err := m.composer.Run(ctx, wt, "update", "roots/wordpress:"+version, "--with-dependencies", "--no-install", "--no-scripts", "--no-plugins"); err != nil {
 		return "", fmt.Errorf("composer update: %w", err)
+	}
+	if err := controleerLockVersie(wt, version); err != nil {
+		return "", err
 	}
 	if err := m.git.StagePathsIn(ctx, wt, "composer.json", "composer.lock"); err != nil {
 		return "", fmt.Errorf("stagen: %w", err)
@@ -181,6 +187,34 @@ func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version 
 		return "", fmt.Errorf("PR aanmaken: %w", err)
 	}
 	return pr.HTMLURL, nil
+}
+
+// controleerLockVersie eist dat composer.lock in dir roots/wordpress exact
+// op version heeft staan. roots taggt X.Y.0 als X.Y en version.php zegt dan
+// ook X.Y, dus we vergelijken letterlijk na het weghalen van een leidende v.
+func controleerLockVersie(dir, version string) error {
+	data, err := os.ReadFile(filepath.Join(dir, "composer.lock"))
+	if err != nil {
+		return errors.New("composer.lock niet leesbaar na composer update")
+	}
+	var lock struct {
+		Packages    []struct{ Name, Version string } `json:"packages"`
+		PackagesDev []struct{ Name, Version string } `json:"packages-dev"`
+	}
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return errors.New("composer.lock is geen geldige JSON")
+	}
+	for _, p := range append(lock.Packages, lock.PackagesDev...) {
+		if p.Name != "roots/wordpress" {
+			continue
+		}
+		gevonden := strings.TrimPrefix(p.Version, "v")
+		if gevonden != strings.TrimPrefix(version, "v") {
+			return fmt.Errorf("composer.lock bevat roots/wordpress %s, verwacht %s", gevonden, version)
+		}
+		return nil
+	}
+	return errors.New("composer.lock bevat geen roots/wordpress")
 }
 
 // execComposer draait de echte composer-binary.
