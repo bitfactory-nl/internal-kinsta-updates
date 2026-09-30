@@ -3,6 +3,7 @@ import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/ser
 import type { WPSite } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import type { WPSiteView, ConnectionResult } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import Foutvak from './Foutvak'
+import KnopTekst from './KnopTekst'
 import { bevestig } from '../lib/bevestig'
 
 interface Props {
@@ -28,23 +29,6 @@ function foutTekst(e: unknown): string {
 }
 
 type Actie = 'opslaan' | 'testen' | 'ontkoppelen' | 'verwijderen'
-
-// KnopTekst houdt de knop even breed als hij bezig is: de tekst blijft
-// (onzichtbaar) staan en de spinner ligt eroverheen. Anders verspringen de
-// knoppen ernaast midden in de opacity-overgang, en WebKit laat dan
-// spookkopieën van de tekst achter.
-function KnopTekst({ tekst, bezig }: { tekst: string; bezig: boolean }) {
-  return (
-    <span className="relative inline-flex items-center justify-center">
-      <span className={bezig ? 'invisible' : undefined}>{tekst}</span>
-      {bezig && (
-        <span className="absolute inset-0 flex items-center justify-center" aria-label="bezig">
-          <span className="animate-spin inline-block">↻</span>
-        </span>
-      )}
-    </span>
-  )
-}
 
 export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing, onSaved, onUnlink, onDelete }: Props) {
   const [site, setSite] = useState<WPSite>(initial)
@@ -144,6 +128,11 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
       <label className="flex items-center gap-2 text-[12px] text-fg-muted mb-3">
         <input type="checkbox" checked={site.readOnly} onChange={e => zet('readOnly', e.target.checked)} />
         Alleen lezen (wp-fleet weigert schrijfacties voor deze site)
+      </label>
+
+      <label className="flex items-center gap-2 text-[12px] text-fg-muted mb-3">
+        <input type="checkbox" checked={!!site.depot} onChange={e => zet('depot', e.target.checked)} />
+        Dit is de SatisPress-depotsite (na een core-update maakt de tool een Composer-PR)
       </label>
 
       <div className="flex flex-wrap items-center gap-2">
