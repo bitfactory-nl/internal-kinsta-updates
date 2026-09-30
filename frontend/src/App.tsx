@@ -11,6 +11,7 @@ import WordfencePage from './components/WordfencePage'
 import InventoryPage from './components/InventoryPage'
 import WordPressPage from './components/WordPressPage'
 import OrgSyncPage from './components/OrgSyncPage'
+import FleetUpdatesPage from './components/FleetUpdatesPage'
 import BulkUpdatePage from './components/BulkUpdatePage'
 import AppUpdateDialog from './components/AppUpdateDialog'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -21,7 +22,7 @@ import {
 } from './components/icons'
 import { type ThemeMode, getThemeMode, setThemeMode, subscribeTheme } from './lib/thema'
 
-type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'orgsync' | 'bulkupdate' | 'settings'
+type View = 'projects' | 'search' | 'batch' | 'cve' | 'plugins' | 'wordpress' | 'themes' | 'orgsync' | 'fleet' | 'bulkupdate' | 'settings'
 
 // ─── tiny icon button ──────────────────────────────────────────────────────
 function IconBtn({ onClick, title, children, drag = false }: {
@@ -345,6 +346,12 @@ export default function App() {
             active={view === 'wordpress'}
             onClick={() => setView('wordpress')}
           />
+          <NavItem
+            icon={<GlobeIcon size={15} />}
+            label="WordPress-vloot"
+            active={view === 'fleet'}
+            onClick={() => setView('fleet')}
+          />
         </nav>
 
         <div className="flex-1" />
@@ -558,6 +565,13 @@ export default function App() {
       ) : view === 'bulkupdate' ? (
         <ErrorBoundary label="Alles bijwerken error">
           <BulkUpdatePage />
+        </ErrorBoundary>
+      ) : view === 'fleet' ? (
+        <ErrorBoundary label="WordPress-vloot error">
+          <FleetUpdatesPage
+            onOpenProject={id => { setView('projects'); selectProject(id) }}
+            onOpenSite={v => { setView('projects'); setSelected(null); setWpSelected(v) }}
+          />
         </ErrorBoundary>
       ) : view === 'orgsync' ? (
         <ErrorBoundary label="Org-sync error">
