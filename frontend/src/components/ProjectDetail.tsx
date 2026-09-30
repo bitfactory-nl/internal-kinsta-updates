@@ -171,7 +171,8 @@ export default function ProjectDetail({ project, onRefresh, onRegisterChanged }:
 
   const isLoading = (key: string) => loadingOp === key
 
-  const geenMap = heeftMap ? undefined : 'vereist een lokale map'
+  // Een map die in het register staat maar weg is, zegt dat ook in de tooltip.
+  const geenMap = heeftMap ? undefined : project.missing ? 'map niet gevonden' : 'vereist een lokale map'
   const geenKinsta = heeftKinsta ? undefined : 'vereist een Kinsta-koppeling'
   const geenMapOfKinsta = geenMap ?? geenKinsta
 

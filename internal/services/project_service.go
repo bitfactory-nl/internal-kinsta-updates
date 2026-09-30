@@ -16,7 +16,10 @@ import (
 )
 
 type ProjectService struct {
-	mu         sync.RWMutex
+	mu sync.RWMutex
+	// reloadMu laat Reloads na elkaar lopen, zodat een oudere lijst nooit als
+	// laatste wordt opgeslagen.
+	reloadMu   sync.Mutex
 	projects   []domain.Project
 	sitesPath  string
 	localsPath string
@@ -41,6 +44,8 @@ func SiteProjectID(siteID string) string { return "site:" + siteID }
 // lokale projecten. Items met een map houden het ID op basis van het pad, zodat
 // opgeslagen historie (testruns, rapporten, mediascans) blijft aansluiten.
 func (s *ProjectService) Reload() ([]domain.Project, error) {
+	s.reloadMu.Lock()
+	defer s.reloadMu.Unlock()
 	sites, err := config.LoadWPSites(s.sitesPath)
 	if err != nil {
 		return nil, err

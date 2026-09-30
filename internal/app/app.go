@@ -92,7 +92,7 @@ func NewServices(cfg Config) *Services {
 	register := services.NewRegisterService(project, wpSite, config.LocalProjectsPath())
 	importSvc := services.NewImportService(&cfg.Global, wpSite, register, config.WPSitesPath(), config.LocalProjectsPath())
 	orgSync := services.NewOrgSyncService(project, &cfg.Global)
-	orgSync.SetRegister(register)
+	services.KoppelOrgSyncRegister(orgSync, register)
 	wpFleet := services.NewWPFleetService(&cfg.Global, wpSite, services.DefaultClaudeRunner, os.Executable)
 
 	return &Services{

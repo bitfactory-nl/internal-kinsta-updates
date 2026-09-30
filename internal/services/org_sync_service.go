@@ -95,7 +95,7 @@ type OrgSyncService struct {
 	storePath string
 
 	// register neemt geslaagde clones op in het register; nil slaat de
-	// registratie over (zie SetRegister).
+	// registratie over (zie KoppelOrgSyncRegister).
 	register orgRegister
 	// loadSites levert de WordPress-sites voor de deploy_conf-koppeling na een
 	// clone; tests injecteren een fake.
@@ -126,8 +126,10 @@ type orgRegister interface {
 	LinkSiteFolder(siteID, path string) error
 }
 
-// SetRegister koppelt het register waarin geclonede repo's worden opgenomen.
-func (s *OrgSyncService) SetRegister(r orgRegister) { s.register = r }
+// KoppelOrgSyncRegister koppelt het register waarin geclonede repo's worden
+// opgenomen. Een package-functie, geen methode: Wails bindt alle methodes en
+// orgRegister is als binding onbruikbaar.
+func KoppelOrgSyncRegister(s *OrgSyncService, r orgRegister) { s.register = r }
 
 // defaultRemoteURL leest de origin-remote van een lokale checkout via git.
 func defaultRemoteURL(ctx context.Context, dir string) (string, error) {

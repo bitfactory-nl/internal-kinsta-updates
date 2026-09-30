@@ -3198,11 +3198,6 @@ export class WordfenceVulnFinding {
     }
 }
 
-/**
- * orgRegister is het deel van RegisterService dat Org-sync na een clone nodig heeft.
- */
-export type orgRegister = any;
-
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = SQLBeoordeling.createFrom;
