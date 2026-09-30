@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { Events } from '@wailsio/runtime'
 import * as ProjectService from '../bindings/github.com/rdm/sites-tool/internal/services'
 import type { WPSiteView } from '../bindings/github.com/rdm/sites-tool/internal/services/models'
@@ -16,6 +16,7 @@ import BulkUpdatePage from './components/BulkUpdatePage'
 import AppUpdateDialog from './components/AppUpdateDialog'
 import ErrorBoundary from './components/ErrorBoundary'
 import WPSitePage from './components/WPSitePage'
+import ImportDialog from './components/ImportDialog'
 import {
   RefreshIcon, SearchIcon, GridIcon, ShieldIcon, PlusIcon, GearIcon, FolderIcon,
   PackageIcon, PaletteIcon, GlobeIcon, MonitorIcon, SunIcon, MoonIcon, CloudDownloadIcon,
@@ -120,6 +121,11 @@ function ProjectRow({ s, active, onClick }: {
         </p>
       </div>
 
+      {/* herkomst: precies één label */}
+      <span className="text-[10.5px] text-fg-faint shrink-0 pt-0.5">
+        {s.missing ? 'map niet gevonden' : s.local ? 'lokaal' : 'online'}
+      </span>
+
       {/* ahead/behind */}
       {s.isRepo && (s.ahead > 0 || s.behind > 0) && (
         <div className="flex items-center gap-1 shrink-0 text-xs pt-0.5 font-mono">
@@ -131,24 +137,6 @@ function ProjectRow({ s, active, onClick }: {
   )
 }
 
-// ─── empty state ───────────────────────────────────────────────────────────
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-12">
-      <span className="text-fg-faint opacity-60 select-none"><FolderIcon size={28} /></span>
-      <p className="text-sm text-fg-muted font-medium">Geen projecten</p>
-      <p className="text-xs text-fg-faint">Voeg een folder toe om te beginnen</p>
-      <button
-        onClick={onAdd}
-        className="mt-1 px-4 py-1.5 bg-accent hover:bg-accent-2 text-white text-sm
-                   font-semibold rounded-lg transition-colors"
-      >
-        Folder toevoegen
-      </button>
-    </div>
-  )
-}
-
 // ─── root app ──────────────────────────────────────────────────────────────
 export default function App() {
   const [summaries, setSummaries] = useState<ProjectStatusSummary[]>([])
@@ -156,24 +144,24 @@ export default function App() {
   const [scanning, setScanning] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<string | null>(null)
-  const [roots, setRoots] = useState<string[]>([])
   const [view, setView] = useState<View>('projects')
-  const [wpSites, setWpSites] = useState<WPSiteView[]>([])
-  // undefined = geen site geselecteerd, null = formulier voor een nieuwe site
-  const [wpSelected, setWpSelected] = useState<WPSiteView | null | undefined>(undefined)
+  // undefined = geen formulier, null = formulier voor een nieuwe site
+  const [wpSelected, setWpSelected] = useState<null | undefined>(undefined)
+  const [alleenOnline, setAlleenOnline] = useState(false)
+  const [plusOpen, setPlusOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [fout, setFout] = useState<string | null>(null)
+  const plusRef = useRef<HTMLDivElement>(null)
 
-  // De zijbalk toont losse sites én sites waarvan de gekoppelde map verdwenen
-  // is; die laatste zijn anders nergens meer te bereiken.
-  const laadWpSites = useCallback((): Promise<WPSiteView[]> =>
-    ProjectService.WPSiteService.List()
-      .then(list => {
-        const zichtbaar = list.filter(v => !v.site.projectPath || v.projectMissing)
-        setWpSites(zichtbaar)
-        return zichtbaar
-      })
-      .catch(() => { setWpSites([]); return [] }), [])
-  // Ook herladen bij wisselen van project: ontkoppelen/koppelen in de projectinstellingen verandert de lijst.
-  useEffect(() => { laadWpSites() }, [laadWpSites, selected?.id])
+  // Het +-menu sluit bij een klik buiten het menu.
+  useEffect(() => {
+    if (!plusOpen) return
+    const dicht = (e: MouseEvent) => {
+      if (plusRef.current && !plusRef.current.contains(e.target as Node)) setPlusOpen(false)
+    }
+    document.addEventListener('mousedown', dicht)
+    return () => document.removeEventListener('mousedown', dicht)
+  }, [plusOpen])
 
   // Zelf-update: de badge in de rail volgt `appUpdate`, de popup `updateOpen`.
   const [appUpdate, setAppUpdate] = useState<AvailableUpdate | null>(null)
@@ -181,38 +169,22 @@ export default function App() {
   const [appVersie, setAppVersie] = useState('')
   const [watIsNieuw, setWatIsNieuw] = useState<AvailableUpdate | null>(null)
 
-  const doScan = useCallback(async (currentRoots: string[]) => {
-    if (currentRoots.length === 0) return
+  // Het register is de bron: Reload leest het opnieuw in, BatchStatus geeft de rijen.
+  const doReload = useCallback(async (): Promise<ProjectStatusSummary[]> => {
     setScanning(true)
     try {
-      await ProjectService.ProjectService.Scan()
-      const results = await ProjectService.ProjectService.BatchStatus()
-      setSummaries(results ?? [])
+      await ProjectService.ProjectService.Reload()
+      const results = (await ProjectService.ProjectService.BatchStatus()) ?? []
+      setSummaries(results)
+      setFout(null)
+      return results
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e))
+      return []
     } finally {
       setScanning(false)
     }
   }, [])
-
-  const refresh = useCallback(async () => {
-    const r = await ProjectService.ProjectService.GetRoots()
-    const safeRoots = r ?? []
-    setRoots(safeRoots)
-    await doScan(safeRoots)
-  }, [doScan])
-
-  const addFolder = useCallback(async () => {
-    const newRoots = await ProjectService.ProjectService.AddRoot()
-    const safeRoots = newRoots ?? []
-    setRoots(safeRoots)
-    await doScan(safeRoots)
-  }, [doScan])
-
-  const removeFolder = useCallback(async (path: string) => {
-    const newRoots = await ProjectService.ProjectService.RemoveRoot(path)
-    setRoots(newRoots ?? [])
-    setSelected(null)
-    await doScan(newRoots ?? [])
-  }, [doScan])
 
   const selectProject = useCallback(async (id: string) => {
     setWpSelected(undefined)
@@ -220,7 +192,35 @@ export default function App() {
     setSelected(p)
   }, [])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { doReload() }, [doReload])
+
+  // Eenmalige import van bestaande projecten uit de oude mapscan.
+  useEffect(() => {
+    ProjectService.ImportService.Needed()
+      .then(nodig => { if (nodig) setImportOpen(true) })
+      .catch(() => {})
+  }, [])
+
+  const voegLokaalToe = useCallback(async () => {
+    setPlusOpen(false)
+    try {
+      const p = await ProjectService.RegisterService.AddLocalProject()
+      if (!p) return
+      await doReload()
+      await selectProject(p.id)
+    } catch (e) {
+      setFout(e instanceof Error ? e.message : String(e))
+    }
+  }, [doReload, selectProject])
+
+  // Na het opslaan van een nieuwe site: lijst herladen en de site openen
+  // (met map: het pad-ID, zonder map: site:<id>).
+  const naSiteOpgeslagen = useCallback(async (v: WPSiteView) => {
+    const rijen = await doReload()
+    const rij = rijen.find(r => r.siteId === v.site.id)
+    setWpSelected(undefined)
+    await selectProject(rij?.projectId ?? `site:${v.site.id}`)
+  }, [doReload, selectProject])
 
   useEffect(() => {
     // Eerst: is dit de eerste start na een geslaagde update?
@@ -263,6 +263,7 @@ export default function App() {
   const deployTypes = Object.keys(typeCounts).sort()
 
   const filtered = summaries.filter(s => {
+    if (alleenOnline && s.local) return false
     if (typeFilter && (s.deployType || 'overig') !== typeFilter) return false
     if (!search) return true
     return (
@@ -270,8 +271,6 @@ export default function App() {
       (s.branch ?? '').toLowerCase().includes(search.toLowerCase())
     )
   })
-
-  const homePath = (p: string) => p.replace(/^\/Users\/[^/]+/, '~')
 
   return (
     <div className="flex w-full h-screen overflow-hidden bg-bg text-fg font-sans">
@@ -392,35 +391,36 @@ export default function App() {
             <span className="flex-1 font-display text-[17px] font-bold tracking-[-.02em] text-fg">
               Projecten
             </span>
-            <IconBtn onClick={refresh} title="Opnieuw scannen" drag>
+            <IconBtn onClick={doReload} title="Verversen" drag>
               <span className={`inline-flex ${scanning ? 'animate-spin' : ''}`}>
                 <RefreshIcon size={15} />
               </span>
             </IconBtn>
-            <IconBtn onClick={addFolder} title="Folder toevoegen" drag>
-              <PlusIcon size={15} />
-            </IconBtn>
+            <div ref={plusRef} className="relative" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+              <IconBtn onClick={() => setPlusOpen(o => !o)} title="Toevoegen" drag>
+                <PlusIcon size={15} />
+              </IconBtn>
+              {plusOpen && (
+                <div className="absolute right-0 top-8 z-40 w-[210px] p-1 bg-panel border border-border
+                                rounded-lg shadow-2xl">
+                  <button
+                    onClick={() => { setPlusOpen(false); setSelected(null); setWpSelected(null) }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md text-[12.5px] text-fg hover:bg-hover"
+                  >
+                    WordPress-site toevoegen
+                  </button>
+                  <button
+                    onClick={voegLokaalToe}
+                    className="w-full text-left px-2.5 py-1.5 rounded-md text-[12.5px] text-fg hover:bg-hover"
+                  >
+                    Lokaal project toevoegen
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* configured roots */}
-          <div className="px-3.5 pt-3 pb-2">
-            {roots.map(r => (
-              <div key={r} className="flex items-center gap-1 group">
-                <span
-                  className="text-[10px] font-semibold tracking-[.08em] text-fg-faint uppercase truncate flex-1"
-                  title={r}
-                >
-                  {homePath(r)}
-                </span>
-                <button
-                  onClick={() => removeFolder(r)}
-                  className="text-[10px] text-transparent group-hover:text-fg-muted
-                             hover:!text-red transition-colors shrink-0"
-                  title="Verwijder folder"
-                >✕</button>
-              </div>
-            ))}
-          </div>
+          {fout && <p className="px-3.5 pt-2 text-[11.5px] text-red">{fout}</p>}
 
           {/* filter */}
           {summaries.length > 0 && (
@@ -438,8 +438,18 @@ export default function App() {
           )}
 
           {/* type filter chips */}
-          {deployTypes.length > 1 && (
+          {summaries.length > 0 && (
             <div className="px-3 pb-2.5 flex flex-wrap gap-1">
+              <button
+                onClick={() => setAlleenOnline(v => !v)}
+                title="Alleen sites zonder lokale map"
+                className={`px-2 py-[3px] rounded-full text-[10.5px] font-medium border transition-colors
+                  ${alleenOnline
+                    ? 'bg-accent-soft border-accent/40 text-accent'
+                    : 'bg-panel border-border text-fg-muted hover:text-fg hover:bg-hover'}`}
+              >
+                alleen online
+              </button>
               <button
                 onClick={() => setTypeFilter(null)}
                 className={`px-2 py-[3px] rounded-full text-[10.5px] font-medium border transition-colors
@@ -449,7 +459,7 @@ export default function App() {
               >
                 Alle ({summaries.length})
               </button>
-              {deployTypes.map(t => (
+              {deployTypes.length > 1 && deployTypes.map(t => (
                 <button
                   key={t}
                   onClick={() => setTypeFilter(prev => prev === t ? null : t)}
@@ -467,15 +477,20 @@ export default function App() {
 
           {/* project list */}
           <div className="flex-1 overflow-y-auto px-2 space-y-0.5 py-0.5">
-            {roots.length === 0 ? (
-              <EmptyState onAdd={addFolder} />
-            ) : scanning && summaries.length === 0 ? (
+            {summaries.length === 0 && scanning ? (
               <div className="flex items-center justify-center py-12 gap-2 text-fg-muted text-sm">
-                <span className="animate-spin inline-flex"><RefreshIcon size={14} /></span> Scannen…
+                <span className="animate-spin inline-flex"><RefreshIcon size={14} /></span> Laden…
+              </div>
+            ) : summaries.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center py-12">
+                <span className="text-fg-faint opacity-60 select-none"><FolderIcon size={28} /></span>
+                <p className="text-xs text-fg-faint">
+                  Nog niets toegevoegd. Gebruik + om een WordPress-site of lokaal project toe te voegen.
+                </p>
               </div>
             ) : filtered.length === 0 ? (
               <p className="text-xs text-fg-faint text-center py-8">
-                {search || typeFilter ? 'Geen resultaten' : 'Geen projecten gevonden'}
+                Geen resultaten
               </p>
             ) : (
               filtered.map(s => (
@@ -487,30 +502,6 @@ export default function App() {
                 />
               ))
             )}
-          </div>
-
-          {/* losse WordPress-sites (zonder projectmap) */}
-          <div className="border-t border-border px-2 pt-2 pb-1 shrink-0 max-h-[30%] overflow-y-auto">
-            <div className="flex items-center px-1.5 mb-1">
-              <span className="text-[10.5px] font-semibold tracking-[.08em] text-fg-faint uppercase flex-1">
-                WordPress-sites
-              </span>
-              <button onClick={() => { setSelected(null); setWpSelected(null) }} title="Losse site toevoegen"
-                className="text-fg-muted hover:text-fg p-0.5 rounded">
-                <PlusIcon size={12} />
-              </button>
-            </div>
-            {wpSites.length === 0 ? (
-              <p className="text-[11px] text-fg-faint px-1.5 py-1">Nog geen losse sites</p>
-            ) : wpSites.map(v => (
-              <button key={v.site.id} onClick={() => { setSelected(null); setWpSelected(v) }}
-                className={`w-full text-left px-2 py-1 rounded-md text-[12.5px] truncate
-                  ${wpSelected && wpSelected.site.id === v.site.id ? 'bg-accent-soft text-accent' : 'text-fg hover:bg-hover'}`}>
-                {v.site.name}
-                {!v.hasPassword && <span className="ml-1.5 text-[10.5px] text-fg-faint">geen wachtwoord</span>}
-                {v.projectMissing && <span className="ml-1.5 text-[10.5px] text-fg-faint">map niet gevonden</span>}
-              </button>
-            ))}
           </div>
 
           {/* footer */}
@@ -570,7 +561,7 @@ export default function App() {
         <ErrorBoundary label="WordPress-vloot error">
           <FleetUpdatesPage
             onOpenProject={id => { setView('projects'); selectProject(id) }}
-            onOpenSite={v => { setView('projects'); setSelected(null); setWpSelected(v) }}
+            onOpenSite={v => { setView('projects'); selectProject(`site:${v.site.id}`) }}
           />
         </ErrorBoundary>
       ) : view === 'orgsync' ? (
@@ -578,20 +569,12 @@ export default function App() {
           <OrgSyncPage onClose={() => setView('projects')} />
         </ErrorBoundary>
       ) : view === 'projects' && wpSelected !== undefined ? (
-        <ErrorBoundary key={wpSelected?.site.id ?? 'nieuw'} label="WordPress-site error">
-          <WPSitePage
-            view={wpSelected}
-            onSaved={v => { setWpSelected(v); laadWpSites() }}
-            onDeleted={() => { setWpSelected(undefined); laadWpSites() }}
-            onUnlinked={() => {
-              const id = wpSelected?.site.id
-              laadWpSites().then(list => setWpSelected(list.find(v => v.site.id === id)))
-            }}
-          />
+        <ErrorBoundary key="nieuwe-site" label="WordPress-site error">
+          <WPSitePage onSaved={naSiteOpgeslagen} />
         </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">
-          <ProjectDetail project={selected} onRefresh={refresh} />
+          <ProjectDetail project={selected} onRefresh={doReload} />
         </ErrorBoundary>
       ) : (
         <div className="flex-1 flex items-center justify-center text-fg-faint text-sm select-none">
@@ -601,6 +584,9 @@ export default function App() {
 
       {/* Zelf-update: eerst het "wat is er nieuw"-venster na een update, en
           anders de vraag om te installeren. Nooit beide tegelijk. */}
+      {importOpen && (
+        <ImportDialog onKlaar={() => { setImportOpen(false); doReload() }} />
+      )}
       {watIsNieuw ? (
         <AppUpdateDialog
           mode="whatsnew"
