@@ -219,7 +219,7 @@ func (s *MediaService) onthoudWebroot(p domain.Project, root string) {
 	ssh := *cfg.SSH
 	ssh.Path = root
 	cfg.SSH = &ssh
-	if err := config.SaveProject(p.Path, cfg); err == nil {
+	if err := bewaarRdmConfig(p.Path, cfg, nil); err == nil {
 		s.projects.UpdateProjectConfig(p.ID, cfg)
 	}
 }
@@ -281,7 +281,7 @@ func (s *MediaService) SaveSSHAccess(projectID, user, path, password string) err
 	}
 
 	cfg.SSH = &ssh
-	if err := config.SaveProject(p.Path, cfg); err != nil {
+	if err := bewaarRdmConfig(p.Path, cfg, nil); err != nil {
 		return fmt.Errorf("opslaan .rdm/config.yml: %w", err)
 	}
 	s.projects.UpdateProjectConfig(projectID, cfg)

@@ -141,12 +141,15 @@ func (s *KinstaService) LinkSite(projectID, siteID string) error {
 	if other := s.projectWithSite(projectID, siteID); other != "" {
 		return fmt.Errorf("deze Kinsta-site is al gekoppeld aan %s; maak die koppeling eerst los", other)
 	}
+	// Eigen kopie van het kinsta-blok: p.Config deelt de pointer met de lijst.
 	cfg := p.Config
-	if cfg.Kinsta == nil {
-		cfg.Kinsta = &domain.KinstaProjectCfg{}
+	k := domain.KinstaProjectCfg{}
+	if cfg.Kinsta != nil {
+		k = *cfg.Kinsta
 	}
-	cfg.Kinsta.SiteID = siteID
-	if err := config.SaveProject(pad, cfg); err != nil {
+	k.SiteID = siteID
+	cfg.Kinsta = &k
+	if err := bewaarRdmConfig(pad, cfg, func(disk *domain.KinstaProjectCfg) { disk.SiteID = siteID }); err != nil {
 		return fmt.Errorf("opslaan .rdm/config.yml: %w", err)
 	}
 	s.project.UpdateProjectConfig(projectID, cfg)

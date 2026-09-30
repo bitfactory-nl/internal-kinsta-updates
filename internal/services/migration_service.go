@@ -181,7 +181,7 @@ func (s *MigrationService) SaveSettings(projectID string, cfg domain.MigrationCf
 
 	projectCfg := p.Config
 	projectCfg.Migration = &cfg
-	if err := config.SaveProject(p.Path, projectCfg); err != nil {
+	if err := bewaarRdmConfig(p.Path, projectCfg, nil); err != nil {
 		return fmt.Errorf("opslaan .rdm.yml: %w", err)
 	}
 	s.projects.UpdateProjectConfig(projectID, projectCfg)
