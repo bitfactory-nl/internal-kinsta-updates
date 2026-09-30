@@ -118,6 +118,7 @@ export class AppSettings {
     "wordfenceApiKey": string;
     "updatesAutoCheck": boolean;
     "updatesGithubToken": string;
+    "cloneDir": string;
 
     /** Creates a new AppSettings instance. */
     constructor($$source: Partial<AppSettings> = {}) {
@@ -165,6 +166,9 @@ export class AppSettings {
         }
         if (!("updatesGithubToken" in $$source)) {
             this["updatesGithubToken"] = "";
+        }
+        if (!("cloneDir" in $$source)) {
+            this["cloneDir"] = "";
         }
 
         Object.assign(this, $$source);

@@ -24,6 +24,7 @@ type AppSettings struct {
 	WordfenceAPIKey     string `json:"wordfenceApiKey"`
 	UpdatesAutoCheck    bool   `json:"updatesAutoCheck"`
 	UpdatesGithubToken  string `json:"updatesGithubToken"`
+	CloneDir            string `json:"cloneDir"`
 }
 
 // defaultDBApp is shown when the user hasn't picked a database app yet. It is
@@ -60,6 +61,7 @@ func (s *SettingsService) Get() AppSettings {
 		WordfenceAPIKey:     s.cfg.Wordfence.APIKey,
 		UpdatesAutoCheck:    s.cfg.Updates.AutoCheckEnabled(),
 		UpdatesGithubToken:  s.cfg.Updates.GithubToken,
+		CloneDir:            s.cfg.CloneDir,
 	}
 }
 
@@ -90,5 +92,10 @@ func (s *SettingsService) Save(settings AppSettings) error {
 	autoCheck := settings.UpdatesAutoCheck
 	s.cfg.Updates.AutoCheck = &autoCheck
 	s.cfg.Updates.GithubToken = strings.TrimSpace(settings.UpdatesGithubToken)
+	// Leeg valt terug op de standaard, net als bij het laden van de config.
+	s.cfg.CloneDir = strings.TrimSpace(settings.CloneDir)
+	if s.cfg.CloneDir == "" {
+		s.cfg.CloneDir = "~/Projects"
+	}
 	return config.SaveGlobal(*s.cfg)
 }

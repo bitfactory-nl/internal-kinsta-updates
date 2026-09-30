@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { WPSite } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
+import type { Site as KinstaSite, Environment as KinstaEnv } from '../../bindings/github.com/rdm/sites-tool/internal/adapters/kinsta/models'
 import type { WPSiteView, ConnectionResult } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import Foutvak from './Foutvak'
 import KnopTekst from './KnopTekst'
@@ -41,11 +42,55 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
   const [fout, setFout] = useState<string | null>(null)
   const [verbinding, setVerbinding] = useState<ConnectionResult | null>(null)
 
+  // Kinsta-koppeling: sitelijst, eventuele laadfout (Kinsta niet ingesteld) en
+  // de omgevingen van de gekozen site. Nooit blokkerend voor het formulier.
+  const [kinstaSites, setKinstaSites] = useState<KinstaSite[]>([])
+  const [kinstaFout, setKinstaFout] = useState<string | null>(null)
+  const [kinstaOmgevingen, setKinstaOmgevingen] = useState<KinstaEnv[]>([])
+  const [voorgesteld, setVoorgesteld] = useState(false)
+  const voorstelRonde = useRef(0)
+
   useEffect(() => {
     setSite(initial); setTags((initial.tags ?? []).join(', '))
     setWachtwoord(''); setBewaard(hasPassword); setNieuw(isNew)
     setFout(null); setVerbinding(null)
   }, [initial.id, initial.projectPath, isNew, hasPassword])
+
+  // Sitelijst en (bij een nieuwe of lege koppeling) een voorstel op basis van de URL.
+  useEffect(() => {
+    const ronde = ++voorstelRonde.current
+    const actueel = () => voorstelRonde.current === ronde
+    setKinstaSites([]); setKinstaFout(null); setVoorgesteld(false)
+    ;(async () => {
+      try {
+        const sites = (await Services.KinstaService.ListSites()) ?? []
+        if (!actueel()) return
+        setKinstaSites(sites)
+        if ((isNew || !initial.kinstaSiteId) && initial.url) {
+          const v = await Services.KinstaService.SuggestSiteForURL(initial.url).catch(() => null)
+          if (!actueel()) return
+          if (v?.found && v.siteId) {
+            setSite(s => ({ ...s, kinstaSiteId: v.siteId, kinstaEnvId: '' } as WPSite))
+            setVoorgesteld(true)
+          }
+        }
+      } catch (e) {
+        if (actueel()) setKinstaFout(foutTekst(e))
+      }
+    })()
+    return () => { voorstelRonde.current++ }
+  }, [initial.id, initial.projectPath, initial.kinstaSiteId, initial.url, isNew])
+
+  // Omgevingen van de gekozen site; alleen nodig als er er meer dan één zijn.
+  useEffect(() => {
+    setKinstaOmgevingen([])
+    if (!site.kinstaSiteId) return
+    let actueel = true
+    Services.KinstaService.GetSiteDetails(site.kinstaSiteId)
+      .then(d => { if (actueel) setKinstaOmgevingen(d?.environments ?? []) })
+      .catch(() => {})
+    return () => { actueel = false }
+  }, [site.kinstaSiteId])
 
   const zet = (veld: keyof WPSite, waarde: string | boolean) => setSite(s => ({ ...s, [veld]: waarde } as WPSite))
 
@@ -89,6 +134,7 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
 
   const ontkoppelen = async () => {
     if (!onUnlink) return
+    if (!(await bevestig('Ontkoppelen?', `Site "${site.name}" ontkoppelen van deze map? De site blijft in de lijst staan, zonder map.`))) return
     await voerUit('ontkoppelen', async () => {
       await Services.WPSiteService.Unlink(site.id)
       onUnlink()
@@ -121,6 +167,30 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
         placeholder={bewaard ? 'opgeslagen in de Keychain' : 'xxxx xxxx xxxx xxxx xxxx xxxx'}
         title="Wordt alleen in de macOS-Keychain bewaard. Leeg laten houdt het bestaande wachtwoord."
         className={invoer} />
+
+      <label className="block text-[11px] text-fg-muted mb-1">Kinsta-site</label>
+      <select value={site.kinstaSiteId ?? ''} disabled={!!kinstaFout}
+        onChange={e => { setVoorgesteld(false); setSite(s => ({ ...s, kinstaSiteId: e.target.value, kinstaEnvId: '' } as WPSite)) }}
+        title={kinstaFout ?? undefined}
+        className={`${invoer} disabled:opacity-60`}>
+        <option value="">— geen —</option>
+        {kinstaSites.map(k => <option key={k.id} value={k.id}>{k.display_name || k.name}</option>)}
+        {site.kinstaSiteId && !kinstaSites.some(k => k.id === site.kinstaSiteId) &&
+          <option value={site.kinstaSiteId}>{site.kinstaSiteId}</option>}
+      </select>
+      {kinstaFout && <p className="text-[11px] text-amber -mt-1 mb-2">{kinstaFout}</p>}
+      {voorgesteld && !kinstaFout && (
+        <p className="text-[11px] text-fg-faint -mt-1 mb-2">voorgesteld op basis van de URL</p>
+      )}
+      {kinstaOmgevingen.length > 1 && (
+        <>
+          <label className="block text-[11px] text-fg-muted mb-1">Kinsta-omgeving</label>
+          <select value={site.kinstaEnvId ?? ''} onChange={e => zet('kinstaEnvId', e.target.value)} className={invoer}>
+            <option value="">live (standaard)</option>
+            {kinstaOmgevingen.map(o => <option key={o.id} value={o.id}>{o.display_name || o.name}</option>)}
+          </select>
+        </>
+      )}
 
       <label className="block text-[11px] text-fg-muted mb-1">Tags (komma-gescheiden)</label>
       <input value={tags} onChange={e => setTags(e.target.value)} placeholder="kinsta, production" className={invoer} />

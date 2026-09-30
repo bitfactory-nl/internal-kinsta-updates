@@ -226,6 +226,19 @@ export default function App() {
     await selectProject(rij?.projectId ?? `site:${v.site.id}`)
   }, [doReload, selectProject])
 
+  // Map koppelen/ontkoppelen of een lokaal project omzetten verandert het
+  // project-ID (padhash <-> site:<id>); verwijderen laat het verdwijnen. Register
+  // herladen en de nieuwe rij openen, of de selectie loslaten.
+  const naRegisterWijziging = useCallback(async (siteId?: string) => {
+    const rijen = await doReload()
+    if (!siteId) {
+      setSelected(null)
+      return
+    }
+    const rij = rijen.find(r => r.siteId === siteId)
+    await selectProject(rij?.projectId ?? `site:${siteId}`)
+  }, [doReload, selectProject])
+
   useEffect(() => {
     // Eerst: is dit de eerste start na een geslaagde update?
     ProjectService.UpdateService.WhatsNew()
@@ -578,7 +591,7 @@ export default function App() {
         </ErrorBoundary>
       ) : selected ? (
         <ErrorBoundary key={selected.id} label="Project detail error">
-          <ProjectDetail project={selected} onRefresh={doReload} />
+          <ProjectDetail project={selected} onRefresh={doReload} onRegisterChanged={naRegisterWijziging} />
         </ErrorBoundary>
       ) : (
         <div className="flex-1 flex items-center justify-center text-fg-faint text-sm select-none">

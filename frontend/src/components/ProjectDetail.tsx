@@ -30,6 +30,7 @@ import { ChevronIcon } from './icons'
 export interface ProjectDetailProps {
   project: Project
   onRefresh: () => void
+  onRegisterChanged: (siteId?: string) => void
 }
 
 type TabId = 'info' | 'history' | 'changes' | 'branches' | 'stash' | 'blame' | 'filehistory' | 'plugins' | 'media' | 'logs' | 'database' | 'dbeditor' | 'migrationsettings' | 'migrationmedia' | 'terminal' | 'updates' | 'security' | 'tests' | 'report' | 'projectsettings'
@@ -73,7 +74,7 @@ function HeaderIconBtn({ onClick, title, disabled, children }: {
   )
 }
 
-export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps) {
+export default function ProjectDetail({ project, onRefresh, onRegisterChanged }: ProjectDetailProps) {
   const [activeTab, setActiveTab] = useState<TabId>('info')
   const [status, setStatus] = useState<GitStatus | null>(project.git ?? null)
   const [loadingOp, setLoadingOp] = useState<string | null>(null)
@@ -386,7 +387,7 @@ export default function ProjectDetail({ project, onRefresh }: ProjectDetailProps
           {activeTab === 'migrationmedia' && <MigrationMediaTab projectId={project.id} />}
           {activeTab === 'migrationsettings' && <MigrationSettingsTab projectId={project.id} />}
           {activeTab === 'report' && <ReportTab projectId={project.id} />}
-          {activeTab === 'projectsettings' && <ProjectSettingsTab project={project} onLocalUrlSaved={onRefresh} />}
+          {activeTab === 'projectsettings' && <ProjectSettingsTab project={project} onLocalUrlSaved={onRefresh} onRegisterChanged={onRegisterChanged} />}
         </div>
       </div>
     </div>

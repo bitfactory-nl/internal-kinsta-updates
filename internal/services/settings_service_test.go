@@ -94,3 +94,30 @@ func TestSettingsSaveZetAutoCheckUit(t *testing.T) {
 		t.Errorf("GithubToken = %q, wil getrimd", cfg.Updates.GithubToken)
 	}
 }
+
+func TestSettingsCloneDirRondrit(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	cfg := &config.Global{Editor: "cursor", CloneDir: "~/Projects"}
+	s := NewSettingsService(cfg)
+
+	if got := s.Get(); got.CloneDir != "~/Projects" {
+		t.Errorf("Get CloneDir = %q", got.CloneDir)
+	}
+
+	in := s.Get()
+	in.CloneDir = "  /data/klanten  "
+	if err := s.Save(in); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	if cfg.CloneDir != "/data/klanten" {
+		t.Errorf("cfg.CloneDir = %q, wil getrimd pad", cfg.CloneDir)
+	}
+
+	in.CloneDir = "   "
+	if err := s.Save(in); err != nil {
+		t.Fatalf("Save leeg: %v", err)
+	}
+	if cfg.CloneDir != "~/Projects" {
+		t.Errorf("leeg moet ~/Projects worden, kreeg %q", cfg.CloneDir)
+	}
+}

@@ -356,6 +356,19 @@ export default function SettingsPage({ onClose }: Props) {
                 Verwijder remote-tracking branches die niet meer bestaan
               </span>
             </div>
+            <div className="flex items-center gap-4 px-4 py-3">
+              <label className="text-[12.5px] text-fg-muted w-28 shrink-0">Kloonmap</label>
+              <input
+                type="text"
+                value={settings.cloneDir}
+                onChange={e => update('cloneDir', e.target.value)}
+                placeholder="~/Projects"
+                className="flex-1 bg-bg border border-border rounded-[9px] px-3 py-2 text-[13px] text-fg
+                           placeholder-fg-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
+                           font-mono"
+              />
+              <span className="text-[12.5px] text-fg-muted">Org-sync clonet hier nieuwe repo's</span>
+            </div>
           </div>
         </section>
 
