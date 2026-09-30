@@ -16,7 +16,7 @@ import (
 
 const updatesJSON = `{
  "checked_at":"2026-09-30T08:00:00Z",
- "core":[{"current":"7.1.3","version":"7.1.2","type":"minor","locale":"nl_NL","response":"upgrade"}],
+ "core":[{"current":"7.1.1","version":"7.1.2","type":"minor","locale":"nl_NL","response":"upgrade"}],
  "plugins":[{"plugin":"akismet/akismet.php","name":"Akismet","current_version":"5.3","new_version":"5.4","package_available":true}],
  "themes":[{"stylesheet":"twentytwentyfive","name":"TT5","current_version":"1.0","new_version":"1.1","package_available":true}],
  "translations":{"count":3}
@@ -220,5 +220,52 @@ func TestBridgeFoutKaptOpRuneGrens(t *testing.T) {
 	msg := err.Error()
 	if !utf8.ValidString(msg) || utf8.RuneCountInString(msg) != 300 {
 		t.Fatalf("geldig %v, runes %d", utf8.ValidString(msg), utf8.RuneCountInString(msg))
+	}
+}
+
+func TestVersieNieuwer(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want bool
+	}{
+		{"7.10", "7.9", true},
+		{"7.9", "7.10", false},
+		{"7.1", "7.1.0", false},
+		{"7.1.0", "7.1", false},
+		{"8.0", "7.9.9", true},
+		{"7.1.2", "7.1.2", false},
+		{"7.1.3", "7.1.2", true},
+		{"7.1.1", "7.1", true},
+		{"7.1", "", true},
+		{"", "7.1", false},
+		{"7.x", "7.0", false},
+	}
+	for _, c := range cases {
+		if got := versieNieuwer(c.a, c.b); got != c.want {
+			t.Errorf("versieNieuwer(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+}
+
+func TestAvailableUpdatesCoreAlleenAlsNieuwer(t *testing.T) {
+	cases := []struct {
+		naam, current, version string
+		verwacht               int
+	}{
+		{"verouderd aanbod gelijk aan geïnstalleerd", "7.1.2", "7.1.2", 0},
+		{"patch", "7.1.2", "7.1.3", 1},
+		{"X.Y naar X.Y.1", "7.1", "7.1.1", 1},
+	}
+	for _, c := range cases {
+		body := `{"core":[{"current":"` + c.current + `","version":"` + c.version + `","type":"minor"}]}`
+		b := nieuweBridgeServer(t, 200, body)
+		svc := bridgeSite(t, b, "goed", nil)
+		got, err := svc.AvailableUpdates("klant", false)
+		if err != nil {
+			t.Fatalf("%s: %v", c.naam, err)
+		}
+		if len(got.Core) != c.verwacht {
+			t.Errorf("%s: core %+v, want %d aanbod", c.naam, got.Core, c.verwacht)
+		}
 	}
 }

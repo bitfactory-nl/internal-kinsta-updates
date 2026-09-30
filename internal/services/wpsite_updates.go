@@ -2,6 +2,8 @@ package services
 
 import (
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -74,6 +76,11 @@ func (s *WPSiteService) AvailableUpdates(siteID string, refresh bool) (SiteUpdat
 		Core: []CoreUpdateOffer{}, Plugins: []ItemUpdate{}, Themes: []ItemUpdate{},
 	}
 	for _, c := range raw.Core {
+		// De update_core-transient kan na een update nog een aanbod voor de
+		// al geïnstalleerde versie bevatten; dat is geen update.
+		if !versieNieuwer(c.Version, c.Current) {
+			continue
+		}
 		out.Core = append(out.Core, CoreUpdateOffer{Current: c.Current, Version: c.Version, Type: c.Type})
 	}
 	for _, p := range raw.Plugins {
@@ -83,6 +90,31 @@ func (s *WPSiteService) AvailableUpdates(siteID string, refresh bool) (SiteUpdat
 		out.Themes = append(out.Themes, ItemUpdate{ID: t.Stylesheet, Name: t.Name, CurrentVersion: t.CurrentVersion, NewVersion: t.NewVersion})
 	}
 	return out, nil
+}
+
+// versieNieuwer meldt of versie a hoger is dan b. Vergelijkt numeriek per
+// punt-segment; een ontbrekend segment telt als 0 (7.1 == 7.1.0) en een
+// niet-numeriek segment ook.
+func versieNieuwer(a, b string) bool {
+	as, bs := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < max(len(as), len(bs)); i++ {
+		x, y := versieSegment(as, i), versieSegment(bs, i)
+		if x != y {
+			return x > y
+		}
+	}
+	return false
+}
+
+func versieSegment(delen []string, i int) int {
+	if i >= len(delen) {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(delen[i]))
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 const fleetConcurrency = 4
