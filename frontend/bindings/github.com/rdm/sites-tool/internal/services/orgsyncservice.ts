@@ -20,11 +20,14 @@ import * as domain$0 from "../domain/models.js";
 // @ts-ignore: Unused imports
 import * as application$0 from "../../../../wailsapp/wails/v3/pkg/application/models.js";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
+import * as $models from "./models.js";
+
 /**
- * Clone haalt de opgegeven org-repo's lokaal binnen in de eerste
- * geconfigureerde projects-root, met de repo-naam als mapnaam. Dat is precies
- * waar ProjectService.Scan() naar kijkt, dus de clone verschijnt daarna als
- * gewoon project.
+ * Clone haalt de opgegeven org-repo's lokaal binnen in de kloonmap
+ * (clone_dir), met de repo-naam als mapnaam. Elke geslaagde clone wordt daarna
+ * in het register opgenomen, zodat hij als project verschijnt.
  * 
  * De run is sequentieel en gaat door na een fout: elke repo levert een eigen
  * OrgCloneOutcome op. Een bestaande doelmap wordt overgeslagen, nooit
@@ -61,6 +64,13 @@ export function Org(): $CancellablePromise<string> {
  */
 export function SetApp(app: application$0.App | null): $CancellablePromise<void> {
     return $Call.ByID(4158726391, app);
+}
+
+/**
+ * SetRegister koppelt het register waarin geclonede repo's worden opgenomen.
+ */
+export function SetRegister(r: $models.orgRegister): $CancellablePromise<void> {
+    return $Call.ByID(3508693965, r);
 }
 
 /**

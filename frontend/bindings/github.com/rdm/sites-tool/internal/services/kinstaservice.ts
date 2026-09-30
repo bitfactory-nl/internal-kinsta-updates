@@ -95,6 +95,15 @@ export function SiteLinkConflicts(): $CancellablePromise<$models.SiteLinkConflic
     });
 }
 
+/**
+ * SuggestSiteForURL zoekt in de Kinsta-sites naar de site die bij de URL hoort.
+ */
+export function SuggestSiteForURL(url: string): $CancellablePromise<$models.KinstaSuggestion> {
+    return $Call.ByID(3895663146, url).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = $models.EnvSSHEndpoint.createFrom;
 const $$createType1 = kinsta$0.EnvironmentDetails.createFrom;
@@ -105,3 +114,4 @@ const $$createType5 = kinsta$0.Site.createFrom;
 const $$createType6 = $Create.Array($$createType5);
 const $$createType7 = $models.SiteLinkConflict.createFrom;
 const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.KinstaSuggestion.createFrom;

@@ -13,20 +13,11 @@ import * as domain$0 from "../domain/models.js";
 import * as application$0 from "../../../../wailsapp/wails/v3/pkg/application/models.js";
 
 /**
- * AddRoot opens a native folder picker, adds the chosen folder, persists it, and returns updated roots.
- */
-export function AddRoot(): $CancellablePromise<string[]> {
-    return $Call.ByID(510438811).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
  * BatchStatus returns a lightweight status summary for all projects (sidebar use).
  */
 export function BatchStatus(): $CancellablePromise<domain$0.ProjectStatusSummary[]> {
     return $Call.ByID(2706369086).then(($result: any) => {
-        return $$createType2($result);
+        return $$createType1($result);
     });
 }
 
@@ -35,17 +26,8 @@ export function BatchStatus(): $CancellablePromise<domain$0.ProjectStatusSummary
  */
 export function Get(id: string): $CancellablePromise<[domain$0.Project, boolean]> {
     return $Call.ByID(2540875416, id).then(($result: any) => {
-        $result[0] = $$createType3($result[0]);
+        $result[0] = $$createType2($result[0]);
         return $result;
-    });
-}
-
-/**
- * GetRoots returns the currently configured project roots.
- */
-export function GetRoots(): $CancellablePromise<string[]> {
-    return $Call.ByID(4258866777).then(($result: any) => {
-        return $$createType0($result);
     });
 }
 
@@ -54,7 +36,7 @@ export function GetRoots(): $CancellablePromise<string[]> {
  */
 export function List(): $CancellablePromise<domain$0.Project[]> {
     return $Call.ByID(1454748020).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType3($result);
     });
 }
 
@@ -63,25 +45,18 @@ export function List(): $CancellablePromise<domain$0.Project[]> {
  */
 export function RefreshOne(id: string): $CancellablePromise<domain$0.Project> {
     return $Call.ByID(4057779285, id).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
+ * Reload bouwt de projectlijst uit het register: sites (met of zonder map) en
+ * lokale projecten. Items met een map houden het ID op basis van het pad, zodat
+ * opgeslagen historie (testruns, rapporten, mediascans) blijft aansluiten.
+ */
+export function Reload(): $CancellablePromise<domain$0.Project[]> {
+    return $Call.ByID(1587273585).then(($result: any) => {
         return $$createType3($result);
-    });
-}
-
-/**
- * RemoveRoot removes a folder from the configured roots and persists.
- */
-export function RemoveRoot(path: string): $CancellablePromise<string[]> {
-    return $Call.ByID(2690822668, path).then(($result: any) => {
-        return $$createType0($result);
-    });
-}
-
-/**
- * Scan discovers all projects under configured roots and refreshes git status.
- */
-export function Scan(): $CancellablePromise<domain$0.Project[]> {
-    return $Call.ByID(356497485).then(($result: any) => {
-        return $$createType4($result);
     });
 }
 
@@ -100,8 +75,7 @@ export function UpdateProjectConfig(id: string, cfg: domain$0.ProjectConfig): $C
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = domain$0.ProjectStatusSummary.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = domain$0.Project.createFrom;
-const $$createType4 = $Create.Array($$createType3);
+const $$createType0 = domain$0.ProjectStatusSummary.createFrom;
+const $$createType1 = $Create.Array($$createType0);
+const $$createType2 = domain$0.Project.createFrom;
+const $$createType3 = $Create.Array($$createType2);

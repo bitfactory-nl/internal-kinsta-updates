@@ -58,6 +58,7 @@ func main() {
 	services.OrgSync.SetApp(a)
 	services.BulkUpdate.SetApp(a)
 	services.Update.SetApp(a)
+	services.Register.SetApp(a)
 
 	// Start the background vulnerability scan loop (no-op if alerts disabled).
 	services.VulnScan.Start()

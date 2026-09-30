@@ -34,6 +34,17 @@ export function Create(site: domain$0.WPSite, password: string): $CancellablePro
     });
 }
 
+/**
+ * CreateWithoutPassword legt een site vast zonder Application Password en dus
+ * zonder Keychain-item; het wachtwoord volgt later via Update. Bedoeld voor de
+ * eenmalige import.
+ */
+export function CreateWithoutPassword(site: domain$0.WPSite): $CancellablePromise<$models.WPSiteView> {
+    return $Call.ByID(3444626842, site).then(($result: any) => {
+        return $$createType1($result);
+    });
+}
+
 export function Delete(id: string): $CancellablePromise<void> {
     return $Call.ByID(2061555818, id);
 }

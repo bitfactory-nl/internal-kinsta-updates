@@ -7,6 +7,7 @@ import * as DBCloneService from "./dbcloneservice.js";
 import * as DBEditorService from "./dbeditorservice.js";
 import * as EditorService from "./editorservice.js";
 import * as GitService from "./gitservice.js";
+import * as ImportService from "./importservice.js";
 import * as InventoryService from "./inventoryservice.js";
 import * as KinstaService from "./kinstaservice.js";
 import * as LogFixService from "./logfixservice.js";
@@ -18,6 +19,7 @@ import * as NotifyService from "./notifyservice.js";
 import * as OrgSyncService from "./orgsyncservice.js";
 import * as PluginService from "./pluginservice.js";
 import * as ProjectService from "./projectservice.js";
+import * as RegisterService from "./registerservice.js";
 import * as ReportService from "./reportservice.js";
 import * as SSHService from "./sshservice.js";
 import * as SearchService from "./searchservice.js";
@@ -38,6 +40,7 @@ export {
     DBEditorService,
     EditorService,
     GitService,
+    ImportService,
     InventoryService,
     KinstaService,
     LogFixService,
@@ -49,6 +52,7 @@ export {
     OrgSyncService,
     PluginService,
     ProjectService,
+    RegisterService,
     ReportService,
     SSHService,
     SearchService,
@@ -86,9 +90,12 @@ export {
     FetchAllResult,
     FleetSiteUpdates,
     FleetStatus,
+    ImportCandidate,
+    ImportChoice,
     InventoryItem,
     InventoryProjectRef,
     ItemUpdate,
+    KinstaSuggestion,
     LocalApplyPlugin,
     LocalApplyResult,
     LocalPaidPlugin,

@@ -2967,6 +2967,22 @@ export class Project {
     "git": GitStatus;
     "lastScanAt": time$0.Time;
 
+    /**
+     * SiteID is de id in wp-sites.yml; leeg voor een lokaal project zonder
+     * WordPress-koppeling.
+     */
+    "siteId"?: string;
+
+    /**
+     * Local geeft aan of het project een lokale map in het register heeft.
+     */
+    "local": boolean;
+
+    /**
+     * Missing geeft aan of de map in het register staat maar niet bestaat.
+     */
+    "missing": boolean;
+
     /** Creates a new Project instance. */
     constructor($$source: Partial<Project> = {}) {
         if (!("id" in $$source)) {
@@ -2992,6 +3008,12 @@ export class Project {
         }
         if (!("lastScanAt" in $$source)) {
             this["lastScanAt"] = null;
+        }
+        if (!("local" in $$source)) {
+            this["local"] = false;
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = false;
         }
 
         Object.assign(this, $$source);
@@ -3091,6 +3113,22 @@ export class ProjectStatusSummary {
      */
     "deployType": string;
 
+    /**
+     * SiteID is de id in wp-sites.yml; leeg voor een lokaal project zonder
+     * WordPress-koppeling.
+     */
+    "siteId"?: string;
+
+    /**
+     * Local geeft aan of het project een lokale map in het register heeft.
+     */
+    "local": boolean;
+
+    /**
+     * Missing geeft aan of de map in het register staat maar niet bestaat.
+     */
+    "missing": boolean;
+
     /** Creates a new ProjectStatusSummary instance. */
     constructor($$source: Partial<ProjectStatusSummary> = {}) {
         if (!("projectId" in $$source)) {
@@ -3116,6 +3154,12 @@ export class ProjectStatusSummary {
         }
         if (!("deployType" in $$source)) {
             this["deployType"] = "";
+        }
+        if (!("local" in $$source)) {
+            this["local"] = false;
+        }
+        if (!("missing" in $$source)) {
+            this["missing"] = false;
         }
 
         Object.assign(this, $$source);
@@ -4012,6 +4056,13 @@ export class WPSite {
      * tool een Composer-PR. Er is er hooguit één.
      */
     "depot"?: boolean;
+
+    /**
+     * KinstaSiteID/KinstaEnvID koppelen de site aan Kinsta; ze gaan voor op
+     * een koppeling in .rdm/config.yml en werken ook zonder lokale map.
+     */
+    "kinstaSiteId"?: string;
+    "kinstaEnvId"?: string;
 
     /** Creates a new WPSite instance. */
     constructor($$source: Partial<WPSite> = {}) {

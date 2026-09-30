@@ -61,6 +61,8 @@ type Services struct {
 	Update          *services.UpdateService
 	WPSite          *services.WPSiteService
 	WPFleet         *services.WPFleetService
+	Register        *services.RegisterService
+	Import          *services.ImportService
 }
 
 func NewServices(cfg Config) *Services {
@@ -87,6 +89,10 @@ func NewServices(cfg Config) *Services {
 	wordfenceUpdate := services.NewWordfenceUpdateService(git, project)
 	plugin := services.NewPluginService(&cfg.Global, kinsta, project, git)
 	wpSite := services.NewWPSiteServiceWithDepot(config.WPSitesPath(), project, services.KeychainSecrets{}, services.NewDepotCorePR(&cfg.Global))
+	register := services.NewRegisterService(project, wpSite, config.LocalProjectsPath())
+	importSvc := services.NewImportService(&cfg.Global, wpSite, register, config.WPSitesPath(), config.LocalProjectsPath())
+	orgSync := services.NewOrgSyncService(project, &cfg.Global)
+	orgSync.SetRegister(register)
 	wpFleet := services.NewWPFleetService(&cfg.Global, wpSite, services.DefaultClaudeRunner, os.Executable)
 
 	return &Services{
@@ -116,11 +122,13 @@ func NewServices(cfg Config) *Services {
 		Logs:            logs,
 		LogFix:          services.NewLogFixService(project, logs, &cfg.Global),
 		DBEditor:        services.NewDBEditorService(project, dbClone, &cfg.Global),
-		OrgSync:         services.NewOrgSyncService(project, &cfg.Global),
+		OrgSync:         orgSync,
 		BulkUpdate:      services.NewBulkUpdateService(&cfg.Global, project, git, plugin),
 		Update:          services.NewUpdateService(&cfg.Global),
 		WPSite:          wpSite,
 		WPFleet:         wpFleet,
+		Register:        register,
+		Import:          importSvc,
 	}
 }
 
@@ -156,5 +164,7 @@ func (s *Services) Wails() []application.Service {
 		application.NewService(s.Update),
 		application.NewService(s.WPSite),
 		application.NewService(s.WPFleet),
+		application.NewService(s.Register),
+		application.NewService(s.Import),
 	}
 }

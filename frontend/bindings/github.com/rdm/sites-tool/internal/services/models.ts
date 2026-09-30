@@ -1004,6 +1004,79 @@ export class FleetStatus {
 }
 
 /**
+ * ImportCandidate is een map uit de oude projectscan die je in het register
+ * kunt opnemen.
+ */
+export class ImportCandidate {
+    "path": string;
+    "name": string;
+    "deployType": string;
+    "url": string;
+    "kinstaSiteId": string;
+    "wordPress": boolean;
+
+    /** Creates a new ImportCandidate instance. */
+    constructor($$source: Partial<ImportCandidate> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("deployType" in $$source)) {
+            this["deployType"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("kinstaSiteId" in $$source)) {
+            this["kinstaSiteId"] = "";
+        }
+        if (!("wordPress" in $$source)) {
+            this["wordPress"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportCandidate instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportCandidate {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportCandidate($$parsedSource as Partial<ImportCandidate>);
+    }
+}
+
+/**
+ * ImportChoice is de keuze voor één kandidaat: als WordPress-site of als lokaal project.
+ */
+export class ImportChoice {
+    "path": string;
+    "asSite": boolean;
+
+    /** Creates a new ImportChoice instance. */
+    constructor($$source: Partial<ImportChoice> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("asSite" in $$source)) {
+            this["asSite"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ImportChoice instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ImportChoice {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ImportChoice($$parsedSource as Partial<ImportChoice>);
+    }
+}
+
+/**
  * InventoryItem is one plugin or theme aggregated across all projects.
  */
 export class InventoryItem {
@@ -1157,6 +1230,39 @@ export class ItemUpdate {
     static createFrom($$source: any = {}): ItemUpdate {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ItemUpdate($$parsedSource as Partial<ItemUpdate>);
+    }
+}
+
+/**
+ * KinstaSuggestion is het voorstel voor een Kinsta-site bij een site-URL.
+ * Found is alleen true bij precies één treffer; bij twijfel geen voorstel.
+ */
+export class KinstaSuggestion {
+    "siteId": string;
+    "name": string;
+    "found": boolean;
+
+    /** Creates a new KinstaSuggestion instance. */
+    constructor($$source: Partial<KinstaSuggestion> = {}) {
+        if (!("siteId" in $$source)) {
+            this["siteId"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("found" in $$source)) {
+            this["found"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KinstaSuggestion instance from a string or object.
+     */
+    static createFrom($$source: any = {}): KinstaSuggestion {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new KinstaSuggestion($$parsedSource as Partial<KinstaSuggestion>);
     }
 }
 
@@ -3054,6 +3160,11 @@ export class WordfenceVulnFinding {
         return new WordfenceVulnFinding($$parsedSource as Partial<WordfenceVulnFinding>);
     }
 }
+
+/**
+ * orgRegister is het deel van RegisterService dat Org-sync na een clone nodig heeft.
+ */
+export type orgRegister = any;
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
