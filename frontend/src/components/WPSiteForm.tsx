@@ -27,13 +27,33 @@ function foutTekst(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
+type Actie = 'opslaan' | 'testen' | 'ontkoppelen' | 'verwijderen'
+
+// KnopTekst houdt de knop even breed als hij bezig is: de tekst blijft
+// (onzichtbaar) staan en de spinner ligt eroverheen. Anders verspringen de
+// knoppen ernaast midden in de opacity-overgang, en WebKit laat dan
+// spookkopieën van de tekst achter.
+function KnopTekst({ tekst, bezig }: { tekst: string; bezig: boolean }) {
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <span className={bezig ? 'invisible' : undefined}>{tekst}</span>
+      {bezig && (
+        <span className="absolute inset-0 flex items-center justify-center" aria-label="bezig">
+          <span className="animate-spin inline-block">↻</span>
+        </span>
+      )}
+    </span>
+  )
+}
+
 export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing, onSaved, onUnlink, onDelete }: Props) {
   const [site, setSite] = useState<WPSite>(initial)
   const [tags, setTags] = useState((initial.tags ?? []).join(', '))
   const [wachtwoord, setWachtwoord] = useState('')
   const [bewaard, setBewaard] = useState(hasPassword)
   const [nieuw, setNieuw] = useState(isNew)
-  const [bezig, setBezig] = useState(false)
+  const [actie, setActie] = useState<Actie | null>(null)
+  const bezig = actie !== null
   const [fout, setFout] = useState<string | null>(null)
   const [verbinding, setVerbinding] = useState<ConnectionResult | null>(null)
 
@@ -45,58 +65,50 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
 
   const zet = (veld: keyof WPSite, waarde: string | boolean) => setSite(s => ({ ...s, [veld]: waarde } as WPSite))
 
-  const opslaan = async () => {
-    setBezig(true); setFout(null)
-    const volledig = { ...site, tags: tags.split(',').map(t => t.trim()).filter(Boolean) } as WPSite
+  // voerUit zet de actie als "bezig", toont fouten en ruimt altijd op. Eén
+  // actie tegelijk: de andere knoppen staan zolang uit.
+  const voerUit = async (a: Actie, werk: () => Promise<void>) => {
+    setActie(a); setFout(null)
     try {
-      const v = nieuw
-        ? await Services.WPSiteService.Create(volledig, wachtwoord)
-        : await Services.WPSiteService.Update(volledig, wachtwoord)
-      setWachtwoord(''); setBewaard(v.hasPassword); setNieuw(false)
-      onSaved(v)
+      await werk()
     } catch (e) {
       setFout(foutTekst(e))
     } finally {
-      setBezig(false)
+      setActie(null)
     }
   }
 
-  const testen = async () => {
-    setBezig(true); setFout(null); setVerbinding(null)
-    try {
+  const opslaan = () => voerUit('opslaan', async () => {
+    const volledig = { ...site, tags: tags.split(',').map(t => t.trim()).filter(Boolean) } as WPSite
+    const v = nieuw
+      ? await Services.WPSiteService.Create(volledig, wachtwoord)
+      : await Services.WPSiteService.Update(volledig, wachtwoord)
+    setWachtwoord(''); setBewaard(v.hasPassword); setNieuw(false)
+    onSaved(v)
+  })
+
+  const testen = () => {
+    setVerbinding(null)
+    return voerUit('testen', async () => {
       setVerbinding(await Services.WPSiteService.TestConnection(site.id))
-    } catch (e) {
-      setFout(foutTekst(e))
-    } finally {
-      setBezig(false)
-    }
+    })
   }
 
   const verwijderen = async () => {
     if (!onDelete) return
     if (!(await bevestig('Site verwijderen?', `Site "${site.name}" en het opgeslagen Application Password verwijderen?`))) return
-    setBezig(true); setFout(null)
-    try {
+    await voerUit('verwijderen', async () => {
       await Services.WPSiteService.Delete(site.id)
       onDelete()
-    } catch (e) {
-      setFout(foutTekst(e))
-    } finally {
-      setBezig(false)
-    }
+    })
   }
 
   const ontkoppelen = async () => {
     if (!onUnlink) return
-    setBezig(true); setFout(null)
-    try {
+    await voerUit('ontkoppelen', async () => {
       await Services.WPSiteService.Unlink(site.id)
       onUnlink()
-    } catch (e) {
-      setFout(foutTekst(e))
-    } finally {
-      setBezig(false)
-    }
+    })
   }
 
   return (
@@ -136,11 +148,17 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
 
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={opslaan} disabled={bezig || !site.id || !site.url || (nieuw && !wachtwoord)} className={knop}>
-          {bezig ? <span className="animate-spin inline-block">↻</span> : 'Opslaan'}
+          <KnopTekst tekst="Opslaan" bezig={actie === 'opslaan'} />
         </button>
-        {!nieuw && <button onClick={testen} disabled={bezig} className={knopStil}>Test verbinding</button>}
-        {!nieuw && onUnlink && <button onClick={ontkoppelen} disabled={bezig} className={knopStil}>Ontkoppelen</button>}
-        {!nieuw && onDelete && <button onClick={verwijderen} disabled={bezig} className={`${knopStil} text-red`}>Verwijderen</button>}
+        {!nieuw && <button onClick={testen} disabled={bezig} className={knopStil}>
+          <KnopTekst tekst="Test verbinding" bezig={actie === 'testen'} />
+        </button>}
+        {!nieuw && onUnlink && <button onClick={ontkoppelen} disabled={bezig} className={knopStil}>
+          <KnopTekst tekst="Ontkoppelen" bezig={actie === 'ontkoppelen'} />
+        </button>}
+        {!nieuw && onDelete && <button onClick={verwijderen} disabled={bezig} className={`${knopStil} text-red`}>
+          <KnopTekst tekst="Verwijderen" bezig={actie === 'verwijderen'} />
+        </button>}
         {verbinding && (
           <span className={`text-[11.5px] ${verbindingKleur[verbinding.status] ?? 'text-fg-muted'}`}>
             {verbinding.message}
