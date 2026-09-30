@@ -143,6 +143,12 @@ type fakeDepot struct {
 	prVersion  string
 	prPath     string
 	actionsURL string
+	locked     string
+	lockedErr  error
+}
+
+func (f *fakeDepot) LockedCoreVersion(context.Context, string) (string, error) {
+	return f.locked, f.lockedErr
 }
 
 func (f *fakeDepot) OpenCorePR(_ context.Context, path, version string) (string, error) {

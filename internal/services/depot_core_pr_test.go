@@ -25,13 +25,28 @@ type fakeDepotGit struct {
 	// geenWijzigingen laat HasStagedChanges false geven (composer-bestanden
 	// stonden al goed).
 	geenWijzigingen bool
+	fetched         bool
+	// showContent/showErr zijn het antwoord van ShowFile; showRef/showPath
+	// onthouden wat er gevraagd werd.
+	showContent string
+	showErr     error
+	showRef     string
+	showPath    string
+}
+
+func (f *fakeDepotGit) ShowFile(_ context.Context, _, ref, path string) (string, error) {
+	f.showRef, f.showPath = ref, path
+	return f.showContent, f.showErr
 }
 
 func (f *fakeDepotGit) DefaultBranchName(context.Context, string) (string, error) {
 	return f.defaultBr, nil
 }
-func (f *fakeDepotGit) RemoteURL(context.Context, string) (string, error)     { return f.remote, nil }
-func (f *fakeDepotGit) Fetch(context.Context, string) error                   { return nil }
+func (f *fakeDepotGit) RemoteURL(context.Context, string) (string, error) { return f.remote, nil }
+func (f *fakeDepotGit) Fetch(context.Context, string) error {
+	f.fetched = true
+	return nil
+}
 func (f *fakeDepotGit) PrepareWorktree(context.Context, string, string) error { return nil }
 func (f *fakeDepotGit) AddWorktree(_ context.Context, _, wt, branch, from string) error {
 	f.worktreeDir, f.addedBranch, f.addedFrom = wt, branch, from
@@ -299,5 +314,72 @@ func TestGitCoreOpsHasStagedChanges(t *testing.T) {
 	}
 	if got, err := g.HasStagedChanges(ctx, dir); err != nil || !got {
 		t.Fatalf("gestaged: %v %v", got, err)
+	}
+}
+
+func TestWordpressVersieUitLock(t *testing.T) {
+	cases := []struct {
+		naam, lock, want, fout string
+	}{
+		{"packages", `{"packages":[{"name":"roots/wordpress","version":"v7.1"}],"packages-dev":[]}`, "7.1", ""},
+		{"packages-dev", `{"packages":[],"packages-dev":[{"name":"roots/wordpress","version":"7.2.1"}]}`, "7.2.1", ""},
+		{"ontbreekt", `{"packages":[{"name":"composer/installers","version":"v2.3.0"}]}`, "", "composer.lock bevat geen roots/wordpress"},
+		{"geen JSON", `nee`, "", "composer.lock is geen geldige JSON"},
+	}
+	for _, c := range cases {
+		got, err := wordpressVersieUitLock([]byte(c.lock))
+		if c.fout != "" {
+			if err == nil || err.Error() != c.fout {
+				t.Errorf("%s: fout %v, want %q", c.naam, err, c.fout)
+			}
+			continue
+		}
+		if err != nil || got != c.want {
+			t.Errorf("%s: %q %v, want %q", c.naam, got, err, c.want)
+		}
+	}
+}
+
+func TestLockedCoreVersion(t *testing.T) {
+	m, g, _, _ := depotFixture(t)
+	g.showContent = `{"packages":[{"name":"roots/wordpress","version":"v7.1"}],"packages-dev":[]}`
+	got, err := m.LockedCoreVersion(context.Background(), "/repo")
+	if err != nil || got != "7.1" {
+		t.Fatalf("versie %q err %v", got, err)
+	}
+	if !g.fetched || g.showRef != "origin/main" || g.showPath != "composer.lock" {
+		t.Fatalf("fetch %v ref %q pad %q", g.fetched, g.showRef, g.showPath)
+	}
+}
+
+func TestLockedCoreVersionShowFout(t *testing.T) {
+	m, g, _, _ := depotFixture(t)
+	g.showErr = errors.New("fatal: path 'composer.lock' does not exist in 'origin/main'")
+	if _, err := m.LockedCoreVersion(context.Background(), "/repo"); err == nil || !strings.Contains(err.Error(), "composer.lock lezen") {
+		t.Fatalf("fout %v", err)
+	}
+}
+
+func TestGitCoreOpsShowFile(t *testing.T) {
+	dir := t.TempDir()
+	ctx := context.Background()
+	if err := os.WriteFile(filepath.Join(dir, "composer.lock"), []byte(`{"packages":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"init", "-q", "-b", "main"},
+		{"add", "composer.lock"},
+		{"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init"},
+	} {
+		if _, err := gitcli.Run(ctx, dir, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := gitCoreOps{}.ShowFile(ctx, dir, "main", "composer.lock")
+	if err != nil || strings.TrimSpace(got) != `{"packages":[]}` {
+		t.Fatalf("inhoud %q err %v", got, err)
+	}
+	if _, err := (gitCoreOps{}).ShowFile(ctx, dir, "main", "bestaat-niet.json"); err == nil {
+		t.Fatal("verwacht fout voor ontbrekend bestand")
 	}
 }

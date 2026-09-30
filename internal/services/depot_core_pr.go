@@ -24,6 +24,9 @@ import (
 type DepotCorePR interface {
 	OpenCorePR(ctx context.Context, projectPath, version string) (string, error)
 	PluginWorkflowURL(ctx context.Context, projectPath string) (string, error)
+	// LockedCoreVersion geeft de roots/wordpress-versie in composer.lock op
+	// de default-branch van origin.
+	LockedCoreVersion(ctx context.Context, projectPath string) (string, error)
 }
 
 type composerRunner interface {
@@ -35,6 +38,12 @@ type depotGit interface {
 	StagePathsIn(ctx context.Context, worktreePath string, paths ...string) error
 	HasStagedChanges(ctx context.Context, worktreePath string) (bool, error)
 	ForcePushBranch(ctx context.Context, worktreePath, branch string) error
+	ShowFile(ctx context.Context, repoDir, ref, path string) (string, error)
+}
+
+// ShowFile geeft de inhoud van path op ref, zonder iets uit te checken.
+func (gitCoreOps) ShowFile(ctx context.Context, repoDir, ref, path string) (string, error) {
+	return gitcli.Run(ctx, repoDir, "show", ref+":"+path)
 }
 
 func (gitCoreOps) StagePathsIn(ctx context.Context, worktreePath string, paths ...string) error {
@@ -133,6 +142,21 @@ func (m *depotCorePRMaker) PluginWorkflowURL(ctx context.Context, projectPath st
 	return fmt.Sprintf("https://github.com/%s/%s/actions/workflows/plugin-update.yml", owner, repo), nil
 }
 
+func (m *depotCorePRMaker) LockedCoreVersion(ctx context.Context, projectPath string) (string, error) {
+	if err := m.git.Fetch(ctx, projectPath); err != nil {
+		return "", fmt.Errorf("git fetch: %w", err)
+	}
+	def, err := m.git.DefaultBranchName(ctx, projectPath)
+	if err != nil {
+		return "", fmt.Errorf("default-branch bepalen: %w", err)
+	}
+	data, err := m.git.ShowFile(ctx, projectPath, "origin/"+def, "composer.lock")
+	if err != nil {
+		return "", fmt.Errorf("composer.lock lezen: %w", err)
+	}
+	return wordpressVersieUitLock([]byte(data))
+}
+
 func (m *depotCorePRMaker) OpenCorePR(ctx context.Context, projectPath, version string) (string, error) {
 	if !reWPVersie.MatchString(version) {
 		return "", fmt.Errorf("ongeldige WordPress-versie %q", version)
@@ -224,24 +248,32 @@ func controleerLockVersie(dir, version string) error {
 	if err != nil {
 		return errors.New("composer.lock niet leesbaar na composer update")
 	}
+	gevonden, err := wordpressVersieUitLock(data)
+	if err != nil {
+		return err
+	}
+	if gevonden != strings.TrimPrefix(version, "v") {
+		return fmt.Errorf("composer.lock bevat roots/wordpress %s, verwacht %s", gevonden, version)
+	}
+	return nil
+}
+
+// wordpressVersieUitLock haalt de roots/wordpress-versie (zonder leidende v)
+// uit de inhoud van een composer.lock, in packages of packages-dev.
+func wordpressVersieUitLock(data []byte) (string, error) {
 	var lock struct {
 		Packages    []struct{ Name, Version string } `json:"packages"`
 		PackagesDev []struct{ Name, Version string } `json:"packages-dev"`
 	}
 	if err := json.Unmarshal(data, &lock); err != nil {
-		return errors.New("composer.lock is geen geldige JSON")
+		return "", errors.New("composer.lock is geen geldige JSON")
 	}
 	for _, p := range append(lock.Packages, lock.PackagesDev...) {
-		if p.Name != "roots/wordpress" {
-			continue
+		if p.Name == "roots/wordpress" {
+			return strings.TrimPrefix(p.Version, "v"), nil
 		}
-		gevonden := strings.TrimPrefix(p.Version, "v")
-		if gevonden != strings.TrimPrefix(version, "v") {
-			return fmt.Errorf("composer.lock bevat roots/wordpress %s, verwacht %s", gevonden, version)
-		}
-		return nil
 	}
-	return errors.New("composer.lock bevat geen roots/wordpress")
+	return "", errors.New("composer.lock bevat geen roots/wordpress")
 }
 
 // execComposer draait de echte composer-binary.
