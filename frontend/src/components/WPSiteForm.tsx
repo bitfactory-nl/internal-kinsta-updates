@@ -125,7 +125,8 @@ export default function WPSiteForm({ initial, isNew, hasPassword, projectMissing
 
   const verwijderen = async () => {
     if (!onDelete) return
-    if (!(await bevestig('Site verwijderen?', `Site "${site.name}" en het opgeslagen Application Password verwijderen?`))) return
+    const mapTekst = site.projectPath ? ' Wil je hem in de lijst houden, voeg de map dan opnieuw toe als lokaal project.' : ''
+    if (!(await bevestig('Site verwijderen?', `De site verdwijnt uit de tool en het Application Password uit de Keychain. De lokale map blijft staan.${mapTekst}`))) return
     await voerUit('verwijderen', async () => {
       await Services.WPSiteService.Delete(site.id)
       onDelete()

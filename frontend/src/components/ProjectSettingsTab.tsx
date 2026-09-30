@@ -282,6 +282,7 @@ export default function ProjectSettingsTab({ project, onLocalUrlSaved, onRegiste
             projectMissing={wpKoppeling?.projectMissing}
             onSaved={v => { setWpKoppeling(v); onLocalUrlSaved() }}
             onUnlink={() => onRegisterChanged(project.siteId)}
+            onDelete={project.siteId ? () => onRegisterChanged() : undefined}
           />
         </div>
       )}
