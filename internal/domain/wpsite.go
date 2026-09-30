@@ -23,6 +23,10 @@ type WPSite struct {
 	// Depot markeert de SatisPress-depotsite: na een core-update daar maakt de
 	// tool een Composer-PR. Er is er hooguit één.
 	Depot bool `json:"depot,omitempty" yaml:"depot,omitempty"`
+	// KinstaSiteID/KinstaEnvID koppelen de site aan Kinsta; ze gaan voor op
+	// een koppeling in .rdm/config.yml en werken ook zonder lokale map.
+	KinstaSiteID string `json:"kinstaSiteId,omitempty" yaml:"kinsta_site_id,omitempty"`
+	KinstaEnvID  string `json:"kinstaEnvId,omitempty" yaml:"kinsta_env_id,omitempty"`
 }
 
 // Zelfde regel als wp-fleet-mcp's sites.json, zodat elke id daar ook geldig is.

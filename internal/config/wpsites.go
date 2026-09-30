@@ -66,28 +66,7 @@ func SaveWPSites(path string, sites []domain.WPSite) error {
 	if err != nil {
 		return fmt.Errorf("wp-sites: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return fmt.Errorf("wp-sites map: %w", err)
-	}
-	// Atomisch: eerst een tijdelijk bestand naast het doel, dan hernoemen. Een
-	// crash halverwege laat zo nooit een half bestand achter.
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".wp-sites-*.yml")
-	if err != nil {
-		return fmt.Errorf("wp-sites tijdelijk bestand: %w", err)
-	}
-	defer os.Remove(tmp.Name())
-	if err := tmp.Chmod(0o600); err != nil {
-		tmp.Close()
-		return fmt.Errorf("wp-sites rechten: %w", err)
-	}
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		return fmt.Errorf("wp-sites schrijven: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("wp-sites schrijven: %w", err)
-	}
-	return os.Rename(tmp.Name(), path)
+	return atomischSchrijven(path, data)
 }
 
 // validateWPSites geeft fouten zonder voorvoegsel; de aanroeper zet er het
@@ -118,6 +97,32 @@ func validateWPSites(sites []domain.WPSite) error {
 		}
 	}
 	return nil
+}
+
+// atomischSchrijven schrijft data atomisch naar path: eerst een tijdelijk
+// bestand naast het doel, dan hernoemen. Een crash halverwege laat zo nooit
+// een half bestand achter.
+func atomischSchrijven(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("map: %w", err)
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*.yml")
+	if err != nil {
+		return fmt.Errorf("tijdelijk bestand: %w", err)
+	}
+	defer os.Remove(tmp.Name())
+	if err := tmp.Chmod(0o600); err != nil {
+		tmp.Close()
+		return fmt.Errorf("rechten: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("schrijven: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("schrijven: %w", err)
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 // ExpandHome zet een pad dat met ~/ begint om naar een absoluut pad.

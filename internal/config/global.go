@@ -75,6 +75,7 @@ func defaultGlobal() Global {
 		PluginRepo: PluginRepo{Ref: "main"},
 		Updates:    UpdatesGlobal{AutoCheck: boolPtr(true)},
 		WPFleet:    WPFleetGlobal{Image: DefaultWPFleetImage},
+		CloneDir:   "~/Projects",
 	}
 }
 
@@ -96,6 +97,9 @@ func applyDefaults(g *Global) {
 	}
 	if g.WPFleet.Image == "" {
 		g.WPFleet.Image = DefaultWPFleetImage
+	}
+	if g.CloneDir == "" {
+		g.CloneDir = "~/Projects"
 	}
 }
 

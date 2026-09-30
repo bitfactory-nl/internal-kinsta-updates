@@ -13,6 +13,8 @@ type Global struct {
 	Wordfence     WordfenceGlobal `yaml:"wordfence"`
 	Updates       UpdatesGlobal   `yaml:"updates"`
 	WPFleet       WPFleetGlobal   `yaml:"wpfleet"`
+	// CloneDir is de map waarin Org-sync nieuwe repo's clonet.
+	CloneDir string `yaml:"clone_dir"`
 }
 
 // UpdatesGlobal regelt de zelf-update van de tool.

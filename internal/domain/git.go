@@ -122,6 +122,13 @@ type ProjectStatusSummary struct {
 	IsRepo      bool   `json:"isRepo"`
 	// DeployType is the `type` from deploy_conf.json (e.g. wordpress_kinsta).
 	DeployType string `json:"deployType"`
+	// SiteID is de id in wp-sites.yml; leeg voor een lokaal project zonder
+	// WordPress-koppeling.
+	SiteID string `json:"siteId,omitempty"`
+	// Local geeft aan of het project een lokale map in het register heeft.
+	Local bool `json:"local"`
+	// Missing geeft aan of de map in het register staat maar niet bestaat.
+	Missing bool `json:"missing"`
 }
 
 type GraphCommit struct {

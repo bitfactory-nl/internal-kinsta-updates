@@ -33,6 +33,13 @@ type Project struct {
 	Deploy      DeployConf    `json:"deploy"`
 	Git         GitStatus     `json:"git"`
 	LastScanAt  time.Time     `json:"lastScanAt"`
+	// SiteID is de id in wp-sites.yml; leeg voor een lokaal project zonder
+	// WordPress-koppeling.
+	SiteID string `json:"siteId,omitempty"`
+	// Local geeft aan of het project een lokale map in het register heeft.
+	Local bool `json:"local"`
+	// Missing geeft aan of de map in het register staat maar niet bestaat.
+	Missing bool `json:"missing"`
 }
 
 type SSHTarget struct {
