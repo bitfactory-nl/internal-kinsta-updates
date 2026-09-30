@@ -788,6 +788,39 @@ export class DBEditorInfo {
 }
 
 /**
+ * DepotCoreStatus vergelijkt de live WordPress-versie van de depotsite met
+ * de versie in composer.lock op de default-branch van de repo.
+ */
+export class DepotCoreStatus {
+    "live": string;
+    "locked": string;
+    "needsPr": boolean;
+
+    /** Creates a new DepotCoreStatus instance. */
+    constructor($$source: Partial<DepotCoreStatus> = {}) {
+        if (!("live" in $$source)) {
+            this["live"] = "";
+        }
+        if (!("locked" in $$source)) {
+            this["locked"] = "";
+        }
+        if (!("needsPr" in $$source)) {
+            this["needsPr"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DepotCoreStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): DepotCoreStatus {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DepotCoreStatus($$parsedSource as Partial<DepotCoreStatus>);
+    }
+}
+
+/**
  * EnvSSHEndpoint is one environment's SSH endpoint as Kinsta reports it. The API
  * has no username field, so that has to come from the project's own config.
  */

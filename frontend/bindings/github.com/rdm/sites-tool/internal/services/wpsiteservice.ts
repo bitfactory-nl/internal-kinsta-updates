@@ -39,6 +39,15 @@ export function Delete(id: string): $CancellablePromise<void> {
 }
 
 /**
+ * DepotCoreStatus meldt of composer.lock achterloopt op de live versie.
+ */
+export function DepotCoreStatus(siteID: string): $CancellablePromise<$models.DepotCoreStatus> {
+    return $Call.ByID(4089058376, siteID).then(($result: any) => {
+        return $$createType2($result);
+    });
+}
+
+/**
  * DetectBridge kijkt of de nb-mcp-bridge mu-plugin in de checkout staat.
  */
 export function DetectBridge(projectID: string): $CancellablePromise<boolean> {
@@ -51,19 +60,30 @@ export function DetectBridge(projectID: string): $CancellablePromise<boolean> {
  */
 export function FleetUpdates(refresh: boolean): $CancellablePromise<$models.FleetSiteUpdates[]> {
     return $Call.ByID(484879223, refresh).then(($result: any) => {
-        return $$createType3($result);
+        return $$createType4($result);
     });
 }
 
 export function ForProject(projectID: string): $CancellablePromise<$models.WPSiteView | null> {
     return $Call.ByID(3799675381, projectID).then(($result: any) => {
-        return $$createType4($result);
+        return $$createType5($result);
     });
 }
 
 export function List(): $CancellablePromise<$models.WPSiteView[]> {
     return $Call.ByID(3527472545).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType6($result);
+    });
+}
+
+/**
+ * OpenDepotCorePR maakt los van een live update de Composer-PR die
+ * composer.lock op de live versie zet. Raakt de live site niet, dus
+ * alleen-lezen houdt hem niet tegen; wel één run per site tegelijk.
+ */
+export function OpenDepotCorePR(siteID: string): $CancellablePromise<$models.RunResult> {
+    return $Call.ByID(4169587996, siteID).then(($result: any) => {
+        return $$createType7($result);
     });
 }
 
@@ -80,7 +100,7 @@ export function Stats(): $CancellablePromise<[number, number]> {
  */
 export function SuggestForProject(projectID: string): $CancellablePromise<domain$0.WPSite> {
     return $Call.ByID(3785860885, projectID).then(($result: any) => {
-        return $$createType6($result);
+        return $$createType8($result);
     });
 }
 
@@ -91,7 +111,7 @@ export function SuggestForProject(projectID: string): $CancellablePromise<domain
  */
 export function TestConnection(id: string): $CancellablePromise<$models.ConnectionResult> {
     return $Call.ByID(3374618425, id).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType9($result);
     });
 }
 
@@ -116,29 +136,30 @@ export function Update(site: domain$0.WPSite, password: string): $CancellablePro
 
 export function UpdateCore(siteID: string, allowMajor: boolean): $CancellablePromise<$models.RunResult> {
     return $Call.ByID(3029095523, siteID, allowMajor).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType7($result);
     });
 }
 
 export function UpdatePlugins(siteID: string, plugins: string[], all: boolean): $CancellablePromise<$models.RunResult> {
     return $Call.ByID(2430331180, siteID, plugins, all).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType7($result);
     });
 }
 
 export function UpdateTranslations(siteID: string): $CancellablePromise<$models.RunResult> {
     return $Call.ByID(1230038180, siteID).then(($result: any) => {
-        return $$createType8($result);
+        return $$createType7($result);
     });
 }
 
 // Private type creation functions
 const $$createType0 = $models.SiteUpdates.createFrom;
 const $$createType1 = $models.WPSiteView.createFrom;
-const $$createType2 = $models.FleetSiteUpdates.createFrom;
-const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = $Create.Nullable($$createType1);
-const $$createType5 = $Create.Array($$createType1);
-const $$createType6 = domain$0.WPSite.createFrom;
-const $$createType7 = $models.ConnectionResult.createFrom;
-const $$createType8 = $models.RunResult.createFrom;
+const $$createType2 = $models.DepotCoreStatus.createFrom;
+const $$createType3 = $models.FleetSiteUpdates.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = $Create.Nullable($$createType1);
+const $$createType6 = $Create.Array($$createType1);
+const $$createType7 = $models.RunResult.createFrom;
+const $$createType8 = domain$0.WPSite.createFrom;
+const $$createType9 = $models.ConnectionResult.createFrom;

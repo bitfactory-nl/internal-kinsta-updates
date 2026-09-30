@@ -80,6 +80,7 @@ export {
     CoreUpdateOffer,
     CoreUpdateResult,
     DBEditorInfo,
+    DepotCoreStatus,
     EnvSSHEndpoint,
     FeedMeta,
     FetchAllResult,
