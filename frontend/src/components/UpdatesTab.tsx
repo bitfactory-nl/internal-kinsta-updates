@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
 import type { UpdateBranch, UpdateDetail } from '../../bindings/github.com/rdm/sites-tool/internal/services'
+import type { WPSiteView } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import WorkflowsPanel from './WorkflowsPanel'
+import SiteUpdatesPanel from './SiteUpdatesPanel'
 
 interface Props {
   projectId: string
@@ -126,7 +128,7 @@ function UpdateDetailPanel({ detail }: { detail: UpdateDetail }) {
   )
 }
 
-export default function UpdatesTab({ projectId, currentBranch, onBranchCheckedOut }: Props) {
+function UpdateBranches({ projectId, currentBranch, onBranchCheckedOut }: Props) {
   const [branches, setBranches] = useState<UpdateBranch[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [checkingOut, setCheckingOut] = useState<string | null>(null)
@@ -337,6 +339,29 @@ export default function UpdatesTab({ projectId, currentBranch, onBranchCheckedOu
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+export default function UpdatesTab(props: Props) {
+  const [koppeling, setKoppeling] = useState<WPSiteView | null>(null)
+  useEffect(() => {
+    let actueel = true
+    setKoppeling(null)
+    Services.WPSiteService.ForProject(props.projectId)
+      .then(v => { if (actueel) setKoppeling(v ?? null) })
+      .catch(() => { if (actueel) setKoppeling(null) })
+    return () => { actueel = false }
+  }, [props.projectId])
+
+  return (
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+      {koppeling && (
+        <div className="max-w-[960px] px-7 pt-6">
+          <SiteUpdatesPanel view={koppeling} />
+        </div>
+      )}
+      <UpdateBranches {...props} />
     </div>
   )
 }

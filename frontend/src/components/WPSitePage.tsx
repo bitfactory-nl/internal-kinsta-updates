@@ -1,4 +1,5 @@
 import WPSiteForm from './WPSiteForm'
+import SiteUpdatesPanel from './SiteUpdatesPanel'
 import type { WPSite } from '../../bindings/github.com/rdm/sites-tool/internal/domain/models'
 import type { WPSiteView } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 
@@ -40,6 +41,11 @@ export default function WPSitePage({ view, onSaved, onDeleted, onUnlinked }: Pro
             onDelete={onDeleted}
           />
         </div>
+        {view && view.hasPassword && (
+          <div className="max-w-[760px] mt-4">
+            <SiteUpdatesPanel view={view} />
+          </div>
+        )}
       </div>
     </div>
   )
