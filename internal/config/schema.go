@@ -15,6 +15,9 @@ type Global struct {
 	WPFleet       WPFleetGlobal   `yaml:"wpfleet"`
 	// CloneDir is de map waarin Org-sync nieuwe repo's clonet.
 	CloneDir string `yaml:"clone_dir"`
+	// ImportDone is gezet zodra de eenmalige import van de oude projectscan
+	// is afgerond of overgeslagen.
+	ImportDone bool `yaml:"import_done"`
 }
 
 // UpdatesGlobal regelt de zelf-update van de tool.

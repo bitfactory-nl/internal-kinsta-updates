@@ -186,6 +186,18 @@ func (s *WPSiteService) DetectBridge(projectID string) (bool, error) {
 }
 
 func (s *WPSiteService) Create(site domain.WPSite, password string) (WPSiteView, error) {
+	return s.create(site, password, true)
+}
+
+// CreateWithoutPassword legt een site vast zonder Application Password en dus
+// zonder Keychain-item; het wachtwoord volgt later via Update. Bedoeld voor de
+// eenmalige import.
+func (s *WPSiteService) CreateWithoutPassword(site domain.WPSite) (WPSiteView, error) {
+	return s.create(site, "", false)
+}
+
+// create is de gedeelde kern van Create en CreateWithoutPassword.
+func (s *WPSiteService) create(site domain.WPSite, password string, needPassword bool) (WPSiteView, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sites, err := config.LoadWPSites(s.path)
@@ -200,14 +212,18 @@ func (s *WPSiteService) Create(site domain.WPSite, password string) (WPSiteView,
 			return WPSiteView{}, fmt.Errorf("id %q bestaat al", site.ID)
 		}
 	}
-	if password == "" {
-		return WPSiteView{}, errors.New("Application Password is verplicht bij een nieuwe site")
-	}
-	if err := s.secrets.Set(config.WPSecretAccount(site.ID), password); err != nil {
-		return WPSiteView{}, err
+	if needPassword {
+		if password == "" {
+			return WPSiteView{}, errors.New("Application Password is verplicht bij een nieuwe site")
+		}
+		if err := s.secrets.Set(config.WPSecretAccount(site.ID), password); err != nil {
+			return WPSiteView{}, err
+		}
 	}
 	if err := config.SaveWPSites(s.path, append(sites, site)); err != nil {
-		_ = s.secrets.Delete(config.WPSecretAccount(site.ID))
+		if needPassword {
+			_ = s.secrets.Delete(config.WPSecretAccount(site.ID))
+		}
 		return WPSiteView{}, err
 	}
 	s.herlaad()
