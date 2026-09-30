@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as Services from '../../bindings/github.com/rdm/sites-tool/internal/services'
-import type { WPSiteView, SiteUpdates, RunResult } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
+import type { WPSiteView, SiteUpdates, RunResult, DepotCoreStatus } from '../../bindings/github.com/rdm/sites-tool/internal/services/models'
 import Foutvak from './Foutvak'
 import KnopTekst from './KnopTekst'
 import { bevestig } from '../lib/bevestig'
 import ExternalLink from './ExternalLink'
 import { hoogsteVersie, vergelijkVersie } from '../lib/versie'
 
-type Actie = 'verversen' | 'plugins' | 'alles' | 'core' | 'vertalingen'
+type Actie = 'verversen' | 'plugins' | 'alles' | 'core' | 'vertalingen' | 'composerpr'
 
 const knop = 'bg-accent text-white text-[12px] font-semibold px-3 py-1.5 rounded-lg hover:brightness-110 disabled:opacity-50 transition'
 const knopStil = 'border border-border text-fg-muted text-[12px] px-3 py-1.5 rounded-lg hover:bg-hover disabled:opacity-50 transition'
@@ -24,6 +24,8 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
   const [gekozen, setGekozen] = useState<Set<string>>(new Set())
   const [major, setMajor] = useState(false)
   const [resultaat, setResultaat] = useState<RunResult | null>(null)
+  const [depot, setDepot] = useState<DepotCoreStatus | null>(null)
+  const [depotFout, setDepotFout] = useState<string | null>(null)
   const bezig = actie !== null
 
   const laad = useCallback(async (refresh: boolean) => {
@@ -36,7 +38,19 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
     }
   }, [site.id])
 
+  // Alleen op de depotsite: loopt composer.lock in de repo achter op live?
+  // Een fout hier mag het blok niet blokkeren.
+  const laadDepot = useCallback(async () => {
+    if (!site.depot) return
+    try {
+      setDepot(await Services.WPSiteService.DepotCoreStatus(site.id)); setDepotFout(null)
+    } catch (e) {
+      setDepot(null); setDepotFout(foutTekst(e))
+    }
+  }, [site.id, site.depot])
+
   useEffect(() => { setData(null); setResultaat(null); setMajor(false); void laad(false) }, [laad])
+  useEffect(() => { setDepot(null); setDepotFout(null); void laadDepot() }, [laadDepot])
 
   const waarschuwing = site.depot
     ? null
@@ -47,10 +61,11 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
     setActie(a); setFout(null); setResultaat(null)
     try {
       setResultaat(await werk())
-      await laad(true)
+      if (a !== 'composerpr') await laad(true)
     } catch (e) {
       setFout(foutTekst(e))
     } finally {
+      if (a === 'core' || a === 'composerpr') await laadDepot()
       setMajor(false)
       setActie(null)
     }
@@ -77,6 +92,7 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
     const doel = hoogsteVersie((toegestaan.length > 0 ? toegestaan : core).map(c => c.version)) ?? '?'
     return `WordPress ${huidig} → ${doel}${major ? ' (major toegestaan)' : ''}`
   }
+  const alleGekozen = plugins.length > 0 && plugins.every(p => gekozen.has(p.id))
   const niksTeDoen = data && core.length === 0 && plugins.length === 0 && themes.length === 0 && data.translations === 0
 
   return (
@@ -90,6 +106,19 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
       {fout && <Foutvak fout={fout} className="mb-3" />}
       {site.readOnly && <p className="text-[11.5px] text-fg-faint mb-3">Deze site staat op alleen-lezen: bijwerken vanuit de tool staat uit.</p>}
       {!data && !fout && <p className="text-[12px] text-fg-faint">Laden…</p>}
+      {depot?.needsPr && (
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-[12px] text-amber flex-1">Live draait WordPress {depot.live}, composer.lock staat op {depot.locked}.</span>
+          {/* Raakt de live site niet, dus ook bij alleen-lezen beschikbaar. */}
+          <button disabled={bezig} className={knop}
+            onClick={() => voerUit('composerpr', 'Composer-PR maken?',
+              `composer.lock in de repo naar WordPress ${depot.live} zetten (nu ${depot.locked}). De live site verandert niet.`,
+              () => Services.WPSiteService.OpenDepotCorePR(site.id))}>
+            <KnopTekst tekst="Composer-PR maken" bezig={actie === 'composerpr'} />
+          </button>
+        </div>
+      )}
+      {depotFout && <p className="text-[11px] text-fg-faint mb-3">Composer-status niet op te halen: {depotFout}</p>}
       {niksTeDoen && <p className="text-[12px] text-green">Alles is bijgewerkt.</p>}
 
       {core.length > 0 && (
@@ -118,7 +147,31 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
       {plugins.length > 0 && (
         <div className="mb-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-faint mb-1.5">Plugins ({plugins.length})</p>
+          <div className="flex items-center gap-2 mb-2">
+            <button disabled={!kanUitvoeren || gekozen.size === 0} className={knop}
+              onClick={() => voerUit('plugins', 'Plugins bijwerken?',
+                `${gekozen.size} plugin(s) bijwerken.${site.depot ? ' De PR komt via de SatisPress-workflow op GitHub.' : ''}`,
+                () => Services.WPSiteService.UpdatePlugins(site.id, [...gekozen], false))}>
+              <KnopTekst tekst="Geselecteerde bijwerken" bezig={actie === 'plugins'} />
+            </button>
+            <button disabled={!kanUitvoeren} className={knopStil}
+              onClick={() => voerUit('alles', 'Alle plugins bijwerken?',
+                `Alle ${plugins.length} plugins bijwerken.${site.depot ? ' De PR komt via de SatisPress-workflow op GitHub.' : ''}`,
+                () => Services.WPSiteService.UpdatePlugins(site.id, [], true))}>
+              <KnopTekst tekst="Alles bijwerken" bezig={actie === 'alles'} />
+            </button>
+          </div>
           <table className="w-full text-[12px]">
+            <thead>
+              <tr>
+                <th className="py-1 w-6 text-left font-normal">
+                  <input type="checkbox" aria-label="Alles selecteren" title="Alles selecteren" checked={alleGekozen} disabled={!kanUitvoeren}
+                    onChange={e => setGekozen(e.target.checked ? new Set(plugins.map(p => p.id)) : new Set())} />
+                </th>
+                <th className="py-1 text-left font-normal text-[11px] text-fg-faint">Alles selecteren</th>
+                <th />
+              </tr>
+            </thead>
             <tbody>
               {plugins.map(p => (
                 <tr key={p.id} className="border-t border-border">
@@ -136,20 +189,6 @@ export default function SiteUpdatesPanel({ view }: { view: WPSiteView }) {
               ))}
             </tbody>
           </table>
-          <div className="flex items-center gap-2 mt-2">
-            <button disabled={!kanUitvoeren || gekozen.size === 0} className={knop}
-              onClick={() => voerUit('plugins', 'Plugins bijwerken?',
-                `${gekozen.size} plugin(s) bijwerken.${site.depot ? ' De PR komt via de SatisPress-workflow op GitHub.' : ''}`,
-                () => Services.WPSiteService.UpdatePlugins(site.id, [...gekozen], false))}>
-              <KnopTekst tekst="Geselecteerde bijwerken" bezig={actie === 'plugins'} />
-            </button>
-            <button disabled={!kanUitvoeren} className={knopStil}
-              onClick={() => voerUit('alles', 'Alle plugins bijwerken?',
-                `Alle ${plugins.length} plugins bijwerken.${site.depot ? ' De PR komt via de SatisPress-workflow op GitHub.' : ''}`,
-                () => Services.WPSiteService.UpdatePlugins(site.id, [], true))}>
-              <KnopTekst tekst="Alles bijwerken" bezig={actie === 'alles'} />
-            </button>
-          </div>
         </div>
       )}
 
