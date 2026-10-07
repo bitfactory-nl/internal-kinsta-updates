@@ -20,6 +20,8 @@ type fleetSite struct {
 	ReadOnly    bool     `json:"readOnly"`
 	AllowHTTP   bool     `json:"allowHttp"`
 	Bridge      bool     `json:"bridge"`
+	// Github is het PR-doel van upload_plugin; nil als de projectmap onbekend is.
+	Github *GithubTarget `json:"github,omitempty"`
 }
 
 type fleetFile struct {
@@ -33,19 +35,24 @@ func EnvName(id string) string {
 }
 
 // BuildSitesJSON zet sites om naar het sites.json-formaat van wp-fleet-mcp.
-// project_path is iets van de tool en gaat niet mee.
-func BuildSitesJSON(sites []domain.WPSite) ([]byte, error) {
+// project_path is iets van de tool en gaat niet mee; wat eruit afgeleid is
+// (repo + pluginmap) komt via targets, per site-id.
+func BuildSitesJSON(sites []domain.WPSite, targets map[string]GithubTarget) ([]byte, error) {
 	out := fleetFile{Sites: make([]fleetSite, 0, len(sites))}
 	for _, s := range sites {
 		tags := s.Tags
 		if tags == nil {
 			tags = []string{}
 		}
-		out.Sites = append(out.Sites, fleetSite{
+		site := fleetSite{
 			ID: s.ID, Name: s.Name, URL: s.URL, Username: s.Username,
 			PasswordEnv: EnvName(s.ID), Tags: tags,
 			ReadOnly: s.ReadOnly, AllowHTTP: s.AllowHTTP(), Bridge: s.Bridge,
-		})
+		}
+		if t, ok := targets[s.ID]; ok {
+			site.Github = &t
+		}
+		out.Sites = append(out.Sites, site)
 	}
 	return json.MarshalIndent(out, "", "  ")
 }
@@ -56,6 +63,11 @@ type RunOptions struct {
 	ReadOnly      bool
 	SitesJSONPath string
 	EnvNames      []string
+	// ZipDirs worden read-only op hetzelfde pad gemount en als PLUGIN_ZIP_DIR
+	// doorgegeven, zodat upload_plugin een gesleepte zip kan lezen.
+	ZipDirs []string
+	// GitHubToken: geef GITHUB_TOKEN (alleen de naam) door voor de PR's.
+	GitHubToken bool
 }
 
 // DockerArgs bouwt de argumenten voor `docker run`. Van de secret-variabelen
@@ -68,6 +80,15 @@ func DockerArgs(o RunOptions) []string {
 	}
 	if o.ReadOnly {
 		args = append(args, "-e", "MCP_READ_ONLY=true")
+	}
+	if o.GitHubToken {
+		args = append(args, "-e", "GITHUB_TOKEN")
+	}
+	if len(o.ZipDirs) > 0 {
+		args = append(args, "-e", "PLUGIN_ZIP_DIR="+strings.Join(o.ZipDirs, ","))
+		for _, d := range o.ZipDirs {
+			args = append(args, "-v", d+":"+d+":ro")
+		}
 	}
 	return append(args,
 		"-v", o.SitesJSONPath+":/app/config/sites.json:ro",

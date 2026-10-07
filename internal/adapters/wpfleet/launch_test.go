@@ -67,6 +67,7 @@ func TestHelperProcess(t *testing.T) {
 		json.NewEncoder(os.Stdout).Encode(map[string]any{
 			"args":   args,
 			"secret": os.Getenv("WP_KLANT_A_APP_PASSWORD"),
+			"github": os.Getenv("GITHUB_TOKEN"),
 			"sites":  string(sites),
 			"dir":    filepath.Dir(sitesPath),
 		})
@@ -178,5 +179,55 @@ func TestLaunchZonderSites(t *testing.T) {
 	}
 	if aangeroepen {
 		t.Fatal("docker is aangeroepen terwijl er geen sites zijn")
+	}
+}
+
+func TestLaunchGeeftGithubDoelEnTokenViaEnv(t *testing.T) {
+	nepDocker(t, "ok")
+	nepRemote(t, "git@github.com:org/klant-a.git", nil)
+	origTok := ghAuthToken
+	ghAuthToken = func(context.Context) string { return "gho_geheim" }
+	t.Cleanup(func() { ghAuthToken = origTok })
+
+	project := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(project, "wp-content", "plugins"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sites := testSites()
+	sites[0].ProjectPath = project
+
+	var stdout bytes.Buffer
+	env := []string{}
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "GITHUB_TOKEN=") {
+			env = append(env, kv)
+		}
+	}
+	_, err := Launch(context.Background(), LaunchConfig{
+		Sites: sites, Image: "img", Secret: secretVoorA,
+		Stdin: strings.NewReader(""), Stdout: &stdout, Stderr: &bytes.Buffer{},
+		BaseEnv: append(env, "WPFLEET_HELPER=1", "WPFLEET_MODUS=ok"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen struct {
+		Args   []string `json:"args"`
+		Github string   `json:"github"`
+		Sites  string   `json:"sites"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &seen); err != nil {
+		t.Fatalf("stdout: %q (%v)", stdout.String(), err)
+	}
+	if seen.Github != "gho_geheim" {
+		t.Fatalf("GITHUB_TOKEN niet in env van docker: %q", seen.Github)
+	}
+	for _, a := range seen.Args {
+		if strings.Contains(a, "gho_geheim") {
+			t.Fatalf("token in argv: %v", seen.Args)
+		}
+	}
+	if !strings.Contains(seen.Sites, `"repo": "org/klant-a"`) || !strings.Contains(seen.Sites, `"mode": "files"`) {
+		t.Fatalf("github-doel ontbreekt in sites.json: %s", seen.Sites)
 	}
 }

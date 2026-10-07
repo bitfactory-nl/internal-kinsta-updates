@@ -21,7 +21,7 @@ func TestBuildSitesJSONGolden(t *testing.T) {
 			ProjectPath: "/Users/x/Projects/web-a", Tags: []string{"kinsta"}, Bridge: true},
 		{ID: "lokaal", Name: "Lokaal", URL: "http://lokaal.test", Username: "admin", ReadOnly: true},
 	}
-	got, err := BuildSitesJSON(sites)
+	got, err := BuildSitesJSON(sites, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
