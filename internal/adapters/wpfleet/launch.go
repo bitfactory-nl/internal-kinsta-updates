@@ -63,7 +63,13 @@ func Launch(ctx context.Context, c LaunchConfig) (int, error) {
 		return 1, fmt.Errorf("tijdelijke map: %w", err)
 	}
 
-	data, err := BuildSitesJSON(sites)
+	targets := map[string]GithubTarget{}
+	for _, s := range sites {
+		if t, ok := DetectGithubTarget(ctx, s.ProjectPath); ok {
+			targets[s.ID] = t
+		}
+	}
+	data, err := BuildSitesJSON(sites, targets)
 	if err != nil {
 		return 1, err
 	}
@@ -76,10 +82,22 @@ func Launch(ctx context.Context, c LaunchConfig) (int, error) {
 	for _, s := range sites {
 		names = append(names, EnvName(s.ID))
 	}
+	// Token via de procesomgeving, net als de Application Passwords: nooit in argv.
+	token := ""
+	if len(targets) > 0 {
+		token = GitHubToken(ctx, c.BaseEnv)
+		if token == "" {
+			fmt.Fprintln(c.Stderr, "wp-fleet: geen GitHub-token (GITHUB_TOKEN of `gh auth login`) — upload_plugin maakt geen PR")
+		}
+	}
 	cmd := execCommandContext(ctx, dockerBin(), DockerArgs(RunOptions{
 		Image: c.Image, ReadOnly: c.ReadOnly, SitesJSONPath: sitesPath, EnvNames: names,
+		ZipDirs: ZipDirs(), GitHubToken: token != "",
 	})...)
 	cmd.Env = append(append([]string{}, c.BaseEnv...), env...)
+	if token != "" {
+		cmd.Env = append(cmd.Env, "GITHUB_TOKEN="+token)
+	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = c.Stdin, c.Stdout, c.Stderr
 
 	if err := cmd.Start(); err != nil {
